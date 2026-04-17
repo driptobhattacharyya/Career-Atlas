@@ -1,0 +1,693 @@
+[
+  {
+    "id": "TC001",
+    "title": "Resume upload with target role begins processing",
+    "description": "Verifies a signed-in user can upload a resume, select a target role, and see processing begin.",
+    "category": "Onboarding Flow (Frontend)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Select a target role"
+      },
+      {
+        "type": "action",
+        "description": "Attach a valid resume PDF file to the resume upload control"
+      },
+      {
+        "type": "action",
+        "description": "Submit the resume for processing"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a processing state indicator is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Sign in and reach onboarding resume upload",
+    "description": "Verifies a job seeker can sign in and access the authenticated onboarding experience to start resume ingestion.",
+    "category": "Onboarding Flow (Frontend)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click to start onboarding"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the resume upload and target role inputs are available"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Resume processing completes and dashboard shows structured profile",
+    "description": "Verifies the user can wait for resume processing to complete and then view the resulting structured profile on the dashboard.",
+    "category": "Onboarding Flow (Frontend)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Select a target role"
+      },
+      {
+        "type": "action",
+        "description": "Attach a valid resume PDF file to the resume upload control"
+      },
+      {
+        "type": "action",
+        "description": "Submit the resume for processing"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the processing status to change to complete"
+      },
+      {
+        "type": "action",
+        "description": "Continue to the dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify structured profile data is displayed on the dashboard"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Generate roadmap from completed analysis and view results",
+    "description": "Verifies a signed-in user can generate a roadmap from an existing profile and gap analysis and sees the roadmap outputs rendered on the dashboard.",
+    "category": "Deep Researcher Agent (Roadmap & Action Plan Synthesis)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to go to onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Complete resume submission by selecting a target role and submitting a valid resume using the UI controls"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the resume processing to complete and the app to transition to the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Trigger gap analysis from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "action",
+        "description": "Trigger roadmap generation from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a roadmap output is displayed including learning steps, projects, checklist items, and priorities"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Start job search from completed profile and view ranked listings",
+    "description": "Verifies a signed-in user can run job search and sees ranked job listings with match scores and outbound links.",
+    "category": "Job Finder Agent (Job Matching & Ranking)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to go to onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Complete resume submission by selecting a target role and submitting a valid resume using the UI controls"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the resume processing to complete and the app to transition to the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Trigger gap analysis from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "action",
+        "description": "Trigger job search from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify ranked job listings are displayed with match scores and outbound URLs"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Roadmap generation is dependency-aware and ordered",
+    "description": "Verifies the generated roadmap presents coherent priorities and an ordering that reflects dependencies between steps and projects.",
+    "category": "Deep Researcher Agent (Roadmap & Action Plan Synthesis)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to go to onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Complete resume submission by selecting a target role and submitting a valid resume using the UI controls"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the resume processing to complete and the app to transition to the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Trigger gap analysis from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "action",
+        "description": "Trigger roadmap generation from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the roadmap shows a clear ordered sequence of steps with prerequisite relationships reflected in the ordering"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC007",
+    "title": "Job search supports changing target role and rerunning",
+    "description": "Verifies the user can adjust the target role for job search and receive an updated set of results without breaking the dashboard.",
+    "category": "Job Finder Agent (Job Matching & Ranking)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to go to onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Complete resume submission by selecting a target role and submitting a valid resume using the UI controls"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the resume processing to complete and the app to transition to the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Trigger gap analysis from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "action",
+        "description": "Open job search settings on the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Select a different target role for job search"
+      },
+      {
+        "type": "action",
+        "description": "Trigger job search and wait for results to appear"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify job results are displayed for the updated target role selection"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC008",
+    "title": "Dashboard route guard redirects unauthenticated users to login",
+    "description": "Verifies unauthenticated users cannot access the dashboard and are routed to the login experience.",
+    "category": "Onboarding Flow (Frontend)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the login experience is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC009",
+    "title": "Roadmap generation prevents duplicate concurrent runs",
+    "description": "Verifies the dashboard prevents or safely handles repeated roadmap generation attempts without creating a broken or duplicated roadmap view.",
+    "category": "Deep Researcher Agent (Roadmap & Action Plan Synthesis)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to go to onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Complete resume submission by selecting a target role and submitting a valid resume using the UI controls"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the resume processing to complete and the app to transition to the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Trigger gap analysis from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "action",
+        "description": "Trigger roadmap generation from the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Trigger roadmap generation again while the first generation is still in progress"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the UI shows a single roadmap generation in progress and does not render duplicate or conflicting roadmap outputs"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC010",
+    "title": "Roadmap remains visible after navigating within dashboard",
+    "description": "Verifies that once a roadmap is generated, the user can navigate to other dashboard sections and return without losing the displayed roadmap.",
+    "category": "Deep Researcher Agent (Roadmap & Action Plan Synthesis)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to go to onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Complete resume submission by selecting a target role and submitting a valid resume using the UI controls"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the resume processing to complete and the app to transition to the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Trigger gap analysis from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "action",
+        "description": "Trigger roadmap generation from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "action",
+        "description": "Click to view the job search section of the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Click to return to the roadmap section of the dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the previously generated roadmap output is still displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC011",
+    "title": "Job search prevents duplicate concurrent runs",
+    "description": "Verifies the UI prevents or safely handles repeated job search attempts while a search is already running.",
+    "category": "Job Finder Agent (Job Matching & Ranking)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to go to onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Complete resume submission by selecting a target role and submitting a valid resume using the UI controls"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the resume processing to complete and the app to transition to the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Trigger gap analysis from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "action",
+        "description": "Trigger job search from the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Trigger job search again while the first search is still in progress"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the UI shows a single job search in progress and does not render duplicate or conflicting results"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC012",
+    "title": "Job result links are usable from the dashboard",
+    "description": "Verifies that job cards provide accessible outbound URLs that the user can interact with to view the posting details.",
+    "category": "Job Finder Agent (Job Matching & Ranking)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to go to onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Complete resume submission by selecting a target role and submitting a valid resume using the UI controls"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the resume processing to complete and the app to transition to the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Trigger gap analysis from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "action",
+        "description": "Trigger job search from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "action",
+        "description": "Click a job listing outbound link"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the browser navigates away from the app to an external job posting page"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC013",
+    "title": "Roadmap section handles empty state before generation",
+    "description": "Verifies the dashboard shows an appropriate empty state for the roadmap section before any roadmap is generated.",
+    "category": "Deep Researcher Agent (Roadmap & Action Plan Synthesis)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to go to onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Complete resume submission by selecting a target role and submitting a valid resume using the UI controls"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the resume processing to complete and the app to transition to the dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the roadmap section indicates no roadmap has been generated yet and provides a clear way to start generation"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC014",
+    "title": "Invalid credentials prevent sign-in",
+    "description": "Verifies a user entering invalid credentials cannot sign in and is shown an authentication error state.",
+    "category": "Onboarding Flow (Frontend)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with invalid-user@example.com"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with wrong-password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an authentication error is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user remains on the login experience"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC015",
+    "title": "Job listings empty state is handled",
+    "description": "Verifies that if no job results are available, the dashboard shows a clear empty state instead of a broken or blank UI.",
+    "category": "Job Finder Agent (Job Matching & Ranking)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to go to onboarding"
+      },
+      {
+        "type": "action",
+        "description": "Complete resume submission by selecting a target role and submitting a valid resume using the UI controls"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the resume processing to complete and the app to transition to the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Trigger gap analysis from the dashboard and wait for results to appear"
+      },
+      {
+        "type": "action",
+        "description": "Trigger job search from the dashboard and wait for completion"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify either job listings are displayed or an empty state message is visible indicating no matches were found"
+      }
+    ],
+    "priority": "Low"
+  }
+]

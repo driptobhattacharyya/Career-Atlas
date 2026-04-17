@@ -1,0 +1,19 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:5173",
+  "backendAuthType": "public",
+  "executionArgs": {
+    "projectName": "frontend",
+    "projectPath": "d:\\IITM Data Science\\Career-Atlas\\frontend",
+    "testIds": [],
+    "additionalInstruction": "",
+    "serverMode": "development",
+    "envs": {
+      "API_KEY": "sk-user-J_lIu1I1qobY5YXB32LZyhFFaLV80u0_1xiCNSs3NIcJTfymlSVEq4lUfLZZpNuPnTzEpOgIsxAVRh0I_Fmw6dSUoRm1aB27qN53CswDDE95jC-e3WECqWZwuwJozOuifew"
+    }
+  },
+  "serverPort": 55344,
+  "proxy": "http://5079ab7f-8a02-419e-9c96-5d9981f013ca:TX1uReLLONIuyCNCGdONsJGu2st09VyO@tun.testsprite.com:8080"
+}

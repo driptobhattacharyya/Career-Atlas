@@ -1,0 +1,68 @@
+version: "2"
+type: backend
+tech_stack:
+  - Python
+  - FastAPI
+  - InsForge PostgREST
+  - Pymupdf4llm
+  - LangGraph
+  - Tavily
+routes:
+  - path: /api/parse-resume
+    file: app/main.py
+    auth_required: true
+    description: Extracts resume details via PyMuPDF4LLM and Gemini
+  - path: /api/analyze-gaps
+    file: app/main.py
+    auth_required: true
+    description: Analyzes gaps against a target role
+  - path: /api/generate-roadmap
+    file: app/main.py
+    auth_required: true
+    description: Generates learning milestones 
+  - path: /api/research-jobs
+    file: app/main.py
+    auth_required: true
+    description: Searches the web for job matches using Tavily and LangGraph
+features:
+  - name: Resume Parsing
+    description: Downloads resume from storage and parses it 
+    files:
+      - app/main.py
+    entry_route: /api/parse-resume
+    user_interactions: []
+    api_calls:
+      - method: POST
+        endpoint: /api/parse-resume
+    auth_required: true
+  - name: Gap Analysis
+    description: Fetches user skills and outputs missing skills for target role
+    files:
+      - app/main.py
+    entry_route: /api/analyze-gaps
+    user_interactions: []
+    api_calls:
+      - method: POST
+        endpoint: /api/analyze-gaps
+    auth_required: true
+  - name: Roadmap Generation
+    description: Creates weeks-long learning plans based on gaps
+    files:
+      - app/main.py
+    entry_route: /api/generate-roadmap
+    user_interactions: []
+    api_calls:
+      - method: POST
+        endpoint: /api/generate-roadmap
+    auth_required: true
+  - name: Job Researching
+    description: Searches the internet to discover jobs suited to user
+    files:
+      - app/main.py
+    entry_route: /api/research-jobs
+    user_interactions: []
+    api_calls:
+      - method: POST
+        endpoint: /api/research-jobs
+    auth_required: true
+known_limitations: []

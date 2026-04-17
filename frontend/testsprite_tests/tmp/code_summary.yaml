@@ -1,0 +1,34 @@
+version: "2"
+type: frontend
+tech_stack:
+  - TypeScript
+  - React
+  - Vite
+  - Tailwind CSS
+  - TanStack Query
+routes:
+  - path: /
+    file: src/routes/index.tsx
+    auth_required: false
+    description: Landing page
+  - path: /onboarding
+    file: src/routes/onboarding.tsx
+    auth_required: true
+    description: User signs in and uploads their resume
+  - path: /dashboard
+    file: src/routes/_app.dashboard.tsx
+    auth_required: true
+    description: Main dashboard 
+features:
+  - name: Onboarding Flow
+    description: Wait for AI tracking to finish on frontend 
+    files:
+      - src/routes/onboarding.tsx
+    entry_route: /onboarding
+    user_interactions:
+      - Drag and drop resume
+      - Pick ML Engineer Role
+      - View Analysis Status
+    api_calls: []
+    auth_required: true
+known_limitations: []

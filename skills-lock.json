@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "skills": {
+    "agentation": {
+      "source": "benjitaylor/agentation",
+      "sourceType": "github",
+      "computedHash": "1f71b231b7da40234affdbe6bbb939d43b8adc719a7beba011790d62a06b3537"
+    },
+    "brainstorming": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "f483c304fcde060211ffae00f49bb728536e7e7613c99db45b5b924d9fc17243"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "computedHash": "9e1c8b3103f92fa8092568a44fe64858de7c5c9dc65ce4bea8f168080e889cfd"
+    },
+    "insforge": {
+      "source": "insforge/agent-skills",
+      "sourceType": "github",
+      "computedHash": "e8c450520549bccc41d7b03d6f8e90b6fe761a57b6d7f3acd103bef4e63b8251"
+    },
+    "insforge-cli": {
+      "source": "insforge/agent-skills",
+      "sourceType": "github",
+      "computedHash": "3608a7fe1cfc2a53ba41fdb6ec96cba3226c2bad82d0b6c7ae7ba032fddde1bc"
+    },
+    "insforge-debug": {
+      "source": "insforge/agent-skills",
+      "sourceType": "github",
+      "computedHash": "4c46cf483f3e32d1b0ff4c7d7b1f571eb973f111a851a6e5a01610b267298ec5"
+    },
+    "insforge-integrations": {
+      "source": "insforge/agent-skills",
+      "sourceType": "github",
+      "computedHash": "66c1bcb0b3f0ee31e97b34e52cac5481b1b7bce58f1235990aa3776138e2c9c0"
+    }
+  }
+}
