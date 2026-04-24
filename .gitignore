@@ -136,6 +136,9 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
+!.env.*.example
 .envrc
 .venv
 env/
@@ -143,6 +146,18 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Secrets and local credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.kdbx
+secrets.*
+*.secret
 
 # Spyder project settings
 .spyderproject
@@ -219,7 +234,7 @@ bun.lock
 # OS
 .DS_Store
 
-# InsForge & AI agent skills
+# InsForge & local AI tooling metadata
 .insforge
 .augment
 .cline
@@ -231,3 +246,12 @@ bun.lock
 .roo
 .trae
 .windsurf
+
+# Local Claude metadata
+.claude/settings.local.json
+.claude/worktrees/
+
+# Graphify local config/output
+.graphifyignore
+graphify-out/cost.json
+graphify-out/manifest.json
