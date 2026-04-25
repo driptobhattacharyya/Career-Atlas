@@ -17,5 +17,10 @@ langchain-groq>=0.0.1
 langchain-huggingface>=0.0.1
 langgraph>=0.0.10
 
-# Search
+# Search & Retrieval
 tavily-python>=0.3.0
+pinecone>=6.0.0
+rank-bm25>=0.2.2
+
+# Environment
+python-dotenv>=1.0.0
