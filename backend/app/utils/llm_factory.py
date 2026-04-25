@@ -5,7 +5,7 @@ from app.config import settings
 from functools import lru_cache
 
 @lru_cache()
-def get_gemini_model(model_name: str = "gemini-2.5-pro", temperature: float = 0.2):
+def get_gemini_model(model_name: str = "gemini-3.1-flash-lite-preview", temperature: float = 0.2):
     """
     Returns a configured Gemini model instance. Best for complex reasoning and large context.
     """

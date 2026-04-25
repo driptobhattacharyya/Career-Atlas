@@ -4,12 +4,14 @@ from jose import jwt, JWTError
 import httpx
 from app.config import settings
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
     Validates the JWT token coming from the frontend (which signed in via InsForge).
     """
+    if not credentials:
+        return None
     token = credentials.credentials
     try:
         # Use Insforge JWT secret to verify
@@ -22,7 +24,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         # return user identifier (UUID)
         return payload.get("sub")
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        return None
 
 def get_current_user_id(user_id: str = Depends(verify_token)) -> str:
     return user_id

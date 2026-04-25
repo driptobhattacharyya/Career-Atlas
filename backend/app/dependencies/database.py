@@ -3,13 +3,21 @@ from app.config import settings
 
 class InsForgeClient:
     def __init__(self):
-        self.base_url = settings.insforge_url
+        url = settings.insforge_url.strip().rstrip("/")
+        if url and not url.startswith(("http://", "https://")):
+            url = f"https://{url}"
+        
+        self.base_url = url
         self.headers = {
             "apikey": settings.insforge_service_key,
             "Authorization": f"Bearer {settings.insforge_service_key}",
             "Content-Type": "application/json",
             "Prefer": "return=representation"
         }
+        
+        # Validate that we aren't using a placeholder
+        if "placeholder" in self.base_url or "YOUR_INSFORGE" in self.base_url:
+             print("\n⚠️  WARNING: INSFORGE_URL is not configured. Database operations will fail.")
         
     async def insert(self, table: str, data: list[dict] | dict):
         async with httpx.AsyncClient() as client:
