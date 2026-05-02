@@ -8,10 +8,11 @@ class Settings(BaseSettings):
     environment: str = os.getenv("ENVIRONMENT", "development")
     cors_origins: str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
     
-    # InsForge
-    insforge_url: str = os.getenv("INSFORGE_URL", "https://placeholder.insforge.dev")
-    insforge_service_key: str = os.getenv("INSFORGE_SERVICE_KEY", "")
-    insforge_jwt_secret: str = os.getenv("INSFORGE_JWT_SECRET", "")
+    # Supabase
+    supabase_url: str = os.getenv("SUPABASE_URL", "https://placeholder.supabase.co")
+    supabase_service_key: str = os.getenv("SUPABASE_SERVICE_KEY", "")
+    supabase_jwt_secret: str = os.getenv("SUPABASE_JWT_SECRET", "")
+    supabase_jwt_public_key: str = os.getenv("SUPABASE_JWT_PUBLIC_KEY", "")
     
     # LLMs
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")

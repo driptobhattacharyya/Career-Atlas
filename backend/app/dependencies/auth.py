@@ -14,11 +14,15 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         return None
     token = credentials.credentials
     try:
-        # Use Insforge JWT secret to verify
+        # Determine algorithm and key
+        # If the key looks like a public key, use ES256, otherwise HS256
+        key = settings.supabase_jwt_public_key or settings.supabase_jwt_secret
+        algorithm = "ES256" if "PUBLIC KEY" in key or "BEGIN" in key else "HS256"
+        
         payload = jwt.decode(
             token, 
-            settings.insforge_jwt_secret, 
-            algorithms=["HS256"], 
+            key, 
+            algorithms=[algorithm], 
             audience="authenticated"
         )
         # return user identifier (UUID)

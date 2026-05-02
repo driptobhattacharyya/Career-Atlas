@@ -3,32 +3,39 @@ from typing import List, Dict
 from app.config import settings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
+TASK_PREFIXES = {
+    "retrieval_query":    "Represent this query for searching relevant passages: ",
+    "retrieval_document": "Represent this document for retrieval: ",
+    "semantic_similarity": "Represent this sentence for semantic similarity: ",
+}
+
 class AIService:
     def __init__(self):
         self.jina_api_key = settings.jina_api_key
         self.google_api_key = settings.google_api_key
         self.jina_base_url = "https://api.jina.ai/v1"
-        
-        # Initialize Gemini Embeddings via LangChain
-        self.google_embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/gemini-embedding-2-preview",
-            google_api_key=settings.google_api_key
-        )
 
-    async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def get_embeddings(self, texts: List[str], task_type: str = "retrieval_query") -> List[List[float]]:
         """
         Retrieves embeddings using Google Gemini Embedding 2 (text-embedding-004).
+        Prepends task-specific instructions for better semantic accuracy.
         """
         if not self.google_api_key:
             raise ValueError("GOOGLE_API_KEY not configured")
         
-        # LangChain's aembed_documents is used for async support
-        return await self.google_embeddings.aembed_documents(texts)
+        prefix = TASK_PREFIXES.get(task_type, "")
+        prefixed_texts = [prefix + t for t in texts]
+        
+        embeddings = GoogleGenerativeAIEmbeddings(
+            model="models/gemini-embedding-2-preview",
+            google_api_key=settings.google_api_key,
+            task_type=task_type
+        )
+        return await embeddings.aembed_documents(prefixed_texts)
 
     async def rerank(self, query: str, documents: List[str], top_n: int = 5) -> List[Dict]:
         """
-        Reranks documents using Jina Reranker v2.
-        Includes safety check for empty documents list.
+        Reranks documents using Jina Reranker v3 (higher accuracy).
         """
         if not documents:
             return []
@@ -38,7 +45,7 @@ class AIService:
 
         url = f"{self.jina_base_url}/rerank"
         payload = {
-            "model": "jina-reranker-v2-base-multilingual",
+            "model": "jina-reranker-v3",
             "query": query,
             "documents": documents,
             "top_n": top_n
