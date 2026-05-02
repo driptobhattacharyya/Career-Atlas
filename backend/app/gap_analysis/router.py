@@ -24,19 +24,11 @@ router = APIRouter(prefix="/api/analyze-gaps", tags=["Gaps"])
 @router.post("/")
 async def analyze_gaps(
     req: AnalyzeGapsRequest,
-    user_id: str | None = Depends(get_current_user_id, use_cache=True),
-    x_test_user_id: str | None = Header(default=None),
-    test_user_id: str | None = None, # Added query param fallback
+    user_id: str = Depends(get_current_user_id, use_cache=True),
 ):
-    # Dev bypass for Postman testing
-    if settings.environment == "development":
-        test_id = x_test_user_id or test_user_id
-        if test_id:
-            print(f"🛠️ [DEV] Bypassing auth for user: {test_id}")
-            user_id = test_id
-
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
     try:
         # 1. Fetch user data from DB (using schema from Resume_Extraction_Agent.ipynb)
         user_skills = []
