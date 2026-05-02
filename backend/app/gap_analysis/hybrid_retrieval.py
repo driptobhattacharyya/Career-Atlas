@@ -51,14 +51,18 @@ def resolve_role_slug(title: str) -> str:
 @lru_cache(maxsize=16)
 def _build_bm25_corpus(role_slug: str) -> Tuple:
     """
-    Fetches all taxonomy vectors for a given role from Pinecone,
-    then builds a BM25Okapi index over their text.
+    Builds a BM25 index from Pinecone taxonomy metadata for a specific role.
 
-    Returns (bm25_index, corpus_texts, metadata_list).
-    Cached per role_slug — only rebuilds on cold start.
+    ⚠️ WARNING: Uses @lru_cache. If the Pinecone taxonomy is updated, the
+    server must be restarted to pick up the changes, or the cache cleared.
+
+    ⚠️ LIMITATION: Zero-vector fetch is a 'hack' for small corpora (<10k vectors).
+    Pinecone ordering for a zero-vector is undefined and results are not guaranteed 
+    to be exhaustive in larger serverless indexes. For production scale, 
+    use index.list() or fetch() by ID instead.
     """
     index = get_pinecone_index()
-    dim = 1024  # Jina v3 dimension
+    dim = 3072  # Gemini Embedding 2 dimension
 
     # Fetch all taxonomy nodes for this role using a zero vector
     zero_vec = [0.0] * dim
@@ -90,6 +94,7 @@ def _build_bm25_corpus(role_slug: str) -> Tuple:
 async def hybrid_retrieve(
     user_skills: List[str],
     target_role_title: str,
+    user_headline: str = "",
     semantic_top_k: int = 20,
     bm25_top_k: int = 20,
     fused_top_n: int = 15,
@@ -108,12 +113,14 @@ async def hybrid_retrieve(
     index = get_pinecone_index()
 
     # ── 1. Semantic search ────────────────────────────────────────────
+    # Embedded query refinement: Include user context if available
     query_text = (
-        f"Required skills and competencies for a {target_role_title}. "
-        f"Candidate currently knows: {', '.join(user_skills)}"
+        f"Identify essential skills for a {target_role_title}. "
+        f"The candidate is a {user_headline or 'professional'}. "
+        f"Known skills: {', '.join(user_skills)}"
     )
     query_vec = (
-        await ai_service.get_embeddings([query_text])
+        await ai_service.get_embeddings([query_text], task_type="retrieval_query")
     )[0]
 
     sem_results = index.query(
@@ -126,6 +133,7 @@ async def hybrid_retrieve(
 
     # ── 2. BM25 keyword search ────────────────────────────────────────
     bm25, corpus_texts, metadata_list = _build_bm25_corpus(role_slug)
+    meta_lookup = {m["skill_name"]: m for m in metadata_list}
 
     bm25_scores_map: Dict[str, float] = {}
     if bm25 and corpus_texts:
@@ -153,12 +161,9 @@ async def hybrid_retrieve(
         )[:bm25_top_k]
         for rank, (name, _) in enumerate(sorted_bm25):
             rrf_scores[name] = rrf_scores.get(name, 0) + 1.0 / (k + rank + 1)
-            # Fill metadata from corpus if not from semantic
-            if name not in skill_meta:
-                for m in metadata_list:
-                    if m["skill_name"] == name:
-                        skill_meta[name] = m
-                        break
+            # Fill metadata from lookup dict (O(1)) if not from semantic
+            if name not in skill_meta and name in meta_lookup:
+                skill_meta[name] = meta_lookup[name]
 
     # Sort by fused score, take top N
     fused_ranked = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)

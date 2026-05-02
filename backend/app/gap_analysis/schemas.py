@@ -42,6 +42,10 @@ class GapAnalysisResponse(BaseModel):
     )
 
 
+class AnalyzeGapsRequest(BaseModel):
+    target_role_title: str
+
+
 class GapAnalysisResult(BaseModel):
     """Full API response returned to the frontend."""
     success: bool

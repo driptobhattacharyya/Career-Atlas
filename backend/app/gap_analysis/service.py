@@ -52,6 +52,7 @@ Output strictly as JSON matching the schema."""
 async def generate_gaps_for_user(
     user_skills: List[str],
     target_role_title: str,
+    user_headline: str = "",
 ) -> List[GapSchema]:
     """
     Full gap analysis pipeline:
@@ -69,6 +70,7 @@ async def generate_gaps_for_user(
     retrieved_skills = await hybrid_retrieve(
         user_skills=user_skills,
         target_role_title=target_role_title,
+        user_headline=user_headline,
         semantic_top_k=20,
         bm25_top_k=20,
         fused_top_n=15,
@@ -93,7 +95,7 @@ async def generate_gaps_for_user(
     role_requirements_text = "\n".join(req_lines)
 
     # 2. LLM Structured Generation
-    model = get_gemini_model(model_name=settings.gap_analysis_model, temperature=0.1)
+    model = get_gemini_model(model_name=settings.gap_analysis_model, temperature=0.0)
     structured_llm = model.with_structured_output(GapAnalysisResponse)
 
     chain = GAP_ANALYSIS_PROMPT | structured_llm
