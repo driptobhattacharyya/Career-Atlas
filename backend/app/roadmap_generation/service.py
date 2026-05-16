@@ -6,7 +6,7 @@ def create_roadmap_for_gaps(skill_gaps: list[dict], target_role_title: str) -> l
     """
     Constructs an actionable learning roadmap based on identified skill gaps.
     """
-    model = get_groq_model(model_name="llama3-70b-8192", temperature=0.2)
+    model = get_groq_model(temperature=0.2)
     structured_llm = model.with_structured_output(RoadmapGenerationResponse)
     
     gaps_str = "\n".join([f"- {g['skill']} ({g['category']}) - Prereqs: {g['prerequisites']}" for g in skill_gaps])

@@ -8,6 +8,7 @@ python-multipart>=0.0.9
 # Resume Parsing
 PyMuPDF>=1.23.0
 pymupdf4llm>=0.0.17
+phonenumbers>=9.0.0
 
 # Generative AI & Langchain
 langchain>=0.1.0

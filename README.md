@@ -1,40 +1,80 @@
-# 🧭 CareerAtlas
+# CareerAtlas
 
-CareerAtlas is an AI-powered early-career development platform designed to catapult junior professionals into their target roles. It ingests user resumes, analyzes skill gaps against a target job title, constructs personalized learning roadmaps, and employs an AI Research Agent to discover highly relevant job opportunities. 
+CareerAtlas is an AI-assisted career planning app with:
+- resume extraction
+- gap analysis
+- roadmap generation
+- job discovery (optional/in-progress integration)
 
-## 🏗 System Architecture
-The application runs on a decoupled architecture containing an interactive frontend client, a Python backend acting as the AI orchestrator, and a cloud DB/Auth provider.
+## Project Structure
+- `frontend/`: Vite + React + TanStack Query
+- `backend/`: FastAPI + AI services + Supabase integration
 
-- **Frontend:** Built with Vite, React, and Bun. Handles sophisticated user onboarding, global Google authentication via InsForge, and data-rich asynchronous dashboards using `@tanstack/react-query`.
-- **Backend:** Built with Python FastAPI and managed by `uv`. Contains four discrete AI domain services: `resume_extraction`, `gap_analysis`, `roadmap_generation`, and `job_hunter`.
-- **Database & Auth:** Database schemas, RLS policies, storage, and Auth are handled entirely by InsForge.
+## Current Dev Mode
+- Google sign-in can be bypassed (`VITE_DISABLE_AUTH=true`, `DEV_BYPASS_AUTH=true`).
+- Resume upload uses backend local storage (`backend/static/resumes`) instead of Supabase bucket.
+- `target_roles` falls back to frontend defaults if table is missing.
+- Roadmap generation works even if `milestones` table is missing; persistence is skipped gracefully.
 
-## 🚀 Key Features
-- **AI Resume Parsing:** Uses `pymupdf4llm` paired with Google's Gemini Pro to effortlessly translate dense PDF resumes into perfectly structured JSON profile parameters.
-- **Gap Analysis & Roadmapping:** Leverages ultra-fast Llama-3 models (via Groq) to instantly identify missing technical/soft skills and assemble step-by-step career milestones tracking towards your target role.
-- **Deep Research Job Hunter:** Implements a LangGraph ReAct agent equipped with the Tavily search tool to actively scrape the web for live, open job requisitions that fit your exact capability gaps.
-
-## ⚙️ Local Development Setup
-
-### 1. Environment Variables
-Before running the system, populate your keys. Update `.env` files in both `/frontend` and `/backend` with your specific API tokens:
-- **InsForge**: Submitting database URL, Anon key, and secure JWT service roles.
-- **AI Tooling**: `GOOGLE_API_KEY`, `GROQ_API_KEY`, `HUGGINGFACE_API_KEY`, `TAVILY_API_KEY`.
-
-### 2. Backend API
-We enforce using `uv` for lightning-fast python virtual environments and dependencies.
+## Quick Start
+1. Backend
 ```bash
 cd backend
 uv sync
 uv run uvicorn app.main:app --reload
 ```
-*API docs will be available at `http://localhost:8000/docs`*
 
-### 3. Frontend Client
-We use `bun` as the Javascript runtime and package manager.
+2. Frontend
 ```bash
 cd frontend
 bun install
 bun dev
 ```
-*App will start locally at `http://localhost:5173`*
+
+## Required Environment
+
+### Backend (`backend/.env`)
+- `ENVIRONMENT=development`
+- `CORS_ORIGINS=http://localhost:8080,http://localhost:5173,http://localhost:3000`
+- `SUPABASE_URL=...`
+- `SUPABASE_SERVICE_KEY=...`
+- `SUPABASE_JWT_SECRET=...` (when using HS256 token validation)
+- `GOOGLE_API_KEY=...`
+- `GROQ_API_KEY=...`
+- `GROQ_MODEL=llama-3.3-70b-versatile`
+- `TAVILY_API_KEY=...`
+- `JINA_API_KEY=...`
+- `PINECONE_API_KEY=...`
+- `PINECONE_INDEX_NAME=...`
+- `PINECONE_REGION=...`
+- `PINECONE_HOST=...`
+- `DEV_BYPASS_AUTH=true` (optional dev bypass)
+- `DEV_USER_ID=<supabase auth.users UUID>` (required if bypass is true)
+
+### Frontend (`frontend/.env`)
+- `VITE_API_BASE_URL=http://localhost:8000`
+- `VITE_SUPABASE_URL=...`
+- `VITE_SUPABASE_ANON_KEY=...`
+- `VITE_DISABLE_AUTH=true` (optional dev bypass)
+- `VITE_DEV_USER_ID=<same UUID as backend DEV_USER_ID>`
+
+## Database Notes
+- Resume persistence currently follows the normalized tables:
+  - `resumes`, `contacts`, `skills`, `programming_languages`, `spoken_languages`, `keywords`
+  - `experiences`, `experience_bullets`, `experience_technologies`
+  - `education`, `education_notes`
+  - `projects`, `project_technologies`
+  - `certifications`
+- Optional/legacy tables used by some views:
+  - `profiles`
+  - `skill_gaps`
+  - `milestones` (optional; roadmap still returns generated milestones without persistence)
+  - `job_matches`
+
+## Troubleshooting
+- CORS error from `localhost:8080`:
+  - ensure backend restarted after `CORS_ORIGINS` changes.
+- `target_roles` 404:
+  - either create table and seed data, or rely on frontend fallback roles.
+- `milestones` table missing:
+  - roadmap generation still succeeds; persistence is skipped.

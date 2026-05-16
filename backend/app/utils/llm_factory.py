@@ -16,12 +16,12 @@ def get_gemini_model(model_name: str = "gemini-3.1-flash-lite-preview", temperat
     )
 
 @lru_cache()
-def get_groq_model(model_name: str = "llama3-70b-8192", temperature: float = 0.2):
+def get_groq_model(model_name: str | None = None, temperature: float = 0.2):
     """
     Returns a configured Groq model instance. Best for fast, responsive generation.
     """
     return ChatGroq(
-        model=model_name,
+        model=model_name or settings.groq_model,
         groq_api_key=settings.groq_api_key,
         temperature=temperature
     )

@@ -14,10 +14,17 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         return None
     token = credentials.credentials
     try:
-        # Determine algorithm and key
-        # If the key looks like a public key, use ES256, otherwise HS256
-        key = settings.supabase_jwt_public_key or settings.supabase_jwt_secret
-        algorithm = "ES256" if "PUBLIC KEY" in key or "BEGIN" in key else "HS256"
+        # Prefer asymmetric verification only when a real PEM public key is configured.
+        # Otherwise, fall back to shared-secret verification.
+        has_pem_public_key = "BEGIN" in (settings.supabase_jwt_public_key or "")
+        if has_pem_public_key:
+            key = settings.supabase_jwt_public_key
+            algorithm = "ES256"
+        else:
+            key = settings.supabase_jwt_secret
+            algorithm = "HS256"
+        if not key:
+            return None
         
         payload = jwt.decode(
             token, 
@@ -31,4 +38,8 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         return None
 
 def get_current_user_id(user_id: str = Depends(verify_token)) -> str:
+    if user_id:
+        return user_id
+    if settings.dev_bypass_auth and settings.dev_user_id:
+        return settings.dev_user_id
     return user_id

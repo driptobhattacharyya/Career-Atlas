@@ -30,6 +30,7 @@ function Dashboard() {
   }
 
   if (!profile) return <div>No profile data found. Please run the onboarding process.</div>;
+  const firstName = (profile.name || "Candidate").split(" ")[0];
 
   const completed = roadmap.filter((m: any) => m.status === "completed").length;
   const inProgress = roadmap.filter((m: any) => m.status === "in-progress").length;
@@ -49,7 +50,7 @@ function Dashboard() {
         <div>
           <p className="text-sm text-muted-foreground">Welcome back,</p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            {profile.name.split(" ")[0]} 👋
+            {firstName} 👋
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             You're aiming for <span className="font-medium text-foreground">{targetRole}</span>. Here's where you stand today.

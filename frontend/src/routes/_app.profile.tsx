@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Github, MapPin, Mail, ExternalLink, Loader2 } from "lucide-react";
-import { useProfile, useSkills } from "@/hooks/queries";
+import { useEducation, useExperience, useProfile, useProjects, useSkills } from "@/hooks/queries";
 import { cn } from "@/lib/utils";
-import { insforge } from "@/lib/insforge";
-import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/_app/profile")({
   head: () => ({
@@ -33,19 +31,11 @@ const levelStyles: Record<string, string> = {
 function Profile() {
   const { data: profile, isLoading: loadingProfile } = useProfile();
   const { data: skills = [], isLoading: loadingSkills } = useSkills();
-  const [experience, setExperience] = useState<any[]>([]);
-  const [education, setEducation] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
+  const { data: experience = [], isLoading: loadingExperience } = useExperience();
+  const { data: education = [], isLoading: loadingEducation } = useEducation();
+  const { data: projects = [], isLoading: loadingProjects } = useProjects();
 
-  useEffect(() => {
-    if (profile?.user_id) {
-      insforge.from("experience_items").select("*").eq("user_id", profile.user_id).order("sort_order").then((res) => setExperience(res.data || []));
-      insforge.from("education_items").select("*").eq("user_id", profile.user_id).then((res) => setEducation(res.data || []));
-      insforge.from("project_items").select("*").eq("user_id", profile.user_id).order("sort_order").then((res) => setProjects(res.data || []));
-    }
-  }, [profile?.user_id]);
-
-  if (loadingProfile || loadingSkills) {
+  if (loadingProfile || loadingSkills || loadingExperience || loadingEducation || loadingProjects) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -54,6 +44,7 @@ function Profile() {
   }
 
   if (!profile) return <div>No profile data found.</div>;
+  const displayName = profile.name || "Candidate";
 
   const grouped = categoryOrder.map((cat) => ({
     cat,
@@ -68,10 +59,10 @@ function Profile() {
       <div className="rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
           <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl bg-coral text-3xl font-bold text-coral-foreground">
-            {profile.name[0]}
+            {displayName[0]}
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="font-display text-3xl font-bold tracking-tight">{profile.name}</h1>
+            <h1 className="font-display text-3xl font-bold tracking-tight">{displayName}</h1>
             <p className="mt-1 text-muted-foreground">{profile.headline}</p>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               {profile.email && <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> {profile.email}</span>}

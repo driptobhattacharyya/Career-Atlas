@@ -35,13 +35,19 @@ async def analyze_gaps(
         user_headline = ""
         resume_id = None
         try:
-            # Try to find the latest resume for this user
-            resume_resp = db_client.table("resumes")\
-                .select("*")\
-                .eq("user_id", user_id)\
-                .order("created_at", desc=True)\
-                .limit(1)\
-                .execute()
+            try:
+                resume_resp = db_client.table("resumes")\
+                    .select("*")\
+                    .eq("user_id", user_id)\
+                    .order("created_at", desc=True)\
+                    .limit(1)\
+                    .execute()
+            except Exception:
+                resume_resp = db_client.table("resumes")\
+                    .select("*")\
+                    .order("created_at", desc=True)\
+                    .limit(1)\
+                    .execute()
             
             if resume_resp.data:
                 resume = resume_resp.data[0]
@@ -56,9 +62,9 @@ async def analyze_gaps(
                 langs_resp = db_client.table("programming_languages").select("language").eq("resume_id", resume_id).execute()
                 user_skills.extend([l["language"] for l in langs_resp.data if l.get("language")])
             else:
-                # Fallback to old 'skills' table if resumes not found
-                skills_resp = db_client.table("skills").select("skill").eq("user_id", user_id).execute()
-                user_skills = [s["skill"] for s in skills_resp.data if s.get("skill")]
+                # Fallback to old skills table without resume link
+                skills_resp = db_client.table("skills").select("skill").execute()
+                user_skills = [s.get("skill") for s in skills_resp.data if s.get("skill")]
         except Exception as e:
             # Silently fallback to empty if DB schema mismatch occurs
             pass
