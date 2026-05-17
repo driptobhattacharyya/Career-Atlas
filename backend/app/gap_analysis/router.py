@@ -92,12 +92,18 @@ async def analyze_gaps(
                         "role_slug": role_slug,
                         "gaps": existing_gaps_resp.data,
                         "retrieval_source": "database_cache",
+                        "explainability": {
+                            "role_slug": role_slug,
+                            "input_skill_count": len(user_skills),
+                            "retrieved_requirements": [],
+                            "note": "Served from cached DB gaps; retrieval trace unavailable for this run.",
+                        },
                     }
             except Exception:
                 pass
 
         # 3. Run gap analysis pipeline (Only if cache miss)
-        identified_gaps = await generate_gaps_for_user(user_skills, role_title, user_headline)
+        identified_gaps, explainability = await generate_gaps_for_user(user_skills, role_title, user_headline)
 
         # 4. Optional: Save gaps to DB for Deep Researcher
         if resume_id:
@@ -134,6 +140,7 @@ async def analyze_gaps(
             "role_slug": role_slug,
             "gaps": [g.model_dump() for g in identified_gaps],
             "retrieval_source": "hybrid",
+            "explainability": explainability,
         }
 
     except HTTPException:

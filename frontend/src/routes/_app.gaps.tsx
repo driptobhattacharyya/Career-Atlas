@@ -8,7 +8,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_app/gaps")({
   head: () => ({
     meta: [
-      { title: "Skill gaps — CareerAtlas" },
+      { title: "Skill gaps - CareerAtlas" },
       { name: "description", content: "Ranked skill gaps for your target role, with prerequisites and the why behind each." },
     ],
   }),
@@ -22,12 +22,30 @@ const difficultyStyles: Record<string, string> = {
 };
 
 function Gaps() {
+  const isBrowser = typeof window !== "undefined";
   const { data: profile } = useProfile();
   const { data: roles = [] } = useTargetRoles();
   const { data: gaps = [], isLoading } = useGapAnalysis();
 
+  const explainability = (() => {
+    if (!isBrowser) return null;
+    const raw = window.localStorage.getItem("careeratlas:last_gap_response");
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed?.explainability || null;
+    } catch {
+      return null;
+    }
+  })();
+
   const sorted = [...gaps].sort((a: any, b: any) => b.relevance - a.relevance);
-  const targetRole = roles.find((r: any) => r.id === profile?.target_role_id)?.title || "Target Role";
+  const localRoleTitle = isBrowser ? window.localStorage.getItem("careeratlas:selected_role_title") : null;
+  const targetRole =
+    roles.find((r: any) => r.id === profile?.target_role_id)?.title ||
+    profile?.target_role_title ||
+    localRoleTitle ||
+    "Target Role";
 
   if (isLoading) {
     return (
@@ -59,7 +77,7 @@ function Gaps() {
                   <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     {g.category}
                   </span>
-                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", difficultyStyles[g.difficulty] || difficultyStyles["Medium"])}>
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", difficultyStyles[g.difficulty] || difficultyStyles.Medium)}>
                     {g.difficulty}
                   </span>
                 </div>
@@ -95,6 +113,39 @@ function Gaps() {
           <p className="text-sm text-muted-foreground border border-dashed p-8 text-center rounded-xl bg-card">No skill gaps found!</p>
         )}
       </ol>
+
+      {explainability && (
+        <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+          <h2 className="font-display text-xl font-semibold">Why these gaps?</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Backend explainability from the gap analysis agent.</p>
+          {typeof explainability.input_skill_count === "number" && (
+            <p className="mt-2 text-xs text-muted-foreground">Input skills analyzed: {explainability.input_skill_count}</p>
+          )}
+          {explainability.note && (
+            <p className="mt-2 text-xs text-muted-foreground">{explainability.note}</p>
+          )}
+          {(explainability.retrieved_requirements || []).length > 0 && (
+            <ul className="mt-4 space-y-2">
+              {(explainability.retrieved_requirements || []).slice(0, 8).map((req: any, idx: number) => (
+                <li key={`${req.skill_name}-${idx}`} className="rounded-xl border border-border/60 bg-background p-3">
+                  <p className="text-sm font-medium">{req.skill_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {req.category} - {req.level_required} - score {Number(req.relevance_score || 0).toFixed(3)}
+                  </p>
+                  {req.prerequisites?.length > 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground">Prerequisites: {req.prerequisites.join(", ")}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {(!explainability.retrieved_requirements || explainability.retrieved_requirements.length === 0) && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Retrieval trace is unavailable for this cached run. Re-run analysis to see the full trace.
+            </p>
+          )}
+        </section>
+      )}
     </div>
   );
 }

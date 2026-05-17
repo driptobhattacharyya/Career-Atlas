@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_app/dashboard")({
 });
 
 function Dashboard() {
+  const isBrowser = typeof window !== "undefined";
   const { data: profile, isLoading: loadingProfile } = useProfile();
   const { data: roadmap = [], isLoading: loadingRoadmap } = useRoadmap();
   const { data: gaps = [], isLoading: loadingGaps } = useGapAnalysis();
@@ -41,7 +42,12 @@ function Dashboard() {
   const topJob = [...jobs].sort((a: any, b: any) => b.match_pct - a.match_pct)[0];
   const activeMilestone = roadmap.find((m: any) => m.status === "in-progress") || roadmap[0];
   
-  const targetRole = roles.find((r: any) => r.id === profile.target_role_id)?.title || "your target role";
+  const localRoleTitle = isBrowser ? window.localStorage.getItem("careeratlas:selected_role_title") : null;
+  const targetRole =
+    roles.find((r: any) => r.id === profile.target_role_id)?.title ||
+    profile.target_role_title ||
+    localRoleTitle ||
+    "your target role";
 
   return (
     <div className="space-y-8">

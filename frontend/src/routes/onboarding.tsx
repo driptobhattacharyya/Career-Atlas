@@ -38,12 +38,21 @@ function Onboarding() {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [roleId, setRoleId] = useState<string>("ml-engineer");
+  const [roleTitle, setRoleTitle] = useState<string>("ML Engineer");
   const [roleQuery, setRoleQuery] = useState("");
 
   const { data: roles = [] } = useTargetRoles();
   const filteredRoles = roles.filter(
     (r: any) => r.title.toLowerCase().includes(roleQuery.toLowerCase()) || r.category.toLowerCase().includes(roleQuery.toLowerCase()),
   );
+  useEffect(() => {
+    if (!roles.length) return;
+    const selected = roles.find((r: any) => r.id === roleId) || roles[0];
+    if (selected) {
+      setRoleId(selected.id);
+      setRoleTitle(selected.title);
+    }
+  }, [roles]);
 
   const handleFileUpload = async (file: File) => {
     setResumeFile(file);
@@ -118,19 +127,22 @@ function Onboarding() {
           {step === (disableAuth ? 0 : 1) && (
             <StepResume file={resumeFile} parsing={parsing} onFile={handleFileUpload} />
           )}
-          {step === (disableAuth ? 1 : 2) && (
+      {step === (disableAuth ? 1 : 2) && (
             <StepRole
               query={roleQuery}
               onQuery={setRoleQuery}
               roleId={roleId}
-              onSelect={setRoleId}
+              onSelect={(id, title) => {
+                setRoleId(id);
+                setRoleTitle(title);
+              }}
               roles={filteredRoles}
             />
           )}
           {step === (disableAuth ? 2 : 3) && (
             <StepAnalysis
               roleId={roleId}
-              roleTitle={roles.find((r: any) => r.id === roleId)?.title ?? "ML Engineer"}
+              roleTitle={roleTitle}
               onDone={() => navigate({ to: "/dashboard" })}
             />
           )}
@@ -249,7 +261,7 @@ function StepRole({
   query: string;
   onQuery: (q: string) => void;
   roleId: string;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, title: string) => void;
   roles: any[];
 }) {
   return (
@@ -271,7 +283,7 @@ function StepRole({
           return (
             <button
               key={r.id}
-              onClick={() => onSelect(r.id)}
+              onClick={() => onSelect(r.id, r.title)}
               className={cn(
                 "rounded-2xl border-2 p-5 text-left transition-all",
                 selected
@@ -310,10 +322,13 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
 
     const runAnalysis = async () => {
       try {
+        window.localStorage.setItem("careeratlas:selected_role_id", roleId);
+        window.localStorage.setItem("careeratlas:selected_role_title", roleTitle);
         if (unmounted) return;
         setStageStr("Analyzing skill gaps vs target role...");
         setProgress(20);
-        await analyzeGaps(roleTitle);
+        const gapResponse = await analyzeGaps(roleTitle);
+        window.localStorage.setItem("careeratlas:last_gap_response", JSON.stringify(gapResponse));
 
         if (unmounted) return;
         setStageStr("Generating custom learning roadmap milestones...");

@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, MapPin, X, Check, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useJobMatches, useTargetRoles, useProfile } from "@/hooks/queries";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { researchJobs } from "@/lib/api";
 
 export const Route = createFileRoute("/_app/jobs")({
   head: () => ({
@@ -20,6 +22,8 @@ export const Route = createFileRoute("/_app/jobs")({
 const seniorities = ["Intern", "Entry", "Junior", "Mid", "Senior"];
 
 function Jobs() {
+  const isBrowser = typeof window !== "undefined";
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [activeSeniority, setActiveSeniority] = useState<string>("All");
@@ -28,8 +32,29 @@ function Jobs() {
   const { data: profile } = useProfile();
   const { data: roles = [] } = useTargetRoles();
   const { data: jobs = [], isLoading } = useJobMatches();
+  const runJobResearch = useMutation({
+    mutationFn: async () => {
+      const selectedRoleId =
+        profile?.target_role_id ||
+        (isBrowser ? window.localStorage.getItem("careeratlas:selected_role_id") : null);
+      if (!selectedRoleId) throw new Error("No target role selected. Complete onboarding first.");
+      return researchJobs(selectedRoleId);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["job_matches"] });
+      toast.success("Job matches refreshed", { description: "Fetched latest jobs from the backend agent." });
+    },
+    onError: (err: any) => {
+      toast.error("Failed to fetch jobs", { description: err?.message || "Job research failed." });
+    },
+  });
 
-  const targetRole = roles.find((r: any) => r.id === profile?.target_role_id)?.title || "Target Role";
+  const localRoleTitle = isBrowser ? window.localStorage.getItem("careeratlas:selected_role_title") : null;
+  const targetRole =
+    roles.find((r: any) => r.id === profile?.target_role_id)?.title ||
+    profile?.target_role_title ||
+    localRoleTitle ||
+    "Target Role";
 
   if (isLoading) {
     return (
@@ -58,6 +83,22 @@ function Jobs() {
 
       {/* Filters */}
       <div className="rounded-3xl border border-border bg-card p-4 shadow-soft">
+        <div className="mb-3 flex justify-end">
+          <Button
+            onClick={() => runJobResearch.mutate()}
+            disabled={runJobResearch.isPending}
+            className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90"
+          >
+            {runJobResearch.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Finding jobs...
+              </>
+            ) : (
+              "Refresh from Job Agent"
+            )}
+          </Button>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

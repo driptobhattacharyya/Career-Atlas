@@ -9,7 +9,7 @@ Orchestrates the full pipeline:
 Uses Gemini (via Google AI Studio) for structured gap identification.
 """
 import logging
-from typing import List
+from typing import List, Tuple, Dict, Any
 
 from langchain_core.prompts import PromptTemplate
 from app.config import settings
@@ -53,7 +53,7 @@ async def generate_gaps_for_user(
     user_skills: List[str],
     target_role_title: str,
     user_headline: str = "",
-) -> List[GapSchema]:
+) -> Tuple[List[GapSchema], Dict[str, Any]]:
     """
     Full gap analysis pipeline:
       1. Run hybrid retrieval to get ranked skill requirements
@@ -105,5 +105,31 @@ async def generate_gaps_for_user(
         "role_requirements": role_requirements_text,
     })
 
-    logger.info("Gap analysis complete: %d gaps identified", len(result.gaps))
-    return result.gaps
+    # Deduplicate model output by normalized skill name while preserving order.
+    deduped: List[GapSchema] = []
+    seen: set[str] = set()
+    for gap in result.gaps:
+        key = (gap.skill or "").strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(gap)
+
+    explainability = {
+        "role_slug": role_slug,
+        "input_skill_count": len(user_skills),
+        "retrieved_requirements": [
+            {
+                "skill_name": skill.get("skill_name"),
+                "category": skill.get("category"),
+                "level_required": skill.get("level_required"),
+                "relevance_score": skill.get("relevance_score"),
+                "description": skill.get("description"),
+                "prerequisites": skill.get("prerequisites", []),
+            }
+            for skill in retrieved_skills
+        ],
+    }
+
+    logger.info("Gap analysis complete: %d gaps identified (%d deduped)", len(result.gaps), len(deduped))
+    return deduped, explainability
