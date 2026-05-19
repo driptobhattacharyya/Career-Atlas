@@ -21,15 +21,26 @@ from app.gap_analysis.ai_services import ai_service
 
 # ── Role slug mapping ────────────────────────────────────────────────────
 # Pinecone metadata stores slugs, but the DB stores display titles.
-# This mapping bridges the two. Must match pinecone_setup.py SUPPORTED_ROLES.
+# This mapping bridges the two. Must match the `role` values in
+# app/gap_analysis/taxonomy.json (the source for scripts/ingest_taxonomy.py).
 ROLE_SLUG_MAP: Dict[str, str] = {
+    # Canonical target_roles titles → taxonomy slugs.
     "machine learning engineer": "ml_engineer",
+    "data scientist": "data_scientist",
+    "frontend engineer": "frontend_engineer",
+    "backend engineer": "swe_backend",
+    "full-stack engineer": "fullstack_engineer",
+    "data analyst": "data_analyst",
+    "devops engineer": "devops_engineer",
+    "associate product manager": "product_manager",
+    # Aliases.
     "software engineer (backend)": "swe_backend",
     "software engineer backend": "swe_backend",
-    "backend engineer": "swe_backend",
-    "data analyst": "data_analyst",
-    "data scientist": "data_scientist",
-    "devops engineer": "devops_engineer",
+    "fullstack engineer": "fullstack_engineer",
+    "full stack engineer": "fullstack_engineer",
+    "frontend developer": "frontend_engineer",
+    "product manager": "product_manager",
+    "ml engineer": "ml_engineer",
 }
 
 

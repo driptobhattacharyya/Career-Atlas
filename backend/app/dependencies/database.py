@@ -4,7 +4,8 @@ from app.config import settings
 # Initialize Supabase client
 # Using the service key for backend operations (bypassing RLS)
 url = settings.supabase_url.strip().rstrip("/")
-key = settings.supabase_service_key
+# Prefer new-style sb_secret_* key; fall back to legacy service_role JWT.
+key = settings.supabase_secret_key or settings.supabase_service_key
 
 if "placeholder" in url or not key:
     print("\n⚠️  WARNING: SUPABASE_URL or SUPABASE_SERVICE_KEY is not configured. Database operations will fail.")

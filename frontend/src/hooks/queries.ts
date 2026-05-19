@@ -1,42 +1,56 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/context/auth-context";
-import { getTargetRoles } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import {
+  ApiError,
+  type MilestoneRow,
+  type MilestoneStatus,
+  type TargetRole,
+  analyzeGaps,
+  generateRoadmap,
+  getLatestPathway,
+  getLatestResume,
+  getTargetRoles,
+  listMilestones,
+  researchJobs,
+  startDeepResearch,
+  updateMilestoneStatus,
+  uploadResume,
+} from "@/lib/api";
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) || "http://localhost:8000";
 const disableAuth = (import.meta.env.VITE_DISABLE_AUTH as string | undefined) === "true";
 
-async function getAccessToken() {
-  if (disableAuth) return "";
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  return data.session?.access_token ?? "";
+function useEnabled() {
+  const { user } = useAuth();
+  return !!user || disableAuth;
 }
 
-async function fetchLatestResume() {
-  const token = await getAccessToken();
-  const response = await fetch(`${apiBaseUrl}/api/parse-resume/latest`, {
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Failed to fetch resume: ${response.status}`);
-  }
-  const payload = await response.json();
-  return payload.resume as any | null;
-}
+// ── Resume ─────────────────────────────────────────────────────────────────
 
 export function useLatestResume() {
   const { user } = useAuth();
+  const enabled = useEnabled();
   return useQuery({
     queryKey: ["latest-resume", user?.id, disableAuth],
-    enabled: !!user || disableAuth,
-    queryFn: fetchLatestResume,
+    enabled,
+    queryFn: async () => {
+      const payload = await getLatestResume();
+      return payload.resume as any | null;
+    },
   });
 }
+
+export function useUploadResume() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => uploadResume(file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["latest-resume"] });
+    },
+  });
+}
+
+// ── Profile & derived resume views ─────────────────────────────────────────
 
 export function useProfile() {
   const latestResume = useLatestResume();
@@ -47,8 +61,12 @@ export function useProfile() {
       const resume = latestResume.data;
       if (!resume) return null;
       const isBrowser = typeof window !== "undefined";
-      const selectedRoleId = isBrowser ? window.localStorage.getItem("careeratlas:selected_role_id") : null;
-      const selectedRoleTitle = isBrowser ? window.localStorage.getItem("careeratlas:selected_role_title") : null;
+      const selectedRoleId = isBrowser
+        ? window.localStorage.getItem("careeratlas:selected_role_id")
+        : null;
+      const selectedRoleTitle = isBrowser
+        ? window.localStorage.getItem("careeratlas:selected_role_title")
+        : null;
       const fullName =
         resume.full_name ||
         resume.contact?.name ||
@@ -97,88 +115,6 @@ export function useSkills() {
   });
 }
 
-export function useGapAnalysis() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["skill_gaps", user?.id],
-    enabled: !!user || disableAuth,
-    queryFn: async () => {
-      const isBrowser = typeof window !== "undefined";
-      // Prefer the latest backend response to keep explainability + exact selected-role output.
-      const cachedRaw = isBrowser ? window.localStorage.getItem("careeratlas:last_gap_response") : null;
-      if (cachedRaw) {
-        try {
-          const cached = JSON.parse(cachedRaw);
-          if (Array.isArray(cached?.gaps)) return cached.gaps;
-        } catch {
-          // ignore cache parse failure
-        }
-      }
-
-      const selectedRoleTitle = isBrowser ? window.localStorage.getItem("careeratlas:selected_role_title") : null;
-      let query = supabase.from("skill_gaps").select("*");
-      if (selectedRoleTitle) {
-        query = query.eq("target_role", selectedRoleTitle);
-      }
-      const { data, error } = await query;
-      if (error) throw error;
-
-      // Defensive dedupe by skill name.
-      const seen = new Set<string>();
-      const deduped = (data ?? []).filter((row: any) => {
-        const key = String(row?.skill || "").trim().toLowerCase();
-        if (!key || seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      return deduped;
-    },
-  });
-}
-
-export function useRoadmap() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["milestones", user?.id],
-    enabled: !!user || disableAuth,
-    retry: false,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("milestones").select("*").order("sort_order", { ascending: true });
-      if (error) {
-        // Keep UI usable when milestones table is not migrated yet.
-        if ((error as any).code === "PGRST205" || (error as any).status === 404) return [];
-        throw error;
-      }
-      return data ?? [];
-    },
-  });
-}
-
-export function useJobMatches() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["job_matches", user?.id],
-    enabled: !!user || disableAuth,
-    retry: false,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("job_matches").select("*");
-      if (error) {
-        // Job finder backend is still pending integration; treat missing table as empty list.
-        if ((error as any).code === "PGRST205" || (error as any).status === 404) return [];
-        throw error;
-      }
-      return data ?? [];
-    },
-  });
-}
-
-export function useTargetRoles() {
-  return useQuery({
-    queryKey: ["target_roles"],
-    queryFn: getTargetRoles,
-  });
-}
-
 export function useExperience() {
   const latestResume = useLatestResume();
   return useQuery({
@@ -204,4 +140,161 @@ export function useProjects() {
     enabled: latestResume.isSuccess,
     queryFn: async () => latestResume.data?.projects || [],
   });
+}
+
+// ── Target roles ───────────────────────────────────────────────────────────
+
+export function useTargetRoles() {
+  return useQuery<TargetRole[]>({
+    queryKey: ["target-roles"],
+    queryFn: getTargetRoles,
+    staleTime: 60_000,
+  });
+}
+
+// ── Gap analysis ───────────────────────────────────────────────────────────
+
+export function useGapAnalysis() {
+  // Cached gap response is the authoritative source — populated by onboarding
+  // after analyzeGaps() succeeds. We fall back to an empty list rather than
+  // querying skill_gaps directly so the backend stays the only data path.
+  return useQuery({
+    queryKey: ["gap-analysis-cache"],
+    queryFn: async () => {
+      if (typeof window === "undefined") return [];
+      const raw = window.localStorage.getItem("careeratlas:last_gap_response");
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed?.gaps) ? parsed.gaps : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+}
+
+export function useRunGapAnalysis() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (targetRoleTitle: string) => analyzeGaps(targetRoleTitle),
+    onSuccess: (data) => {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("careeratlas:last_gap_response", JSON.stringify(data));
+      }
+      qc.invalidateQueries({ queryKey: ["gap-analysis-cache"] });
+    },
+  });
+}
+
+// ── Roadmap (M1) ───────────────────────────────────────────────────────────
+
+export function useRoadmap(targetRoleId?: string) {
+  const { user } = useAuth();
+  const enabled = useEnabled();
+  return useQuery<MilestoneRow[]>({
+    queryKey: ["milestones", user?.id, targetRoleId ?? null],
+    enabled,
+    retry: (count, err) =>
+      !(err instanceof ApiError && err.status === 404) && count < 1,
+    queryFn: async () => {
+      try {
+        const data = await listMilestones(targetRoleId);
+        return data.milestones || [];
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return [];
+        throw err;
+      }
+    },
+  });
+}
+
+export function useGenerateRoadmap() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (targetRoleId: string) => generateRoadmap(targetRoleId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["milestones"] });
+    },
+  });
+}
+
+export function useUpdateMilestoneStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: MilestoneStatus }) =>
+      updateMilestoneStatus(id, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["milestones"] });
+    },
+  });
+}
+
+// ── Jobs ───────────────────────────────────────────────────────────────────
+
+export function useJobMatches() {
+  const { user } = useAuth();
+  const enabled = useEnabled();
+  return useQuery<any[]>({
+    queryKey: ["job-matches", user?.id],
+    enabled,
+    retry: false,
+    queryFn: async () => {
+      // Backend persists job_matches per user but the read path is through
+      // researchJobs(); list endpoint TBD. For now, an empty array until the
+      // user triggers a new search (mutation populates client cache).
+      const cached = qcGet<any[]>("job-matches-cached");
+      return cached || [];
+    },
+  });
+}
+
+export function useResearchJobs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (targetRoleId: string) => researchJobs(targetRoleId),
+    onSuccess: (data) => {
+      qcSet("job-matches-cached", data.jobs || []);
+      qc.invalidateQueries({ queryKey: ["job-matches"] });
+    },
+  });
+}
+
+// ── Deep research / Pathways (M2) ──────────────────────────────────────────
+
+export function useLatestPathway(roleSlug?: string) {
+  return useQuery({
+    queryKey: ["pathway-latest", roleSlug ?? null],
+    retry: (count, err) =>
+      !(err instanceof ApiError && err.status === 404) && count < 1,
+    queryFn: async () => {
+      try {
+        return await getLatestPathway(roleSlug);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }
+    },
+  });
+}
+
+export function useStartDeepResearch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ roleId, maxIter }: { roleId: string; maxIter?: number }) =>
+      startDeepResearch(roleId, maxIter ?? 3),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pathway-latest"] });
+    },
+  });
+}
+
+// ── Tiny session cache (module-scoped) ─────────────────────────────────────
+
+const _sessionCache = new Map<string, unknown>();
+function qcGet<T>(key: string): T | undefined {
+  return _sessionCache.get(key) as T | undefined;
+}
+function qcSet<T>(key: string, value: T) {
+  _sessionCache.set(key, value);
 }

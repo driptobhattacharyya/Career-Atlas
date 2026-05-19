@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from app.utils.llm_factory import get_gemini_model, get_groq_model
-from app.job_hunter.tools import get_search_tool
+from app.job_hunter.tools import search_web
 from app.job_hunter.schemas import ScrapedJobsResponse
 
 class JobSearchState(TypedDict):
@@ -26,19 +26,11 @@ def generate_search_queries(state: JobSearchState):
     return {**state, "raw_results": [], "parsed_jobs": [], "iterations": state.get("iterations", 0) + 1}
 
 def execute_search(state: JobSearchState):
-    """Executes search using Tavily."""
-    tool = get_search_tool()
-    results = []
-    
-    # Run the first query for simplicity. Real implementation could run them all concurrently.
+    """Executes search using Tavily (recency-filtered to the last month)."""
     role = state['target_role']
     loc = state['location']
     search_query = f"{role} jobs recent {loc}"
-    res = tool.invoke({"query": search_query})
-    
-    if isinstance(res, list):
-        results.extend(res)
-        
+    results = search_web(search_query)
     return {**state, "raw_results": results}
 
 def extract_and_score_jobs(state: JobSearchState):

@@ -7,8 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
-import { useTargetRoles } from "@/hooks/queries";
-import { parseResume, analyzeGaps, generateRoadmap } from "@/lib/api";
+import { useTargetRoles, useUploadResume, useRunGapAnalysis, useGenerateRoadmap } from "@/hooks/queries";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -36,10 +35,12 @@ function Onboarding() {
   }, [user, step]);
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [parsing, setParsing] = useState(false);
   const [roleId, setRoleId] = useState<string>("ml-engineer");
   const [roleTitle, setRoleTitle] = useState<string>("ML Engineer");
   const [roleQuery, setRoleQuery] = useState("");
+
+  const uploadMutation = useUploadResume();
+  const parsing = uploadMutation.isPending;
 
   const { data: roles = [] } = useTargetRoles();
   const filteredRoles = roles.filter(
@@ -56,18 +57,17 @@ function Onboarding() {
 
   const handleFileUpload = async (file: File) => {
     setResumeFile(file);
-    setParsing(true);
-    
+    if (!user && !disableAuth) {
+      toast.error("Sign in first");
+      setResumeFile(null);
+      return;
+    }
     try {
-      if (!user) throw new Error("Must be logged in");
-      await parseResume(file, user.id);
-      
+      await uploadMutation.mutateAsync(file);
       toast.success("Resume parsed", { description: "We extracted your skills and experience." });
     } catch (err: any) {
       toast.error("Failed to parse resume", { description: err.message });
-      setResumeFile(null); // Reset on failure
-    } finally {
-      setParsing(false);
+      setResumeFile(null);
     }
   };
 
@@ -317,6 +317,9 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
   const [stageStr, setStageStr] = useState("Preparing engines...");
   const [error, setError] = useState<string | null>(null);
 
+  const gapMutation = useRunGapAnalysis();
+  const roadmapMutation = useGenerateRoadmap();
+
   useEffect(() => {
     let unmounted = false;
 
@@ -327,13 +330,12 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
         if (unmounted) return;
         setStageStr("Analyzing skill gaps vs target role...");
         setProgress(20);
-        const gapResponse = await analyzeGaps(roleTitle);
-        window.localStorage.setItem("careeratlas:last_gap_response", JSON.stringify(gapResponse));
+        await gapMutation.mutateAsync(roleTitle);
 
         if (unmounted) return;
         setStageStr("Generating custom learning roadmap milestones...");
         setProgress(65);
-        await generateRoadmap(roleId);
+        await roadmapMutation.mutateAsync(roleId);
 
         if (unmounted) return;
         setProgress(100);

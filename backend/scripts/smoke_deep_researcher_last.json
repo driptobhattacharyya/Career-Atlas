@@ -1,0 +1,128 @@
+{
+  "target_role": "ml-engineer",
+  "milestones": [
+    {
+      "phase": "Foundations",
+      "skill": "PyTorch",
+      "estimated_weeks": 5,
+      "objective": "Be able to build, train, and evaluate basic neural networks using PyTorch for common machine learning tasks.",
+      "resources": [
+        {
+          "title": "Learn PyTorch for Deep Learning: Zero to Mastery",
+          "kind": "course",
+          "provider": "Zero To Mastery",
+          "url": "https://zerotomastery.io/courses/learn-pytorch/",
+          "why": "This course provides a comprehensive introduction to PyTorch, covering fundamentals to real-world model building."
+        },
+        {
+          "title": "Learn PyTorch",
+          "kind": "course",
+          "provider": "learnpytorch.io",
+          "url": "https://www.learnpytorch.io/",
+          "why": "An excellent video-based course with an accompanying online book, covering PyTorch 2.0 and foundational concepts."
+        },
+        {
+          "title": "PyTorch for Deep Learning Professional Certificate",
+          "kind": "course",
+          "provider": "Coursera",
+          "url": "https://www.coursera.org/professional-certificates/pytorch-for-deep-learning",
+          "why": "Covers tensors, neural networks, and machine learning pipelines, applying concepts to computer vision and NLP."
+        },
+        {
+          "title": "Intro to PyTorch and Neural Networks",
+          "kind": "course",
+          "provider": "Codecademy",
+          "url": "https://www.codecademy.com/search?query=pytorch",
+          "why": "A hands-on introduction to PyTorch and neural network basics, suitable for getting started quickly."
+        }
+      ],
+      "checklist": [
+        "Successfully implement a simple feedforward neural network in PyTorch.",
+        "Train a Convolutional Neural Network (CNN) for image classification using TorchVision datasets.",
+        "Demonstrate understanding and correct usage of PyTorch's nn.Module, optimizers, and DataLoader.",
+        "Debug a PyTorch model training loop to identify and resolve common issues."
+      ],
+      "mini_project": "Build and train a PyTorch model to classify images from a small dataset like CIFAR-10 or FashionMNIST, achieving a reasonable accuracy."
+    },
+    {
+      "phase": "Intermediate",
+      "skill": "Transformers",
+      "estimated_weeks": 7,
+      "objective": "Understand Transformer architecture, implement, and fine-tune pre-trained Transformer models for NLP and potentially computer vision tasks using PyTorch.",
+      "resources": [
+        {
+          "title": "Generative AI Engineering and Fine-tuning Transformers",
+          "kind": "course",
+          "provider": "Coursera",
+          "url": "https://www.coursera.org/learn/generative-ai-engineering-and-fine-tuning-transformers",
+          "why": "Directly focuses on fine-tuning Transformers and applying them to generative AI engineering tasks."
+        },
+        {
+          "title": "Engineer Neural Networks with PyTorch and Transformers",
+          "kind": "course",
+          "provider": "Codecademy",
+          "url": "https://www.codecademy.com/search?query=pytorch",
+          "why": "Specifically teaches how to build neural networks with PyTorch and integrate Transformer models."
+        },
+        {
+          "title": "Fast.ai Practical Deep Learning for Coders",
+          "kind": "course",
+          "provider": "fast.ai (mentioned by k21academy.com)",
+          "url": "https://k21academy.com/ai-ml/best-ai-ml-online-courses-to-learn-in-2025/",
+          "why": "This project-based course, built on PyTorch, covers image classification, NLP, and generative models, including transfer learning."
+        },
+        {
+          "title": "CS25: Transformers United",
+          "kind": "course",
+          "provider": "Stanford University",
+          "url": "https://web.stanford.edu/class/cs25/",
+          "why": "Offers in-depth understanding and hands-on recommendations for training state-of-the-art Transformer models efficiently."
+        }
+      ],
+      "checklist": [
+        "Explain the core components of a Transformer architecture, including self-attention and positional encoding.",
+        "Load and utilize a pre-trained Transformer model from the Hugging Face 'transformers' library for inference.",
+        "Successfully fine-tune a BERT-like model for a specific text classification or sequence labeling task.",
+        "Implement a basic generative text model using a Transformer architecture (e.g., GPT-2)."
+      ],
+      "mini_project": "Fine-tune a pre-trained Transformer model (e.g., BERT, RoBERTa) for a specific NLP task such as sentiment analysis on a movie review dataset or question answering."
+    },
+    {
+      "phase": "Intermediate",
+      "skill": "MLflow",
+      "estimated_weeks": 4,
+      "objective": "Be able to track experiments, package models, and manage the machine learning lifecycle using MLflow for PyTorch-based projects.",
+      "resources": [
+        {
+          "title": "PyTorch for Deep Learning Professional Certificate (Course 4: Model Deployment)",
+          "kind": "course",
+          "provider": "Coursera",
+          "url": "https://www.coursera.org/professional-certificates/pytorch-for-deep-learning",
+          "why": "The final course in this specialization covers preparing, exporting, and optimizing models for deployment using tools like MLflow."
+        },
+        {
+          "title": "MLflow Documentation",
+          "kind": "doc",
+          "provider": "MLflow Official",
+          "url": "https://mlflow.org/docs/latest/index.html",
+          "why": "The official documentation is essential for comprehensive understanding and practical implementation of MLflow features."
+        },
+        {
+          "title": "MLflow Quickstart Tutorial",
+          "kind": "doc",
+          "provider": "MLflow Official",
+          "url": "https://mlflow.org/docs/latest/quickstart.html",
+          "why": "Provides a rapid, hands-on introduction to MLflow's core functionalities for experiment tracking and model management."
+        }
+      ],
+      "checklist": [
+        "Set up an MLflow tracking server and successfully log parameters, metrics, and artifacts for multiple experiment runs.",
+        "Use MLflow Projects to package and reproduce a machine learning training script.",
+        "Register and manage different versions of a trained PyTorch model in the MLflow Model Registry.",
+        "Demonstrate how to load a model from the MLflow Model Registry and use it for inference."
+      ],
+      "mini_project": "Integrate MLflow into the PyTorch image classification project (from the PyTorch milestone) to track experiment runs, log model metrics, and register the best performing model in the MLflow Model Registry."
+    }
+  ],
+  "rationale": "This pathway is structured to build foundational skills before moving to more specialized and advanced topics. PyTorch is addressed first as it's a core prerequisite for understanding and implementing Transformers. MLflow, while only requiring Python, is placed after PyTorch and Transformers to allow the learner to apply MLOps principles to models they've already built, reflecting a typical ML engineering workflow from development to deployment."
+}

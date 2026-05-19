@@ -8,7 +8,7 @@ security = HTTPBearer(auto_error=False)
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
-    Validates the JWT token coming from the frontend (which signed in via InsForge).
+    Validates the JWT token coming from the frontend (which signed in via Supabase).
     """
     if not credentials:
         return None

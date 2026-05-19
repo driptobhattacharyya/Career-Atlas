@@ -1,11 +1,12 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Compass, LayoutDashboard, User, Map, Briefcase, Target } from "lucide-react";
+import { Compass, LayoutDashboard, User, Map, Briefcase, Target, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/profile", label: "Profile", icon: User },
   { to: "/roadmap", label: "Roadmap", icon: Map },
+  { to: "/pathway", label: "Pathway", icon: Sparkles },
   { to: "/gaps", label: "Gaps", icon: Target },
   { to: "/jobs", label: "Jobs", icon: Briefcase },
 ] as const;

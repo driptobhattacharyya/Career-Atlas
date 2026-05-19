@@ -13,7 +13,12 @@ class Settings(BaseSettings):
     
     # Supabase
     supabase_url: str = os.getenv("SUPABASE_URL", "https://placeholder.supabase.co")
-    supabase_service_key: str = os.getenv("SUPABASE_SERVICE_KEY", "")
+    # New-style keys (preferred): sb_publishable_* / sb_secret_*
+    # Old-style fallback: anon JWT / service_role JWT (SUPABASE_SERVICE_KEY)
+    supabase_publishable_key: str = os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
+    supabase_secret_key: str = os.getenv("SUPABASE_SECRET_KEY", os.getenv("SUPABASE_SERVICE_KEY", ""))
+    # Kept for back-compat with code that still reads the old name.
+    supabase_service_key: str = os.getenv("SUPABASE_SERVICE_KEY", os.getenv("SUPABASE_SECRET_KEY", ""))
     supabase_jwt_secret: str = os.getenv("SUPABASE_JWT_SECRET", "")
     supabase_jwt_public_key: str = os.getenv("SUPABASE_JWT_PUBLIC_KEY", "")
     

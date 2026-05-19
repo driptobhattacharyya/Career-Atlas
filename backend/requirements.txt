@@ -20,6 +20,7 @@ langgraph>=0.0.10
 
 # Search & Retrieval
 tavily-python>=0.3.0
+langchain-tavily>=0.2.0
 pinecone>=6.0.0
 rank-bm25>=0.2.2
 
