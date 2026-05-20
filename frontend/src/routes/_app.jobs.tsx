@@ -41,7 +41,7 @@ function Jobs() {
       return researchJobs(selectedRoleId);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["job_matches"] });
+      await queryClient.invalidateQueries({ queryKey: ["job-matches"] });
       toast.success("Job matches refreshed", { description: "Fetched latest jobs from the backend agent." });
     },
     onError: (err: any) => {

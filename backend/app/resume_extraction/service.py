@@ -12,9 +12,8 @@ import pymupdf4llm
 from pydantic import ValidationError
 from phonenumbers import PhoneNumberFormat
 
-from app.config import settings
 from app.resume_extraction.schemas import ResumeExtraction
-from app.utils.llm_factory import get_gemini_model
+from app.utils.llm_factory import get_groq_model
 
 URL_TRAILING_PUNCT = ".,;:!?)]}>'\""
 
@@ -247,12 +246,8 @@ END_RESUME_TEXT>>>
 """.strip()
 
 
-def _model_name() -> str:
-    return settings.gap_analysis_model or "gemini-1.5-flash"
-
-
-def _invoke_gemini(prompt: str) -> str:
-    model = get_gemini_model(model_name=_model_name(), temperature=0.0)
+def _invoke_llm(prompt: str) -> str:
+    model = get_groq_model(temperature=0.0)
     response = model.invoke(prompt)
     content = getattr(response, "content", "")
     if isinstance(content, str):
@@ -272,18 +267,18 @@ def _invoke_gemini(prompt: str) -> str:
 
     text = _strip_code_fences(raw_text)
     if not text:
-        raise RuntimeError("Empty response received from Gemini.")
+        raise RuntimeError("Empty response received from the LLM.")
     return text
 
 
-def gemini_generate_resume_json(prompt: str) -> str:
+def llm_generate_resume_json(prompt: str) -> str:
     max_retries = 5
     base_wait_seconds = 3
     last_error: Exception | None = None
 
     for attempt in range(1, max_retries + 1):
         try:
-            return _invoke_gemini(prompt)
+            return _invoke_llm(prompt)
         except Exception as exc:
             last_error = exc
             error_text = str(exc).lower()
@@ -307,7 +302,7 @@ def gemini_generate_resume_json(prompt: str) -> str:
             time.sleep(wait_time)
 
     raise RuntimeError(
-        f"Gemini request failed after {max_retries} retries. Last error: {last_error}"
+        f"Resume extraction LLM failed after {max_retries} retries. Last error: {last_error}"
     )
 
 
@@ -328,13 +323,13 @@ def _enforce_post_processing(parsed: ResumeExtraction) -> ResumeExtraction:
 
 def extract_structured_resume_data(md_text: str) -> ResumeExtraction:
     prompt = build_extraction_prompt(md_text)
-    draft_json = gemini_generate_resume_json(prompt)
+    draft_json = llm_generate_resume_json(prompt)
     try:
         parsed = parse_resume_json(draft_json)
         return _enforce_post_processing(parsed)
     except ValidationError as exc:
         repair_prompt = build_repair_prompt(md_text, draft_json, str(exc))
-        repaired_json = gemini_generate_resume_json(repair_prompt)
+        repaired_json = llm_generate_resume_json(repair_prompt)
         repaired = parse_resume_json(repaired_json)
         return _enforce_post_processing(repaired)
 

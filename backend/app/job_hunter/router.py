@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from app.dependencies.auth import get_current_user_id
@@ -8,6 +10,24 @@ router = APIRouter(prefix="/api/research-jobs", tags=["Jobs"])
 
 class ResearchJobsRequest(BaseModel):
     target_role_id: str
+
+
+def _posted_days_to_int(v) -> int:
+    """Coerce the LLM's free-text 'posted' value into a day count for the int column."""
+    if v is None:
+        return 0
+    if isinstance(v, int):
+        return v
+    s = str(v).lower()
+    m = re.search(r"\d+", s)
+    if not m:
+        return 0
+    n = int(m.group())
+    if "week" in s:
+        return n * 7
+    if "month" in s:
+        return n * 30
+    return n
 
 @router.post("/")
 async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(get_current_user_id)):
@@ -124,18 +144,38 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(get_cur
                 "title": payload.get("title"),
                 "company": payload.get("company"),
                 "location": payload.get("location"),
-                "remote": payload.get("remote", False),
+                "remote": bool(payload.get("remote") or False),
                 "seniority": payload.get("seniority"),
                 "match_pct": payload.get("match_pct", 0),
                 "matched": payload.get("matched", []),
                 "missing": payload.get("missing", []),
                 "salary": payload.get("salary"),
-                "posted_days": payload.get("posted_days", 0),
+                "posted_days": _posted_days_to_int(payload.get("posted_days")),
                 "description": payload.get("description"),
                 "external_url": payload.get("external_url"),
             }).execute()
 
         return {"success": True, "jobs": [j.model_dump() for j in parsed_jobs]}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/")
+def list_job_matches(user_id: str = Depends(get_current_user_id)):
+    """Return the current user's persisted job matches (latest search)."""
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        resp = (
+            db_client.table("job_matches")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("match_pct", desc=True)
+            .execute()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lookup failed: {e}")
+    return {"success": True, "jobs": resp.data or []}

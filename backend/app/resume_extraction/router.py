@@ -162,6 +162,22 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
     return resume_id
 
 
+def _delete_other_resumes(user_id: str, keep_resume_id: str) -> None:
+    """Replace-on-upload: keep one resume per user.
+
+    All child tables (skills, experiences, skill_gaps, milestones, …) FK to
+    resumes with ON DELETE CASCADE, so dropping the old resume row also clears
+    every stale derived row — no orphans.
+    """
+    try:
+        db_client.table("resumes").delete()\
+            .eq("user_id", user_id)\
+            .neq("id", keep_resume_id)\
+            .execute()
+    except Exception:
+        pass
+
+
 def _latest_resume_id(user_id: str) -> str | None:
     try:
         by_user = (
@@ -277,6 +293,7 @@ async def parse_resume(
         extracted = extract_structured_resume_data(md_text)
         extracted_dict = extracted.model_dump(mode="json")
         resume_id = insert_full_resume(extracted_dict, user_id, resolved_resume_key or "")
+        _delete_other_resumes(user_id, resume_id)
 
         return {"success": True, "message": "Resume parsed and stored successfully.", "resume_id": resume_id}
     except Exception as exc:

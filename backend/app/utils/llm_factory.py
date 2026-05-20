@@ -1,6 +1,7 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
+from langchain_openai import ChatOpenAI
 from app.config import settings
 from functools import lru_cache
 
@@ -25,6 +26,24 @@ def get_groq_model(model_name: str | None = None, temperature: float = 0.2):
         groq_api_key=settings.groq_api_key,
         temperature=temperature
     )
+
+@lru_cache()
+def get_openrouter_model(model_name: str = "qwen/qwen3.6-flash", temperature: float = 0.2):
+    """
+    Returns a ChatOpenAI instance pointed at OpenRouter.
+    Any model slug from openrouter.ai/models works as model_name.
+    """
+    return ChatOpenAI(
+        model=model_name,
+        api_key=settings.openrouter_api_key,
+        base_url="https://openrouter.ai/api/v1",
+        temperature=temperature,
+        default_headers={
+            "HTTP-Referer": "https://careeratlas.app",
+            "X-Title": "CareerAtlas",
+        },
+    )
+
 
 @lru_cache()
 def get_huggingface_model(repo_id: str = "mistralai/Mistral-7B-Instruct-v0.2"):

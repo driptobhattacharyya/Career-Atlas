@@ -6,14 +6,13 @@ Orchestrates the full pipeline:
   2. LLM analysis to produce ranked skill gaps
   3. Returns structured GapSchema list
 
-Uses Gemini (via Google AI Studio) for structured gap identification.
+Uses Groq for structured gap identification (embeddings still use Gemini).
 """
 import logging
 from typing import List, Tuple, Dict, Any
 
 from langchain_core.prompts import PromptTemplate
-from app.config import settings
-from app.utils.llm_factory import get_gemini_model
+from app.utils.llm_factory import get_groq_model
 from app.gap_analysis.schemas import GapAnalysisResponse, GapSchema
 from app.gap_analysis.hybrid_retrieval import (
     hybrid_retrieve,
@@ -95,7 +94,7 @@ async def generate_gaps_for_user(
     role_requirements_text = "\n".join(req_lines)
 
     # 2. LLM Structured Generation
-    model = get_gemini_model(model_name=settings.gap_analysis_model, temperature=0.0)
+    model = get_groq_model(temperature=0.0)
     structured_llm = model.with_structured_output(GapAnalysisResponse)
 
     chain = GAP_ANALYSIS_PROMPT | structured_llm

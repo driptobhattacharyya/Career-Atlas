@@ -18,7 +18,7 @@ from datetime import datetime
 
 from langgraph.graph import StateGraph, START, END
 
-from app.utils.llm_factory import get_gemini_model
+from app.utils.llm_factory import get_groq_model
 from app.deep_researcher.tools import search_web
 from app.deep_researcher.judge import evaluate_pathway
 from app.deep_researcher.validation import validate_pathway
@@ -37,7 +37,7 @@ from app.deep_researcher.schemas import (
 
 logger = logging.getLogger(__name__)
 
-RESEARCH_MODEL = "gemini-2.5-flash"
+RESEARCH_MODEL = "llama-3.3-70b-versatile"
 CURRENT_YEAR = datetime.now().year
 
 
@@ -61,7 +61,7 @@ def _notes_brief(notes, char_cap: int = 300) -> str:
 # ── Nodes ────────────────────────────────────────────────────────────────────
 
 def node_plan(state: ResearcherState) -> dict:
-    model = get_gemini_model(model_name=RESEARCH_MODEL, temperature=0.2)
+    model = get_groq_model(model_name=RESEARCH_MODEL, temperature=0.2)
     planner = PLAN_PROMPT | model.with_structured_output(NextQuery)
     nxt: NextQuery = planner.invoke({
         "target_role": state["target_role"],
@@ -97,7 +97,7 @@ def critic_route(state: ResearcherState) -> str:
     if state.get("iteration", 0) >= state.get("max_iter", 3):
         logger.info("deep_researcher max_iter reached, forcing structure")
         return "structure"
-    model = get_gemini_model(model_name=RESEARCH_MODEL, temperature=0.2)
+    model = get_groq_model(model_name=RESEARCH_MODEL, temperature=0.2)
     critic = CRITIC_PROMPT | model.with_structured_output(CriticOut)
     out: CriticOut = critic.invoke({
         "target_role": state["target_role"],
@@ -125,7 +125,7 @@ def node_structure(state: ResearcherState) -> dict:
     else:
         feedback = "(none — first attempt)"
 
-    model = get_gemini_model(model_name=RESEARCH_MODEL, temperature=0.2)
+    model = get_groq_model(model_name=RESEARCH_MODEL, temperature=0.2)
     structurer = STRUCTURE_PROMPT | model.with_structured_output(Pathway)
     pathway: Pathway = structurer.invoke({
         "target_role": state["target_role"],

@@ -27,6 +27,7 @@ from app.deep_researcher.schemas import (
     ValidationResult,
 )
 from app.gap_analysis.hybrid_retrieval import resolve_role_slug
+from app.roadmap_generation.service import upsert_role_milestones
 
 logger = logging.getLogger(__name__)
 
@@ -47,14 +48,14 @@ def _extract_sources(notes: List[str]) -> List[str]:
     return out
 
 
-def _load_user_resume_id(user_id: str) -> str | None:
+def _load_user_resume_ids(user_id: str) -> List[str]:
+    """All of the user's resume ids, newest first."""
     try:
         resp = (
             db_client.table("resumes")
             .select("id")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
-            .limit(1)
             .execute()
         )
     except Exception:
@@ -62,26 +63,47 @@ def _load_user_resume_id(user_id: str) -> str | None:
             db_client.table("resumes")
             .select("id")
             .order("created_at", desc=True)
-            .limit(1)
             .execute()
         )
-    if not resp.data:
-        return None
-    return resp.data[0]["id"]
+    return [r["id"] for r in (resp.data or []) if r.get("id")]
 
 
-def _load_gaps(resume_id: str, role_title: str) -> List[GapIn]:
+def _load_user_resume_id(user_id: str) -> str | None:
+    ids = _load_user_resume_ids(user_id)
+    return ids[0] if ids else None
+
+
+def _load_gaps(user_id: str, role_title: str) -> List[GapIn]:
+    """Most recent gap analysis for this role across all the user's resumes.
+
+    skill_gaps rows are pinned to the resume_id that was current when gap
+    analysis ran. A newer resume upload orphans them, so we don't bind to the
+    "latest resume" — we take whichever resume has the most recent skill_gaps
+    for this role (by created_at).
+    """
+    resume_ids = _load_user_resume_ids(user_id)
+    if not resume_ids:
+        return []
     resp = (
         db_client.table("skill_gaps")
-        .select("skill,category,relevance,difficulty,level_required,prerequisites,why")
-        .eq("resume_id", resume_id)
+        .select(
+            "resume_id,skill,category,relevance,difficulty,"
+            "level_required,prerequisites,why,created_at"
+        )
+        .in_("resume_id", resume_ids)
         .eq("target_role", role_title)
-        .order("relevance", desc=True)
+        .order("created_at", desc=True)
         .execute()
     )
     rows = resp.data or []
+    if not rows:
+        return []
+    # Keep only the newest gap-analysis batch (one resume_id), not a mix.
+    newest_resume_id = rows[0]["resume_id"]
+    batch = [r for r in rows if r["resume_id"] == newest_resume_id]
+    batch.sort(key=lambda r: r.get("relevance") or 0, reverse=True)
     gaps: List[GapIn] = []
-    for r in rows:
+    for r in batch:
         prereqs = r.get("prerequisites") or []
         if isinstance(prereqs, str):
             prereqs = [p.strip() for p in prereqs.split(",") if p.strip()]
@@ -114,6 +136,7 @@ def deep_research(
     )
     if not role_resp.data:
         raise HTTPException(status_code=404, detail="Target role not found")
+    role_id = role_resp.data[0]["id"]
     role_title = role_resp.data[0]["title"]
     role_slug = resolve_role_slug(role_title)
 
@@ -121,7 +144,7 @@ def deep_research(
     if not resume_id:
         raise HTTPException(status_code=400, detail="Run resume extraction first")
 
-    gaps = _load_gaps(resume_id, role_title)
+    gaps = _load_gaps(user_id, role_title)
     if not gaps:
         raise HTTPException(
             status_code=400,
@@ -178,6 +201,26 @@ def deep_research(
     except Exception as e:
         logger.warning("learning_pathways persistence failed (table may not exist yet): %s", e)
 
+    # Persist milestones into the `milestones` table so the roadmap page can
+    # track progress. Status of surviving skills is preserved across re-runs.
+    try:
+        milestone_dicts = [
+            {
+                "phase": m.phase,
+                "title": m.skill,
+                "skill": m.skill,
+                "estimated_weeks": m.estimated_weeks,
+                "description": m.objective,
+                "courses": [r.model_dump(mode="json") for r in m.resources],
+                "project": {"title": "Mini project", "description": m.mini_project or ""},
+                "checklist": m.checklist,
+            }
+            for m in pathway.milestones
+        ]
+        upsert_role_milestones(user_id, role_id, role_title, resume_id, milestone_dicts)
+    except Exception as e:
+        logger.warning("milestone persistence failed: %s", e)
+
     return DeepResearchResponse(
         success=True,
         target_role=role_title,
@@ -194,11 +237,28 @@ def deep_research(
 
 @router.get("/latest")
 def latest_pathway(
+    target_role_id: str | None = None,
     role_slug: str | None = None,
     user_id: str = Depends(get_current_user_id),
 ):
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Resolve the canonical slug the same way POST does, so a pathway saved
+    # under ROLE_SLUG_MAP's slug is reachable. target_role_id is preferred;
+    # role_slug is kept only as a legacy fallback.
+    resolved_slug = role_slug
+    if target_role_id:
+        role_resp = (
+            db_client.table("target_roles")
+            .select("title")
+            .eq("id", target_role_id)
+            .limit(1)
+            .execute()
+        )
+        if role_resp.data:
+            resolved_slug = resolve_role_slug(role_resp.data[0]["title"])
+
     q = (
         db_client.table("learning_pathways")
         .select(
@@ -209,8 +269,8 @@ def latest_pathway(
         .order("created_at", desc=True)
         .limit(1)
     )
-    if role_slug:
-        q = q.eq("role_slug", role_slug)
+    if resolved_slug:
+        q = q.eq("role_slug", resolved_slug)
     try:
         resp = q.execute()
     except Exception as e:

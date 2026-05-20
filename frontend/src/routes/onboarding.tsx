@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
-import { useTargetRoles, useUploadResume, useRunGapAnalysis, useGenerateRoadmap } from "@/hooks/queries";
+import { useTargetRoles, useUploadResume, useRunGapAnalysis } from "@/hooks/queries";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -143,7 +143,7 @@ function Onboarding() {
             <StepAnalysis
               roleId={roleId}
               roleTitle={roleTitle}
-              onDone={() => navigate({ to: "/dashboard" })}
+              onDone={() => navigate({ to: "/roadmap" })}
             />
           )}
         </div>
@@ -318,7 +318,6 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
   const [error, setError] = useState<string | null>(null);
 
   const gapMutation = useRunGapAnalysis();
-  const roadmapMutation = useGenerateRoadmap();
 
   useEffect(() => {
     let unmounted = false;
@@ -329,13 +328,8 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
         window.localStorage.setItem("careeratlas:selected_role_title", roleTitle);
         if (unmounted) return;
         setStageStr("Analyzing skill gaps vs target role...");
-        setProgress(20);
+        setProgress(35);
         await gapMutation.mutateAsync(roleTitle);
-
-        if (unmounted) return;
-        setStageStr("Generating custom learning roadmap milestones...");
-        setProgress(65);
-        await roadmapMutation.mutateAsync(roleId);
 
         if (unmounted) return;
         setProgress(100);

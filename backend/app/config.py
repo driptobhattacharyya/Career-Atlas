@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     gap_analysis_model: str = os.getenv("GAP_ANALYSIS_MODEL", "gemini-1.5-flash")
     huggingface_api_key: str = os.getenv("HUGGINGFACE_API_KEY", "")
     
+    # OpenRouter
+    openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
+
     # Tools
     tavily_api_key: str = os.getenv("TAVILY_API_KEY", "")
 

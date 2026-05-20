@@ -16,6 +16,7 @@ langchain-community>=0.0.10
 langchain-google-genai>=0.0.5
 langchain-groq>=0.0.1
 langchain-huggingface>=0.0.1
+langchain-openai>=0.1.0
 langgraph>=0.0.10
 
 # Search & Retrieval

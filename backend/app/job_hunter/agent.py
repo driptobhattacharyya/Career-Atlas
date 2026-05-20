@@ -11,26 +11,33 @@ class JobSearchState(TypedDict):
     target_role: str
     user_skills: list[str]
     location: str
+    queries: list[str]
     raw_results: list[dict]
     parsed_jobs: list[dict]
     iterations: int
 
 def generate_search_queries(state: JobSearchState):
-    """Generates optimal search queries to find job listings."""
-    # We just create straightforward queries here based on the constraints
-    queries = [
-        f"'{state['target_role']}' job {state['location']} site:linkedin.com/jobs",
-        f"entry level {state['target_role']} remote jobs",
-        f"hiring {state['target_role']} {state['location']} greenhouse.io"
-    ]
-    return {**state, "raw_results": [], "parsed_jobs": [], "iterations": state.get("iterations", 0) + 1}
-
-def execute_search(state: JobSearchState):
-    """Executes search using Tavily (recency-filtered to the last month)."""
+    """Builds targeted job-board search queries for the role + location."""
     role = state['target_role']
     loc = state['location']
-    search_query = f"{role} jobs recent {loc}"
-    results = search_web(search_query)
+    queries = [
+        f"{role} jobs {loc} site:linkedin.com/jobs",
+        f"{role} jobs {loc} site:boards.greenhouse.io",
+        f"entry level {role} jobs {loc}",
+    ]
+    return {
+        **state,
+        "queries": queries,
+        "raw_results": [],
+        "parsed_jobs": [],
+        "iterations": state.get("iterations", 0) + 1,
+    }
+
+def execute_search(state: JobSearchState):
+    """Runs every planned query through Tavily and aggregates the results."""
+    results: list[dict] = []
+    for q in state.get("queries", []):
+        results.extend(search_web(q))
     return {**state, "raw_results": results}
 
 def extract_and_score_jobs(state: JobSearchState):
@@ -51,7 +58,7 @@ RAW SEARCH TEXT:
 """
     )
     
-    combined_raw_text = "\\n".join([f"Url: {r.get('url')} Content: {r.get('content')}" for r in state['raw_results'][:5]])
+    combined_raw_text = "\\n".join([f"Url: {r.get('url')} Content: {r.get('content')}" for r in state['raw_results'][:8]])
     
     response: ScrapedJobsResponse = (prompt | structured_llm).invoke({
         "user_skills": ", ".join(state['user_skills']),

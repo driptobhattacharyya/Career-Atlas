@@ -13,7 +13,9 @@ from pydantic import BaseModel, Field
 
 class Resource(BaseModel):
     title: str
-    kind: Literal["course", "doc", "video", "article", "project"]
+    kind: str = Field(
+        description="Resource type: course, doc, video, article, project, blog, tutorial, book"
+    )
     provider: str = Field(description="e.g. Coursera, YouTube, official docs, fast.ai")
     url: str
     why: str = Field(description="1 sentence — why this resource for this milestone")

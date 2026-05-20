@@ -7,7 +7,7 @@ import {
   type MilestoneStatus,
   type TargetRole,
   analyzeGaps,
-  generateRoadmap,
+  getJobMatches,
   getLatestPathway,
   getLatestResume,
   getTargetRoles,
@@ -209,16 +209,6 @@ export function useRoadmap(targetRoleId?: string) {
   });
 }
 
-export function useGenerateRoadmap() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (targetRoleId: string) => generateRoadmap(targetRoleId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["milestones"] });
-    },
-  });
-}
-
 export function useUpdateMilestoneStatus() {
   const qc = useQueryClient();
   return useMutation({
@@ -240,11 +230,8 @@ export function useJobMatches() {
     enabled,
     retry: false,
     queryFn: async () => {
-      // Backend persists job_matches per user but the read path is through
-      // researchJobs(); list endpoint TBD. For now, an empty array until the
-      // user triggers a new search (mutation populates client cache).
-      const cached = qcGet<any[]>("job-matches-cached");
-      return cached || [];
+      const data = await getJobMatches();
+      return data.jobs ?? [];
     },
   });
 }
@@ -262,14 +249,14 @@ export function useResearchJobs() {
 
 // ── Deep research / Pathways (M2) ──────────────────────────────────────────
 
-export function useLatestPathway(roleSlug?: string) {
+export function useLatestPathway(roleId?: string) {
   return useQuery({
-    queryKey: ["pathway-latest", roleSlug ?? null],
+    queryKey: ["pathway-latest", roleId ?? null],
     retry: (count, err) =>
       !(err instanceof ApiError && err.status === 404) && count < 1,
     queryFn: async () => {
       try {
-        return await getLatestPathway(roleSlug);
+        return await getLatestPathway(roleId);
       } catch (err) {
         if (err instanceof ApiError && err.status === 404) return null;
         throw err;
@@ -285,6 +272,7 @@ export function useStartDeepResearch() {
       startDeepResearch(roleId, maxIter ?? 3),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pathway-latest"] });
+      qc.invalidateQueries({ queryKey: ["milestones"] });
     },
   });
 }

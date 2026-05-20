@@ -14,7 +14,6 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRoadmapRouteImport } from './routes/_app.roadmap'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
-import { Route as AppPathwayRouteImport } from './routes/_app.pathway'
 import { Route as AppJobsRouteImport } from './routes/_app.jobs'
 import { Route as AppGapsRouteImport } from './routes/_app.gaps'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -43,11 +42,6 @@ const AppProfileRoute = AppProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
-const AppPathwayRoute = AppPathwayRouteImport.update({
-  id: '/pathway',
-  path: '/pathway',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppJobsRoute = AppJobsRouteImport.update({
   id: '/jobs',
   path: '/jobs',
@@ -70,7 +64,6 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/gaps': typeof AppGapsRoute
   '/jobs': typeof AppJobsRoute
-  '/pathway': typeof AppPathwayRoute
   '/profile': typeof AppProfileRoute
   '/roadmap': typeof AppRoadmapRoute
 }
@@ -80,7 +73,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/gaps': typeof AppGapsRoute
   '/jobs': typeof AppJobsRoute
-  '/pathway': typeof AppPathwayRoute
   '/profile': typeof AppProfileRoute
   '/roadmap': typeof AppRoadmapRoute
 }
@@ -92,7 +84,6 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/gaps': typeof AppGapsRoute
   '/_app/jobs': typeof AppJobsRoute
-  '/_app/pathway': typeof AppPathwayRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/roadmap': typeof AppRoadmapRoute
 }
@@ -104,7 +95,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gaps'
     | '/jobs'
-    | '/pathway'
     | '/profile'
     | '/roadmap'
   fileRoutesByTo: FileRoutesByTo
@@ -114,7 +104,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gaps'
     | '/jobs'
-    | '/pathway'
     | '/profile'
     | '/roadmap'
   id:
@@ -125,7 +114,6 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/gaps'
     | '/_app/jobs'
-    | '/_app/pathway'
     | '/_app/profile'
     | '/_app/roadmap'
   fileRoutesById: FileRoutesById
@@ -173,13 +161,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/pathway': {
-      id: '/_app/pathway'
-      path: '/pathway'
-      fullPath: '/pathway'
-      preLoaderRoute: typeof AppPathwayRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/jobs': {
       id: '/_app/jobs'
       path: '/jobs'
@@ -208,7 +189,6 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppGapsRoute: typeof AppGapsRoute
   AppJobsRoute: typeof AppJobsRoute
-  AppPathwayRoute: typeof AppPathwayRoute
   AppProfileRoute: typeof AppProfileRoute
   AppRoadmapRoute: typeof AppRoadmapRoute
 }
@@ -217,7 +197,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppGapsRoute: AppGapsRoute,
   AppJobsRoute: AppJobsRoute,
-  AppPathwayRoute: AppPathwayRoute,
   AppProfileRoute: AppProfileRoute,
   AppRoadmapRoute: AppRoadmapRoute,
 }
