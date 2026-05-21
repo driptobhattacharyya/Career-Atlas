@@ -64,3 +64,10 @@ Optional but used by downstream flows:
 - `target_roles`
 - `job_matches`
 - `profiles`
+
+`job_matches` now also stores the structured job-search payload when the schema migration is applied:
+- `job_id`
+- `query_role`
+- `user_location_preference`
+- `score_json`
+- `explanation_json`

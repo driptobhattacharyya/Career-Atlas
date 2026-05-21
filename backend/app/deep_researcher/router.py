@@ -48,6 +48,54 @@ def _extract_sources(notes: List[str]) -> List[str]:
     return out
 
 
+def _persist_learning_pathway(
+    *,
+    user_id: str,
+    role_slug: str,
+    role_title: str,
+    pathway_json: dict,
+    sources: list[str],
+    iterations_used: int,
+    quality_score: float | None,
+    verdict: dict | None,
+    validation: dict | None,
+) -> None:
+    full_row = {
+        "user_id": user_id,
+        "role_slug": role_slug,
+        "target_role": role_title,
+        "pathway": pathway_json,
+        "sources": sources,
+        "iterations_used": iterations_used,
+        "quality_score": quality_score,
+        "quality_verdict": verdict,
+        "validation": validation,
+    }
+    minimal_row = {
+        "user_id": user_id,
+        "role_slug": role_slug,
+        "target_role": role_title,
+        "pathway": pathway_json,
+        "sources": sources,
+        "quality_score": quality_score,
+        "quality_verdict": verdict,
+        "validation": validation,
+    }
+
+    try:
+        db_client.table("learning_pathways").delete()\
+            .eq("user_id", user_id).eq("role_slug", role_slug).execute()
+        db_client.table("learning_pathways").insert(full_row).execute()
+        return
+    except Exception as e:
+        logger.warning("learning_pathways full persistence failed, retrying minimal row: %s", e)
+
+    try:
+        db_client.table("learning_pathways").insert(minimal_row).execute()
+    except Exception as e:
+        logger.warning("learning_pathways persistence failed (table may not exist yet): %s", e)
+
+
 def _load_user_resume_ids(user_id: str) -> List[str]:
     """All of the user's resume ids, newest first."""
     try:
@@ -71,6 +119,29 @@ def _load_user_resume_ids(user_id: str) -> List[str]:
 def _load_user_resume_id(user_id: str) -> str | None:
     ids = _load_user_resume_ids(user_id)
     return ids[0] if ids else None
+
+
+def _normalize_learning_pathway_row(row: dict) -> dict:
+    pathway = row.get("pathway")
+    if isinstance(pathway, str):
+        try:
+            import json
+
+            pathway = json.loads(pathway)
+        except Exception:
+            pathway = None
+    return {
+        "success": True,
+        "role_slug": row.get("role_slug"),
+        "target_role": row.get("target_role") or row.get("role_slug") or "Unknown role",
+        "pathway": pathway,
+        "sources": row.get("sources") or [],
+        "iterations_used": int(row.get("iterations_used") or 0),
+        "quality_score": row.get("quality_score"),
+        "quality_verdict": row.get("quality_verdict"),
+        "validation": row.get("validation"),
+        "created_at": row.get("created_at"),
+    }
 
 
 def _load_gaps(user_id: str, role_title: str) -> List[GapIn]:
@@ -184,22 +255,17 @@ def deep_research(
     quality_passed = (verdict.pass_fail == "pass") if verdict else None
 
     pathway_json = pathway.model_dump(mode="json")
-    try:
-        db_client.table("learning_pathways").delete()\
-            .eq("user_id", user_id).eq("role_slug", role_slug).execute()
-        db_client.table("learning_pathways").insert({
-            "user_id": user_id,
-            "role_slug": role_slug,
-            "target_role": role_title,
-            "pathway": pathway_json,
-            "sources": sources,
-            "iterations_used": iterations_used,
-            "quality_score": quality_score,
-            "quality_verdict": verdict.model_dump(mode="json") if verdict else None,
-            "validation": validation.model_dump(mode="json") if validation else None,
-        }).execute()
-    except Exception as e:
-        logger.warning("learning_pathways persistence failed (table may not exist yet): %s", e)
+    _persist_learning_pathway(
+        user_id=user_id,
+        role_slug=role_slug,
+        role_title=role_title,
+        pathway_json=pathway_json,
+        sources=sources,
+        iterations_used=iterations_used,
+        quality_score=quality_score,
+        verdict=verdict.model_dump(mode="json") if verdict else None,
+        validation=validation.model_dump(mode="json") if validation else None,
+    )
 
     # Persist milestones into the `milestones` table so the roadmap page can
     # track progress. Status of surviving skills is preserved across re-runs.
@@ -259,22 +325,20 @@ def latest_pathway(
         if role_resp.data:
             resolved_slug = resolve_role_slug(role_resp.data[0]["title"])
 
-    q = (
-        db_client.table("learning_pathways")
-        .select(
-            "role_slug,target_role,pathway,sources,iterations_used,"
-            "quality_score,quality_verdict,validation,created_at"
-        )
-        .eq("user_id", user_id)
-        .order("created_at", desc=True)
-        .limit(1)
-    )
-    if resolved_slug:
-        q = q.eq("role_slug", resolved_slug)
     try:
+        q = (
+            db_client.table("learning_pathways")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .limit(1)
+        )
+        if resolved_slug:
+            q = q.eq("role_slug", resolved_slug)
         resp = q.execute()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lookup failed: {e}")
+        logger.warning("deep_researcher latest lookup failed: %s", e)
+        raise HTTPException(status_code=404, detail="No pathway found")
     if not resp.data:
         raise HTTPException(status_code=404, detail="No pathway found")
-    return {"success": True, **resp.data[0]}
+    return _normalize_learning_pathway_row(resp.data[0])

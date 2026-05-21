@@ -34,6 +34,8 @@ class Settings(BaseSettings):
 
     # Tools
     tavily_api_key: str = os.getenv("TAVILY_API_KEY", "")
+    adzuna_app_id: str = os.getenv("ADZUNA_APP_ID", "")
+    adzuna_app_key: str = os.getenv("ADZUNA_APP_KEY", "")
 
     # Jina & Pinecone (Gap Analysis)
     jina_api_key: str = os.getenv("JINA_API_KEY", "")

@@ -3,15 +3,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import {
   ApiError,
+  type JobResult,
   type MilestoneRow,
   type MilestoneStatus,
   type TargetRole,
   analyzeGaps,
   getJobMatches,
+  getCachedJobSearchResponse,
   getLatestPathway,
   getLatestResume,
   getTargetRoles,
   listMilestones,
+  cacheJobSearchResponse,
   researchJobs,
   startDeepResearch,
   updateMilestoneStatus,
@@ -96,21 +99,41 @@ export function useSkills() {
     queryFn: async () => {
       const resume = latestResume.data;
       if (!resume) return [];
-      const langs = (resume.programming_languages || []).map((name: string) => ({
+      const makeSkill = (name: string, category: string, source = "resume") => ({
         name,
-        category: "Languages",
+        category,
         level: "intermediate",
-        source: "resume",
+        source,
         evidence: "",
-      }));
-      const skills = (resume.skills || []).map((name: string) => ({
-        name,
-        category: "Tools",
-        level: "intermediate",
-        source: "resume",
-        evidence: "",
-      }));
-      return [...langs, ...skills];
+      });
+      const output: Array<{
+        name: string;
+        category: string;
+        level: string;
+        source: string;
+        evidence: string;
+      }> = [];
+      const seen = new Set<string>();
+      const push = (name: unknown, category: string, source = "resume") => {
+        if (typeof name !== "string") return;
+        const text = name.trim();
+        if (!text) return;
+        const key = `${category}:${source}:${text.toLowerCase()}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        output.push(makeSkill(text, category, source));
+      };
+      (resume.programming_languages || []).forEach((name: string) => push(name, "Languages"));
+      (resume.spoken_languages || []).forEach((name: string) => push(name, "Languages"));
+      (resume.skills || []).forEach((name: string) => push(name, "Tools"));
+      (resume.keywords || []).forEach((name: string) => push(name, "Keywords"));
+      (resume.experience || []).forEach((exp: any) => {
+        (exp?.technologies || []).forEach((name: string) => push(name, "Experience"));
+      });
+      (resume.projects || []).forEach((proj: any) => {
+        (proj?.technologies || []).forEach((name: string) => push(name, "Projects"));
+      });
+      return output;
     },
   });
 }
@@ -225,12 +248,15 @@ export function useUpdateMilestoneStatus() {
 export function useJobMatches() {
   const { user } = useAuth();
   const enabled = useEnabled();
-  return useQuery<any[]>({
+  return useQuery<JobResult[]>({
     queryKey: ["job-matches", user?.id],
     enabled,
     retry: false,
     queryFn: async () => {
+      const cached = getCachedJobSearchResponse();
+      if (cached?.jobs?.length) return cached.jobs;
       const data = await getJobMatches();
+      cacheJobSearchResponse(data);
       return data.jobs ?? [];
     },
   });
@@ -241,7 +267,7 @@ export function useResearchJobs() {
   return useMutation({
     mutationFn: (targetRoleId: string) => researchJobs(targetRoleId),
     onSuccess: (data) => {
-      qcSet("job-matches-cached", data.jobs || []);
+      cacheJobSearchResponse(data);
       qc.invalidateQueries({ queryKey: ["job-matches"] });
     },
   });

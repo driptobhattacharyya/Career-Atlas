@@ -19,6 +19,9 @@ const categoryOrder = [
   "Data",
   "Cloud & DevOps",
   "Tools",
+  "Keywords",
+  "Experience",
+  "Projects",
   "Soft Skills",
 ];
 
@@ -27,6 +30,56 @@ const levelStyles: Record<string, string> = {
   intermediate: "bg-primary-soft text-primary border-primary/20",
   beginner: "bg-warm/40 text-warm-foreground border-warm/40",
 };
+
+function asStringList(value: unknown): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (item: unknown) => {
+    if (item == null) return;
+    if (typeof item === "string") {
+      const text = item.trim();
+      if (text && !seen.has(text)) {
+        seen.add(text);
+        out.push(text);
+      }
+      return;
+    }
+    if (Array.isArray(item)) {
+      item.forEach(push);
+      return;
+    }
+    if (typeof item === "object") {
+      const obj = item as Record<string, unknown>;
+      for (const key of ["name", "title", "skill", "value", "label", "text"]) {
+        push(obj[key]);
+      }
+      for (const key of ["technologies", "tech", "skills", "keywords", "tags"]) {
+        push(obj[key]);
+      }
+    }
+  };
+  push(value);
+  return out;
+}
+
+function normalizeProject(p: any) {
+  const title =
+    p?.name ||
+    p?.title ||
+    p?.project_name ||
+    p?.label ||
+    "Untitled project";
+  const technologies = asStringList(
+    p?.technologies || p?.tech || p?.skills || p?.keywords || [],
+  );
+  return {
+    ...p,
+    name: title,
+    title,
+    technologies,
+    link: p?.link || p?.url || p?.website || null,
+  };
+}
 
 function Profile() {
   const { data: profile, isLoading: loadingProfile } = useProfile();
@@ -52,6 +105,7 @@ function Profile() {
   })).filter(g => g.skills.length > 0);
 
   const githubSkills = skills.filter((s: any) => s.source === "github");
+  const normalizedProjects = projects.map(normalizeProject);
 
   return (
     <div className="space-y-8">
@@ -116,12 +170,12 @@ function Profile() {
             {experience.map((e: any) => (
               <li key={e.id} className="rounded-2xl border border-border/60 bg-background p-5">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="font-semibold">{e.role}</h3>
+                  <h3 className="font-semibold">{e.title || e.role}</h3>
                   <span className="text-xs text-muted-foreground">{e.start_date} — {e.end_date}</span>
                 </div>
                 <p className="text-sm text-primary">{e.company}</p>
                 <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                  {e.bullets && e.bullets.map((b: string, i: number) => <li key={i}>{b}</li>)}
+                  {(e.description_bullets || e.bullets || []).map((b: string, i: number) => <li key={i}>{b}</li>)}
                 </ul>
               </li>
             ))}
@@ -150,12 +204,12 @@ function Profile() {
       <section className="rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-8">
         <h2 className="font-display text-xl font-semibold">Projects</h2>
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((p: any) => (
+          {normalizedProjects.map((p: any) => (
             <article key={p.id} className="rounded-2xl border border-border/60 bg-background p-5">
-              <h3 className="font-display font-semibold">{p.name}</h3>
+              <h3 className="font-display font-semibold">{p.name || p.title}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{p.description}</p>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {p.tech && p.tech.map((t: string) => (
+                {(p.technologies || p.tech || []).map((t: string) => (
                   <span key={t} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{t}</span>
                 ))}
               </div>
@@ -177,7 +231,7 @@ function Profile() {
           {education.map((ed: any) => (
             <li key={ed.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl border border-border/60 bg-background p-4">
               <div>
-                <p className="font-semibold">{ed.school}</p>
+                <p className="font-semibold">{ed.institution || ed.school}</p>
                 <p className="text-sm text-muted-foreground">{ed.degree}</p>
               </div>
               <span className="text-xs text-muted-foreground">{ed.start_date} — {ed.end_date}</span>

@@ -58,12 +58,22 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
     resume_id = _insert_resume_row(data, user_id, resume_key)
 
     contact = data.get("contact", {}) or {}
+    skill_values: list[str] = []
+    skill_values.extend([s for s in data.get("skills", []) or [] if isinstance(s, str) and s.strip()])
+    skill_values.extend([s for s in data.get("programming_languages", []) or [] if isinstance(s, str) and s.strip()])
+    skill_values.extend([s for s in data.get("spoken_languages", []) or [] if isinstance(s, str) and s.strip()])
+    skill_values.extend([s for s in data.get("keywords", []) or [] if isinstance(s, str) and s.strip()])
+    for exp in data.get("experience", []) or []:
+        skill_values.extend([s for s in (exp.get("technologies") or []) if isinstance(s, str) and s.strip()])
+    for proj in data.get("projects", []) or []:
+        skill_values.extend([s for s in (proj.get("technologies") or []) if isinstance(s, str) and s.strip()])
+    skill_values = list(dict.fromkeys(skill_values))
     try:
         db_client.table("contacts").insert({"resume_id": resume_id, **contact}).execute()
     except Exception:
         pass
 
-    for s in data.get("skills", []) or []:
+    for s in skill_values:
         db_client.table("skills").insert({"resume_id": resume_id, "skill": s}).execute()
 
     for s in data.get("programming_languages", []) or []:
@@ -136,7 +146,17 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
 
     for cert in data.get("certifications", []) or []:
         try:
-            db_client.table("certifications").insert({"resume_id": resume_id, **cert}).execute()
+            db_client.table("certifications").insert(
+                {
+                    "resume_id": resume_id,
+                    "name": cert.get("name"),
+                    "issuer": cert.get("issuer"),
+                    "issue_date": cert.get("date"),
+                    "expiry_date": None,
+                    "credential_id": cert.get("credential_id"),
+                    "credential_url": cert.get("link"),
+                }
+            ).execute()
         except Exception:
             pass
 

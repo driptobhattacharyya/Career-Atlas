@@ -8,6 +8,7 @@ ALTER TABLE target_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE skill_gaps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE learning_pathways ENABLE ROW LEVEL SECURITY;
 
 -- 1. Public Read Policy for target_roles
 CREATE POLICY "public_read_roles" ON target_roles 
@@ -44,4 +45,8 @@ FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Job Matches
 CREATE POLICY "owner_all_jobs" ON job_matches 
+FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Learning Pathways
+CREATE POLICY "owner_all_learning_pathways" ON learning_pathways
 FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

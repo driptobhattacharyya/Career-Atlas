@@ -84,10 +84,26 @@ def upsert_role_milestones(
         db_client.table("milestones").delete().in_("id", stale_ids).execute()
 
     if rows_to_upsert:
-        upsert_resp = (
-            db_client.table("milestones")
-            .upsert(rows_to_upsert, on_conflict="id")
-            .execute()
-        )
-        return upsert_resp.data or []
+        try:
+            upsert_resp = (
+                db_client.table("milestones")
+                .upsert(rows_to_upsert, on_conflict="id")
+                .execute()
+            )
+            return upsert_resp.data or []
+        except Exception:
+            fallback_rows = [
+                {
+                    key: value
+                    for key, value in row.items()
+                    if key not in {"target_role", "target_role_id", "resume_id", "completed_at"}
+                }
+                for row in rows_to_upsert
+            ]
+            upsert_resp = (
+                db_client.table("milestones")
+                .upsert(fallback_rows, on_conflict="id")
+                .execute()
+            )
+            return upsert_resp.data or []
     return []

@@ -39,7 +39,7 @@ function Dashboard() {
   const roadmapPct = total === 0 ? 0 : Math.round(((completed + inProgress * 0.5) / total) * 100);
   
   const topGaps = [...gaps].sort((a: any, b: any) => b.relevance - a.relevance).slice(0, 3);
-  const topJob = [...jobs].sort((a: any, b: any) => b.match_pct - a.match_pct)[0];
+  const topJob = [...jobs].sort((a: any, b: any) => b.score.final - a.score.final)[0];
   const activeMilestone = roadmap.find((m: any) => m.status === "in-progress") || roadmap[0];
   
   const localRoleTitle = isBrowser ? window.localStorage.getItem("careeratlas:selected_role_title") : null;
@@ -82,7 +82,7 @@ function Dashboard() {
         <StatCard
           icon={Briefcase}
           label="Top job match"
-          value={topJob ? `${topJob.match_pct}%` : "N/A"}
+          value={topJob ? `${Math.round(topJob.score.final)}%` : "N/A"}
           sub={topJob ? topJob.title : "No jobs found"}
           accent="text-coral"
         />

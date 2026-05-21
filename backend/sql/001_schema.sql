@@ -84,6 +84,9 @@ CREATE TABLE skill_gaps (
 CREATE TABLE milestones (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) NOT NULL,
+    target_role TEXT,
+    target_role_id TEXT,
+    resume_id TEXT,
     phase TEXT NOT NULL,
     title TEXT NOT NULL,
     skill TEXT NOT NULL,
@@ -94,12 +97,16 @@ CREATE TABLE milestones (
     project JSONB DEFAULT '{}'::jsonb,
     checklist TEXT[] DEFAULT '{}',
     sort_order INTEGER DEFAULT 0,
+    completed_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE job_matches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) NOT NULL,
+    job_id TEXT,
+    query_role TEXT,
+    user_location_preference TEXT,
     title TEXT NOT NULL,
     company TEXT NOT NULL,
     location TEXT NOT NULL,
@@ -112,5 +119,21 @@ CREATE TABLE job_matches (
     posted_days INTEGER DEFAULT 0,
     description TEXT,
     external_url TEXT,
+    score_json JSONB,
+    explanation_json JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE learning_pathways (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) NOT NULL,
+    role_slug TEXT NOT NULL,
+    target_role TEXT NOT NULL,
+    pathway JSONB NOT NULL,
+    sources TEXT[] DEFAULT '{}',
+    iterations_used INTEGER DEFAULT 0,
+    quality_score NUMERIC,
+    quality_verdict JSONB,
+    validation JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );

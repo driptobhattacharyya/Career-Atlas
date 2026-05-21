@@ -13,9 +13,21 @@ from pydantic import ValidationError
 from phonenumbers import PhoneNumberFormat
 
 from app.resume_extraction.schemas import ResumeExtraction
-from app.utils.llm_factory import get_groq_model
+from app.utils.llm_factory import get_gemini_model
 
 URL_TRAILING_PUNCT = ".,;:!?)]}>'\""
+KNOWN_RESUME_TLDS = {
+    "com", "in", "io", "dev", "net", "org", "ai", "co",
+    "me", "app", "tech", "info", "edu", "gov",
+}
+
+COMMON_SKILL_TERMS = [
+    "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", "C", "Go", "Rust", "SQL",
+    "HTML", "CSS", "React", "Next.js", "Node.js", "FastAPI", "Django", "Flask",
+    "Pandas", "NumPy", "scikit-learn", "TensorFlow", "PyTorch", "XGBoost", "OpenCV",
+    "AWS", "GCP", "Azure", "Docker", "Kubernetes", "Git", "Linux", "Bash", "Figma",
+    "PostgreSQL", "MongoDB", "MySQL", "Tableau", "Power BI", "Jira", "Airflow", "Spark",
+]
 
 
 def normalize_phone(raw_phone: str | None, default_region: str = "IN") -> dict[str, str | None]:
@@ -76,11 +88,22 @@ def normalize_url(url: str | None) -> str | None:
         return None
 
     parsed = urlparse(url)
+    candidate = None
     if parsed.scheme in {"http", "https"} and parsed.netloc:
-        return url
-    if re.match(r"^(www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(/.*)?$", url):
-        return "https://" + url
-    return None
+        candidate = url
+    elif re.match(r"^(www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(/.*)?$", url):
+        candidate = "https://" + url
+    if not candidate:
+        return None
+
+    parsed_candidate = urlparse(candidate)
+    host = (parsed_candidate.netloc or "").split(":")[0]
+    if "." not in host:
+        return None
+    tld = host.rsplit(".", 1)[-1].lower()
+    if tld not in KNOWN_RESUME_TLDS:
+        return None
+    return candidate
 
 
 def extract_urls_from_text(text: str) -> list[str]:
@@ -198,24 +221,56 @@ def _strip_code_fences(text: str) -> str:
     return text.strip()
 
 
+def _dedupe_strings(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in values:
+        text = (value or "").strip()
+        if text and text not in seen:
+            seen.add(text)
+            out.append(text)
+    return out
+
+
+def _infer_skills_from_text(resume_text: str) -> list[str]:
+    text = resume_text or ""
+    found: list[tuple[int, str]] = []
+    lowered = text.lower()
+    for term in COMMON_SKILL_TERMS:
+        idx = lowered.find(term.lower())
+        if idx != -1:
+            found.append((idx, term))
+    found.sort(key=lambda item: item[0])
+    return _dedupe_strings([term for _, term in found])
+
+
 def build_extraction_prompt(resume_text: str) -> str:
     return f"""
-You are a resume information extraction engine.
+You are a precise resume information extraction engine.
 
-Return ONLY valid JSON matching the provided schema.
-Do not add markdown, prose, code fences, or commentary.
+Return ONLY valid JSON matching the provided schema. No markdown. No prose. No code fences.
 Do not invent facts.
 Use null where a value is unavailable.
 
-Important rules:
-- Put programming languages like Python, Java, C, C++, JavaScript in programming_languages.
-- Put spoken human languages like English, Hindi, Marathi in spoken_languages.
-- Put all other tools, libraries, frameworks, and technologies in skills.
-- For contact.phone_raw, preserve the original phone text if present.
-- Do not guess missing URLs.
-- If a URL is visible in the resume or present in the extracted URL manifest, include it.
-- Prefer the extracted URL manifest for linkedin/github/project links when possible.
-- Keep dates as strings exactly as written when possible.
+--- CLASSIFICATION RULES ---
+programming_languages: Python, Java, C, C++, C#, JavaScript, TypeScript, Go, Rust, SQL, Bash, R, MATLAB, Scala, Swift, Kotlin, Dart
+spoken_languages: English, Hindi, Marathi, Tamil, Telugu, Kannada, Bengali, French, German, Spanish, and similar human/natural languages
+skills: everything else — frameworks (FastAPI, React, Django), libraries (Pandas, NumPy), platforms (AWS, GCP, Docker, Kubernetes), tools (Git, Jira, Figma), databases (PostgreSQL, MongoDB)
+
+--- CONTACT RULES ---
+- phone_raw: copy the phone string exactly as it appears in the resume
+- For URLs: prefer the EXTRACTED_URLS_JSON manifest below the resume text over inferred URLs
+- Do not guess or construct URLs that are not present
+
+--- DATE RULES ---
+- Preserve dates as written: "Jan 2024", "2022–Present", "August 2023"
+- For ongoing roles, set is_current=true and end_date="Present"
+
+--- NEGATIVE EXAMPLES ---
+- "B.Tech" -> NOT a URL
+- "v2.0" -> NOT a URL
+- "2024.01" -> NOT a URL
+- "SQL" -> programming_language, not a skill
 
 Resume text:
 <<<BEGIN_RESUME_TEXT
@@ -247,7 +302,8 @@ END_RESUME_TEXT>>>
 
 
 def _invoke_llm(prompt: str) -> str:
-    model = get_groq_model(temperature=0.0)
+    # Resume extraction is intentionally pinned to Gemini for better parsing quality.
+    model = get_gemini_model(temperature=0.0)
     response = model.invoke(prompt)
     content = getattr(response, "content", "")
     if isinstance(content, str):
@@ -307,13 +363,148 @@ def llm_generate_resume_json(prompt: str) -> str:
 
 
 def parse_resume_json(candidate_json: str) -> ResumeExtraction:
-    return ResumeExtraction.model_validate_json(_strip_code_fences(candidate_json))
+    raw = json.loads(_strip_code_fences(candidate_json))
+    if not isinstance(raw, dict):
+        raise ValidationError.from_exception_data(
+            "ResumeExtraction",
+            [
+                {
+                    "type": "dict_type",
+                    "loc": ("root",),
+                    "msg": "Resume JSON must be an object",
+                    "input": raw,
+                }
+            ],
+        )
+
+    raw["skills"] = _stringify_list(raw.get("skills", []))
+    raw["programming_languages"] = _stringify_list(raw.get("programming_languages", []))
+    raw["spoken_languages"] = _stringify_list(raw.get("spoken_languages", []))
+    raw["keywords"] = _stringify_list(raw.get("keywords", []))
+    raw["experience"] = _normalize_blocks(raw.get("experience", []))
+    raw["education"] = _normalize_education(raw.get("education", []))
+    raw["projects"] = _normalize_projects(raw.get("projects", []))
+    raw["certifications"] = [
+        item for item in raw.get("certifications", []) if isinstance(item, dict)
+    ]
+
+    return ResumeExtraction.model_validate(raw)
+
+
+def _stringify_list(value: Any) -> list[str]:
+    items: list[str] = []
+    seen: set[str] = set()
+
+    def add(item: Any) -> None:
+        if item is None:
+            return
+        if isinstance(item, str):
+            chunks = re.split(r"[,\n;|/•·]+", item)
+            if len(chunks) > 1:
+                for chunk in chunks:
+                    add(chunk)
+                return
+            text = item.strip()
+            if text and text not in seen:
+                seen.add(text)
+                items.append(text)
+            return
+        if isinstance(item, (int, float, bool)):
+            text = str(item).strip()
+            if text and text not in seen:
+                seen.add(text)
+                items.append(text)
+            return
+        if isinstance(item, list):
+            for sub in item:
+                add(sub)
+            return
+        if isinstance(item, dict):
+            priority_keys = ("name", "title", "skill", "value", "label", "text")
+            label = None
+            for key in priority_keys:
+                val = item.get(key)
+                if isinstance(val, str) and val.strip():
+                    label = val.strip()
+                    add(val)
+                    break
+
+            rich_values: list[str] = []
+            for key in ("keywords", "technologies", "items", "tags", "values"):
+                val = item.get(key)
+                if isinstance(val, list):
+                    for sub in val:
+                        if isinstance(sub, str) and sub.strip():
+                            rich_values.append(sub.strip())
+                        else:
+                            add(sub)
+
+            if label and rich_values:
+                add(f"{label}: {', '.join(_dedupe_strings(rich_values))}")
+            return
+
+    add(value)
+    return items
+
+
+def _normalize_blocks(blocks: Any) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for block in blocks or []:
+        if not isinstance(block, dict):
+            continue
+        item = dict(block)
+        item["description_bullets"] = _stringify_list(
+            item.get("description_bullets")
+            or item.get("bullets")
+            or item.get("achievements")
+            or []
+        )
+        item["technologies"] = _stringify_list(
+            item.get("technologies")
+            or item.get("tech")
+            or item.get("tools")
+            or []
+        )
+        normalized.append(item)
+    return normalized
+
+
+def _normalize_education(blocks: Any) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for block in blocks or []:
+        if not isinstance(block, dict):
+            continue
+        item = dict(block)
+        item["notes"] = _stringify_list(item.get("notes") or item.get("coursework") or [])
+        normalized.append(item)
+    return normalized
+
+
+def _normalize_projects(blocks: Any) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for block in blocks or []:
+        if not isinstance(block, dict):
+            continue
+        item = dict(block)
+        if not item.get("name"):
+            item["name"] = item.get("title") or item.get("project_name") or item.get("label")
+        item["technologies"] = _stringify_list(
+            item.get("technologies")
+            or item.get("tech")
+            or item.get("tools")
+            or item.get("skills")
+            or []
+        )
+        if not item.get("link"):
+            item["link"] = item.get("url")
+        normalized.append(item)
+    return normalized
 
 
 def _enforce_post_processing(parsed: ResumeExtraction) -> ResumeExtraction:
     parsed_dict = parsed.model_dump(mode="json")
     contact = parsed_dict.get("contact", {}) or {}
-    phone_raw = contact.get("phone_raw")
+    phone_raw = contact.get("phone_raw") or contact.get("phone")
     contact.update(normalize_phone(phone_raw))
     for field in ("linkedin", "github", "website"):
         contact[field] = normalize_url(contact.get(field))
@@ -321,17 +512,44 @@ def _enforce_post_processing(parsed: ResumeExtraction) -> ResumeExtraction:
     return ResumeExtraction.model_validate(parsed_dict)
 
 
+def _backfill_skills(parsed: ResumeExtraction, resume_text: str) -> ResumeExtraction:
+    data = parsed.model_dump(mode="json")
+    skills = _dedupe_strings(
+        list(data.get("skills") or [])
+        + list(data.get("programming_languages") or [])
+        + list(data.get("spoken_languages") or [])
+        + list(data.get("keywords") or [])
+    )
+    for exp in data.get("experience", []) or []:
+        if isinstance(exp, dict):
+            skills.extend(_dedupe_strings(list(exp.get("technologies") or [])))
+    for proj in data.get("projects", []) or []:
+        if isinstance(proj, dict):
+            skills.extend(_dedupe_strings(list(proj.get("technologies") or [])))
+    skills = _dedupe_strings(skills)
+    if not skills:
+        skills = _infer_skills_from_text(resume_text)
+    data["skills"] = skills
+    return ResumeExtraction.model_validate(data)
+
+
 def extract_structured_resume_data(md_text: str) -> ResumeExtraction:
     prompt = build_extraction_prompt(md_text)
     draft_json = llm_generate_resume_json(prompt)
-    try:
-        parsed = parse_resume_json(draft_json)
-        return _enforce_post_processing(parsed)
-    except ValidationError as exc:
-        repair_prompt = build_repair_prompt(md_text, draft_json, str(exc))
-        repaired_json = llm_generate_resume_json(repair_prompt)
-        repaired = parse_resume_json(repaired_json)
-        return _enforce_post_processing(repaired)
+    for attempt in range(2):  # 1 initial + 1 repair
+        try:
+            parsed = parse_resume_json(draft_json)
+            parsed = _enforce_post_processing(parsed)
+            parsed = _backfill_skills(parsed, md_text)
+            return parsed
+        except ValidationError as exc:
+            if attempt == 0:
+                repair_prompt = build_repair_prompt(md_text, draft_json, str(exc))
+                draft_json = llm_generate_resume_json(repair_prompt)
+            else:
+                raise
+
+    raise RuntimeError("Resume extraction failed after validation repair attempts.")
 
 
 def extraction_to_json(extracted: ResumeExtraction) -> dict[str, Any]:

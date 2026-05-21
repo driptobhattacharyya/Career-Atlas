@@ -159,17 +159,126 @@ export async function updateMilestoneStatus(milestoneId: string, status: Milesto
 
 // ── Jobs ───────────────────────────────────────────────────────────────────
 
-export async function getJobMatches() {
-  return request<{ success: boolean; jobs: any[] }>("/api/research-jobs/", {
-    method: "GET",
-  });
+export interface ScoreBreakdown {
+  semantic: number;
+  skill_overlap: number;
+  experience: number;
+  education: number;
+  final: number;
 }
 
-export async function researchJobs(targetRoleId: string) {
-  return request<{ success: boolean; jobs: any[] }>("/api/research-jobs/", {
+export interface JobExplanation {
+  strengths: string[];
+  gaps: string[];
+  reasoning: string;
+}
+
+export interface JobResult {
+  job_id: string;
+  title: string;
+  company?: string | null;
+  location?: string | null;
+  apply_url?: string | null;
+  score: ScoreBreakdown;
+  explanation: JobExplanation;
+  remote?: boolean | null;
+  seniority?: string | null;
+  match_pct?: number | null;
+  matched?: string[];
+  missing?: string[];
+  salary?: string | null;
+  posted_days?: number | null;
+  description?: string | null;
+  external_url?: string | null;
+}
+
+export interface JobSearchResponse {
+  query_role: string;
+  user_location_preference: string;
+  total_jobs_fetched: number;
+  jobs: JobResult[];
+}
+
+function toNumber(value: unknown, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function pct(value: unknown) {
+  const n = toNumber(value, 0);
+  return n <= 1 ? n * 100 : n;
+}
+
+export function normalizeJobResult(job: any): JobResult {
+  const scoreSource = job?.score ?? {};
+  const explanationSource = job?.explanation ?? {};
+  const strengths = Array.isArray(explanationSource?.strengths)
+    ? explanationSource.strengths
+    : Array.isArray(job?.matched)
+      ? job.matched
+      : [];
+  const gaps = Array.isArray(explanationSource?.gaps)
+    ? explanationSource.gaps
+    : Array.isArray(job?.missing)
+      ? job.missing
+      : [];
+  const finalScore = scoreSource?.final ?? job?.match_pct ?? 0;
+  const normalizedFinal = pct(finalScore);
+
+  return {
+    job_id: String(job?.job_id ?? job?.id ?? ""),
+    title: String(job?.title ?? "Untitled role"),
+    company: job?.company ?? null,
+    location: job?.location ?? null,
+    apply_url: job?.apply_url ?? job?.external_url ?? null,
+    score: {
+      semantic: pct(scoreSource?.semantic ?? 0),
+      skill_overlap: pct(scoreSource?.skill_overlap ?? 0),
+      experience: pct(scoreSource?.experience ?? 0),
+      education: pct(scoreSource?.education ?? 0),
+      final: normalizedFinal,
+    },
+    explanation: {
+      strengths: strengths.map(String),
+      gaps: gaps.map(String),
+      reasoning: String(explanationSource?.reasoning ?? job?.description ?? ""),
+    },
+    remote: job?.remote ?? null,
+    seniority: job?.seniority ?? null,
+    match_pct: toNumber(job?.match_pct ?? Math.round(normalizedFinal), Math.round(normalizedFinal)),
+    matched: Array.isArray(job?.matched) ? job.matched.map(String) : strengths.map(String),
+    missing: Array.isArray(job?.missing) ? job.missing.map(String) : gaps.map(String),
+    salary: job?.salary ?? null,
+    posted_days: job?.posted_days ?? null,
+    description: job?.description ?? null,
+    external_url: job?.external_url ?? job?.apply_url ?? null,
+  };
+}
+
+export function normalizeJobSearchResponse(data: any): JobSearchResponse {
+  const payload = data?.jobs ? data : data?.success ? data : { jobs: [] };
+  const jobs = Array.isArray(payload?.jobs) ? payload.jobs.map(normalizeJobResult) : [];
+  return {
+    query_role: String(payload?.query_role ?? ""),
+    user_location_preference: String(payload?.user_location_preference ?? ""),
+    total_jobs_fetched: toNumber(payload?.total_jobs_fetched ?? jobs.length, jobs.length),
+    jobs,
+  };
+}
+
+export async function getJobMatches(): Promise<JobSearchResponse> {
+  const data = await request<any>("/api/research-jobs/", {
+    method: "GET",
+  });
+  return normalizeJobSearchResponse(data);
+}
+
+export async function researchJobs(targetRoleId: string): Promise<JobSearchResponse> {
+  const data = await request<any>("/api/research-jobs/", {
     method: "POST",
     jsonBody: { target_role_id: targetRoleId },
   });
+  return normalizeJobSearchResponse(data);
 }
 
 // ── Deep research / Pathways (M2) ──────────────────────────────────────────
@@ -234,6 +343,26 @@ export async function getLatestPathway(roleId?: string) {
     validation: ValidationResult | null;
     created_at: string;
   }>(`/api/deep-research/latest${qs}`, { method: "GET" });
+}
+
+type SessionCacheValue = unknown;
+const _sessionCache = new Map<string, SessionCacheValue>();
+
+export function qcGet<T = unknown>(key: string): T | undefined {
+  return _sessionCache.get(key) as T | undefined;
+}
+
+export function qcSet<T = unknown>(key: string, value: T): T {
+  _sessionCache.set(key, value);
+  return value;
+}
+
+export function cacheJobSearchResponse(data: JobSearchResponse): JobSearchResponse {
+  return qcSet("job-matches-cached", data);
+}
+
+export function getCachedJobSearchResponse(): JobSearchResponse | undefined {
+  return qcGet<JobSearchResponse>("job-matches-cached");
 }
 
 export const API_BASE = API_BASE_URL;

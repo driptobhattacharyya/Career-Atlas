@@ -1,5 +1,7 @@
-from pydantic import BaseModel, Field
 from typing import List, Optional
+
+from pydantic import BaseModel, Field
+
 
 class JobMatchSchema(BaseModel):
     title: str
@@ -20,5 +22,49 @@ class JobMatchSchema(BaseModel):
     description: str
     external_url: str
 
+
 class ScrapedJobsResponse(BaseModel):
     jobs: List[JobMatchSchema]
+
+
+class ScoreBreakdown(BaseModel):
+    semantic: float
+    skill_overlap: float
+    experience: float
+    education: float
+    final: float
+
+
+class JobExplanation(BaseModel):
+    strengths: List[str] = Field(default_factory=list)
+    gaps: List[str] = Field(default_factory=list)
+    reasoning: str = ""
+
+
+class JobResult(BaseModel):
+    job_id: str
+    title: str
+    company: Optional[str] = None
+    location: Optional[str] = None
+    apply_url: Optional[str] = None
+
+    score: ScoreBreakdown
+    explanation: JobExplanation
+
+    # Transitional compatibility fields for the existing UI and persisted rows.
+    remote: Optional[bool] = None
+    seniority: Optional[str] = None
+    match_pct: Optional[int] = None
+    matched: List[str] = Field(default_factory=list)
+    missing: List[str] = Field(default_factory=list)
+    salary: Optional[str] = None
+    posted_days: Optional[int] = None
+    description: Optional[str] = None
+    external_url: Optional[str] = None
+
+
+class JobSearchResponse(BaseModel):
+    query_role: str
+    user_location_preference: str
+    total_jobs_fetched: int
+    jobs: List[JobResult]
