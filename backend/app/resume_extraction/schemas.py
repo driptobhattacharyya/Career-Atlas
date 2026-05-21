@@ -90,8 +90,9 @@ class ResumeExtraction(BaseModel):
     summary: Optional[str] = Field(
         default=None, description="Professional summary.")
 
-    skills: list[str] = Field(default_factory=list,
-                              description="All extracted skills.")
+    skills: list[str] = Field(
+        default_factory=list,
+        description="All tools, frameworks, and skills explicitly listed in the skills section of the resume (excluding programming languages).")
     programming_languages: list[str] = Field(
         default_factory=list, description="Programming languages (Python, Java, C, etc.).")
     spoken_languages: list[str] = Field(

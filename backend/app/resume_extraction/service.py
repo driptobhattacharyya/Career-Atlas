@@ -245,12 +245,17 @@ def _infer_skills_from_text(resume_text: str) -> list[str]:
 
 
 def build_extraction_prompt(resume_text: str) -> str:
+    schema_json = json.dumps(ResumeExtraction.model_json_schema(), indent=2)
     return f"""
 You are a precise resume information extraction engine.
 
 Return ONLY valid JSON matching the provided schema. No markdown. No prose. No code fences.
 Do not invent facts.
 Use null where a value is unavailable.
+
+--- TARGET JSON SCHEMA ---
+{schema_json}
+
 
 --- CLASSIFICATION RULES ---
 programming_languages: Python, Java, C, C++, C#, JavaScript, TypeScript, Go, Rust, SQL, Bash, R, MATLAB, Scala, Swift, Kotlin, Dart
@@ -280,6 +285,7 @@ END_RESUME_TEXT>>>
 
 
 def build_repair_prompt(resume_text: str, draft_json: str, validation_error: str) -> str:
+    schema_json = json.dumps(ResumeExtraction.model_json_schema(), indent=2)
     return f"""
 You produced JSON that failed schema validation.
 
@@ -287,6 +293,9 @@ Fix it and return ONLY valid JSON matching the schema.
 Do not add markdown, prose, or code fences.
 Do not invent facts.
 Use null where unknown.
+
+--- TARGET JSON SCHEMA ---
+{schema_json}
 
 Validation error:
 {validation_error}
