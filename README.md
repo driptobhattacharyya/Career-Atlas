@@ -1,80 +1,87 @@
 # CareerAtlas
 
-CareerAtlas is an AI-assisted career planning app with:
-- resume extraction
-- gap analysis
-- roadmap generation
-- job discovery (optional/in-progress integration)
+AI career-planning app. Upload a resume, pick a target role, and get a
+web-grounded, citation-backed learning roadmap plus ranked job matches.
 
-## Project Structure
-- `frontend/`: Vite + React + TanStack Query
-- `backend/`: FastAPI + AI services + Supabase integration
+Pipeline: **resume extraction → gap analysis → learning roadmap → job matches**.
 
-## Current Dev Mode
-- Google sign-in can be bypassed (`VITE_DISABLE_AUTH=true`, `DEV_BYPASS_AUTH=true`).
-- Resume upload uses backend local storage (`backend/static/resumes`) instead of Supabase bucket.
-- `target_roles` falls back to frontend defaults if table is missing.
-- Roadmap generation works even if `milestones` table is missing; persistence is skipped gracefully.
+## Stack
 
-## Quick Start
-1. Backend
+- **Frontend** — Vite + React 19 + TanStack Router/Query (Bun)
+- **Backend** — FastAPI (Python 3.12, `uv`)
+- **Auth + DB** — Supabase (Postgres + Google OAuth)
+- **AI** — Groq (Llama 3.3 70B) for extraction, gap analysis, roadmap/deep
+  research, and the LLM-as-judge; Gemini for embeddings
+- **Retrieval** — Pinecone (skill taxonomy) + Jina rerank; Tavily web search
+
+## Structure
+
+- `frontend/` — React app
+- `backend/` — FastAPI app: `app/resume_extraction`, `app/gap_analysis`,
+  `app/roadmap_generation`, `app/deep_researcher`, `app/job_hunter`
+
+## Quick start
+
+1. **Backend**
+   ```bash
+   cd backend
+   cp .env.example .env        # then fill in the keys
+   uv sync
+   uv run uvicorn app.main:app --reload
+   ```
+2. **Frontend**
+   ```bash
+   cd frontend
+   cp .env.example .env        # then fill in the keys
+   bun install
+   bun dev
+   ```
+
+Backend → `http://localhost:8000`, frontend → `http://localhost:8080`.
+
+## Environment
+
+Copy each `.env.example` to `.env` and fill it in — see `backend/.env.example`
+and `frontend/.env.example` for the full list. Real `.env` files are
+git-ignored; never commit secrets.
+
+One-time setup: ingest the Pinecone skill taxonomy (gap analysis depends on it):
+
 ```bash
-cd backend
-uv sync
-uv run uvicorn app.main:app --reload
+cd backend && uv run python scripts/ingest_taxonomy.py --wipe
 ```
 
-2. Frontend
-```bash
-cd frontend
-bun install
-bun dev
-```
+## Google OAuth
 
-## Required Environment
+Users sign in with Google through Supabase. To enable real sign-in:
 
-### Backend (`backend/.env`)
-- `ENVIRONMENT=development`
-- `CORS_ORIGINS=http://localhost:8080,http://localhost:5173,http://localhost:3000`
-- `SUPABASE_URL=...`
-- `SUPABASE_SERVICE_KEY=...`
-- `SUPABASE_JWT_SECRET=...` (when using HS256 token validation)
-- `GOOGLE_API_KEY=...`
-- `GROQ_API_KEY=...`
-- `GROQ_MODEL=llama-3.3-70b-versatile`
-- `TAVILY_API_KEY=...`
-- `JINA_API_KEY=...`
-- `PINECONE_API_KEY=...`
-- `PINECONE_INDEX_NAME=...`
-- `PINECONE_REGION=...`
-- `PINECONE_HOST=...`
-- `DEV_BYPASS_AUTH=true` (optional dev bypass)
-- `DEV_USER_ID=<supabase auth.users UUID>` (required if bypass is true)
+1. **Google Cloud Console** → APIs & Services:
+   - *OAuth consent screen* — External; add your account under **Test users**.
+   - *Credentials* → create an **OAuth client ID** (Web application):
+     - Authorized JavaScript origin: `http://localhost:8080`
+     - Authorized redirect URI: `https://<your-project>.supabase.co/auth/v1/callback`
+2. **Supabase** → Authentication:
+   - *Providers* → enable **Google**, paste the client ID + secret.
+   - *URL Configuration* → Site URL `http://localhost:8080`, add redirect
+     URL `http://localhost:8080/**`.
+3. Set `DEV_BYPASS_AUTH=false` (backend) and `VITE_DISABLE_AUTH=false`
+   (frontend); restart both.
 
-### Frontend (`frontend/.env`)
-- `VITE_API_BASE_URL=http://localhost:8000`
-- `VITE_SUPABASE_URL=...`
-- `VITE_SUPABASE_ANON_KEY=...`
-- `VITE_DISABLE_AUTH=true` (optional dev bypass)
-- `VITE_DEV_USER_ID=<same UUID as backend DEV_USER_ID>`
+The backend verifies Supabase JWTs against the project's JWKS endpoint
+(`/auth/v1/.well-known/jwks.json`) — no JWT secret required.
 
-## Database Notes
-- Resume persistence currently follows the normalized tables:
-  - `resumes`, `contacts`, `skills`, `programming_languages`, `spoken_languages`, `keywords`
-  - `experiences`, `experience_bullets`, `experience_technologies`
-  - `education`, `education_notes`
-  - `projects`, `project_technologies`
-  - `certifications`
-- Optional/legacy tables used by some views:
-  - `profiles`
-  - `skill_gaps`
-  - `milestones` (optional; roadmap still returns generated milestones without persistence)
-  - `job_matches`
+### Dev bypass
 
-## Troubleshooting
-- CORS error from `localhost:8080`:
-  - ensure backend restarted after `CORS_ORIGINS` changes.
-- `target_roles` 404:
-  - either create table and seed data, or rely on frontend fallback roles.
-- `milestones` table missing:
-  - roadmap generation still succeeds; persistence is skipped.
+For local work without signing in, set `DEV_BYPASS_AUTH=true` +
+`VITE_DISABLE_AUTH=true`. Every request then runs as `DEV_USER_ID`.
+
+## Notes
+
+- Resumes are parsed to local `backend/static/resumes/` — swap for Supabase
+  Storage before deploying.
+- Database is a normalized Postgres schema: `resumes` + child tables
+  (`contacts`, `skills`, `experiences`, `education`, `projects`, …),
+  `skill_gaps`, `milestones`, `learning_pathways`, `job_matches`,
+  `target_roles`, `profiles`.
+- The roadmap (`/roadmap`) is generated by the deep researcher — web-grounded,
+  cited, quality-scored milestones with progress tracking.
