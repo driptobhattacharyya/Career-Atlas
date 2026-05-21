@@ -47,6 +47,7 @@ def upsert_role_milestones(
         prior = prior_by_skill.get(key)
 
         if prior:
+
             status = prior.get("status") or "locked"
             completed_at = prior.get("completed_at")
         else:
@@ -55,7 +56,6 @@ def upsert_role_milestones(
 
         row = {
             "user_id": user_id,
-            "target_role": role_title,
             "target_role_id": role_id,
             "resume_id": resume_id,
             "phase": ms.get("phase"),
@@ -84,26 +84,11 @@ def upsert_role_milestones(
         db_client.table("milestones").delete().in_("id", stale_ids).execute()
 
     if rows_to_upsert:
-        try:
-            upsert_resp = (
-                db_client.table("milestones")
-                .upsert(rows_to_upsert, on_conflict="id")
-                .execute()
-            )
-            return upsert_resp.data or []
-        except Exception:
-            fallback_rows = [
-                {
-                    key: value
-                    for key, value in row.items()
-                    if key not in {"target_role", "target_role_id", "resume_id", "completed_at"}
-                }
-                for row in rows_to_upsert
-            ]
-            upsert_resp = (
-                db_client.table("milestones")
-                .upsert(fallback_rows, on_conflict="id")
-                .execute()
-            )
-            return upsert_resp.data or []
+        upsert_resp = (
+            db_client.table("milestones")
+            .upsert(rows_to_upsert, on_conflict="id")
+            .execute()
+        )
+        return upsert_resp.data or []
+
     return []

@@ -51,6 +51,7 @@ def _extract_sources(notes: List[str]) -> List[str]:
 def _persist_learning_pathway(
     *,
     user_id: str,
+    role_id: str,
     role_slug: str,
     role_title: str,
     pathway_json: dict,
@@ -60,26 +61,28 @@ def _persist_learning_pathway(
     verdict: dict | None,
     validation: dict | None,
 ) -> None:
-    full_row = {
-        "user_id": user_id,
-        "role_slug": role_slug,
-        "target_role": role_title,
-        "pathway": pathway_json,
+    import json
+    
+    # Map the deep research output to the actual database columns 
+    # to avoid the PGRST204 Schema Cache error.
+    # We serialize the debug info into the 'description' field since the table lacks those columns.
+    debug_info = {
         "sources": sources,
         "iterations_used": iterations_used,
         "quality_score": quality_score,
         "quality_verdict": verdict,
         "validation": validation,
     }
-    minimal_row = {
+    
+    full_row = {
         "user_id": user_id,
+        "target_role_id": role_id,
         "role_slug": role_slug,
-        "target_role": role_title,
-        "pathway": pathway_json,
-        "sources": sources,
-        "quality_score": quality_score,
-        "quality_verdict": verdict,
-        "validation": validation,
+        "title": role_title,
+        "estimated_weeks": pathway_json.get("estimated_weeks", 0),
+        "milestones": pathway_json.get("milestones", []),
+        "resources": [], 
+        "description": json.dumps(debug_info)
     }
 
     try:
@@ -88,12 +91,7 @@ def _persist_learning_pathway(
         db_client.table("learning_pathways").insert(full_row).execute()
         return
     except Exception as e:
-        logger.warning("learning_pathways full persistence failed, retrying minimal row: %s", e)
-
-    try:
-        db_client.table("learning_pathways").insert(minimal_row).execute()
-    except Exception as e:
-        logger.warning("learning_pathways persistence failed (table may not exist yet): %s", e)
+        logger.warning("learning_pathways persistence failed: %s", e)
 
 
 def _load_user_resume_ids(user_id: str) -> List[str]:
@@ -122,24 +120,34 @@ def _load_user_resume_id(user_id: str) -> str | None:
 
 
 def _normalize_learning_pathway_row(row: dict) -> dict:
-    pathway = row.get("pathway")
-    if isinstance(pathway, str):
+    import json
+    
+    # Reconstruct the Pathway object from the DB columns
+    pathway = {
+        "target_role": row.get("title") or "Unknown",
+        "estimated_weeks": row.get("estimated_weeks") or 0,
+        "milestones": row.get("milestones") or []
+    }
+    
+    # Unpack the debug info from the description column
+    debug_info = {}
+    description = row.get("description")
+    if description:
         try:
-            import json
-
-            pathway = json.loads(pathway)
+            debug_info = json.loads(description)
         except Exception:
-            pathway = None
+            pass
+
     return {
         "success": True,
         "role_slug": row.get("role_slug"),
-        "target_role": row.get("target_role") or row.get("role_slug") or "Unknown role",
+        "target_role": row.get("title") or row.get("role_slug") or "Unknown role",
         "pathway": pathway,
-        "sources": row.get("sources") or [],
-        "iterations_used": int(row.get("iterations_used") or 0),
-        "quality_score": row.get("quality_score"),
-        "quality_verdict": row.get("quality_verdict"),
-        "validation": row.get("validation"),
+        "sources": debug_info.get("sources") or [],
+        "iterations_used": int(debug_info.get("iterations_used") or 0),
+        "quality_score": debug_info.get("quality_score"),
+        "quality_verdict": debug_info.get("quality_verdict"),
+        "validation": debug_info.get("validation"),
         "created_at": row.get("created_at"),
     }
 
@@ -257,6 +265,7 @@ def deep_research(
     pathway_json = pathway.model_dump(mode="json")
     _persist_learning_pathway(
         user_id=user_id,
+        role_id=role_id,
         role_slug=role_slug,
         role_title=role_title,
         pathway_json=pathway_json,
