@@ -260,7 +260,7 @@ Use null where a value is unavailable.
 --- CLASSIFICATION RULES ---
 programming_languages: Python, Java, C, C++, C#, JavaScript, TypeScript, Go, Rust, SQL, Bash, R, MATLAB, Scala, Swift, Kotlin, Dart
 spoken_languages: English, Hindi, Marathi, Tamil, Telugu, Kannada, Bengali, French, German, Spanish, and similar human/natural languages
-skills: everything else — frameworks (FastAPI, React, Django), libraries (Pandas, NumPy), platforms (AWS, GCP, Docker, Kubernetes), tools (Git, Jira, Figma), databases (PostgreSQL, MongoDB)
+skills: all professional skills, core competencies (e.g. Machine Learning, Data Science, System Design), frameworks (FastAPI, React), libraries (Pandas), platforms (AWS, Docker), tools, and databases
 
 --- CONTACT RULES ---
 - phone_raw: copy the phone string exactly as it appears in the resume
@@ -337,38 +337,10 @@ def _invoke_llm(prompt: str) -> str:
 
 
 def llm_generate_resume_json(prompt: str) -> str:
-    max_retries = 5
-    base_wait_seconds = 3
-    last_error: Exception | None = None
-
-    for attempt in range(1, max_retries + 1):
-        try:
-            return _invoke_llm(prompt)
-        except Exception as exc:
-            last_error = exc
-            error_text = str(exc).lower()
-            retryable_errors = [
-                "503",
-                "service unavailable",
-                "resource exhausted",
-                "quota",
-                "rate limit",
-                "429",
-                "deadline exceeded",
-                "timeout",
-                "temporarily unavailable",
-                "internal error",
-                "500",
-            ]
-            should_retry = any(token in error_text for token in retryable_errors)
-            if not should_retry or attempt == max_retries:
-                break
-            wait_time = base_wait_seconds * (2 ** (attempt - 1))
-            time.sleep(wait_time)
-
-    raise RuntimeError(
-        f"Resume extraction LLM failed after {max_retries} retries. Last error: {last_error}"
-    )
+    try:
+        return _invoke_llm(prompt)
+    except Exception as exc:
+        raise RuntimeError(f"Resume extraction LLM failed: {exc}")
 
 
 def parse_resume_json(candidate_json: str) -> ResumeExtraction:
@@ -551,8 +523,9 @@ def extract_structured_resume_data(md_text: str) -> ResumeExtraction:
             parsed = _enforce_post_processing(parsed)
             parsed = _backfill_skills(parsed, md_text)
             return parsed
-        except ValidationError as exc:
+        except (ValidationError, json.JSONDecodeError) as exc:
             if attempt == 0:
+                print(f"⚠️ Resume Extraction LLM failed schema validation. Retrying (1/1)... Error: {type(exc).__name__}")
                 repair_prompt = build_repair_prompt(md_text, draft_json, str(exc))
                 draft_json = llm_generate_resume_json(repair_prompt)
             else:

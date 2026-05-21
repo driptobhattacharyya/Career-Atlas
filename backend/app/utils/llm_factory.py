@@ -13,7 +13,8 @@ def get_gemini_model(model_name: str = "gemini-2.5-flash", temperature: float = 
     return ChatGoogleGenerativeAI(
         model=model_name,
         google_api_key=settings.google_api_key,
-        temperature=temperature
+        temperature=temperature,
+        max_retries=4
     )
 
 @lru_cache()
