@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Compass, FileText, Sparkles, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,13 +34,20 @@ function Onboarding() {
     if (!disableAuth && user && step === 0) setStep(1);
   }, [user, step]);
 
-  // Already-onboarded user (signed in + resume on file) → straight to Dashboard.
+  // Redirect already-onboarded users (a resume existed when this page loaded)
+  // straight to the Dashboard. ONE-SHOT: decided on the first resolved fetch —
+  // it must NOT fire after the in-flow resume upload, or the user skips the
+  // gap-analysis step.
   const latestResume = useLatestResume();
+  const onboardCheckDone = useRef(false);
   useEffect(() => {
-    if (!disableAuth && user && latestResume.data) {
+    if (onboardCheckDone.current || disableAuth || !user) return;
+    if (!latestResume.isSuccess) return;
+    onboardCheckDone.current = true;
+    if (latestResume.data) {
       navigate({ to: "/dashboard" });
     }
-  }, [user, latestResume.data, navigate]);
+  }, [user, latestResume.isSuccess, latestResume.data, navigate]);
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [roleId, setRoleId] = useState<string>("ml-engineer");

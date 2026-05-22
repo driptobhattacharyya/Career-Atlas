@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus, ArrowRight, Loader2 } from "lucide-react";
+import { Plus, ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { useGapAnalysis, useProfile, useTargetRoles } from "@/hooks/queries";
+import { useGapAnalysis, useProfile, useTargetRoles, useRunGapAnalysis } from "@/hooks/queries";
 import { cn } from "@/lib/utils";
 import { pageStagger, fadeUp, listStagger, fadeUpSm, entrance } from "@/lib/motion";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ function Gaps() {
   const { data: profile } = useProfile();
   const { data: roles = [] } = useTargetRoles();
   const { data: gaps = [], isLoading } = useGapAnalysis();
+  const runGap = useRunGapAnalysis();
 
   const explainability = (() => {
     if (!isBrowser) return null;
@@ -49,6 +50,19 @@ function Gaps() {
     localRoleTitle ||
     "Target Role";
 
+  const runAnalysis = () => {
+    runGap.mutate(targetRole, {
+      onSuccess: (data: any) => {
+        const n = Array.isArray(data?.gaps) ? data.gaps.length : 0;
+        toast.success(
+          n > 0 ? `Found ${n} skill gaps` : "Analysis complete — no gaps found",
+        );
+      },
+      onError: (err: any) =>
+        toast.error("Gap analysis failed", { description: err?.message }),
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
@@ -59,11 +73,28 @@ function Gaps() {
 
   return (
     <motion.div className="space-y-8" variants={pageStagger} {...entrance}>
-      <motion.div variants={fadeUp}>
-        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Skill gap analysis</h1>
-        <p className="mt-2 text-muted-foreground">
-          The skills standing between you and a typical <span className="font-medium text-foreground">{targetRole}</span> offer, ranked by impact.
-        </p>
+      <motion.div variants={fadeUp} className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Skill gap analysis</h1>
+          <p className="mt-2 text-muted-foreground">
+            The skills standing between you and a typical <span className="font-medium text-foreground">{targetRole}</span> offer, ranked by impact.
+          </p>
+        </div>
+        <Button
+          onClick={runAnalysis}
+          disabled={runGap.isPending}
+          className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm"
+        >
+          {runGap.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing…
+            </>
+          ) : (
+            <>
+              <Sparkles className="mr-2 h-4 w-4" /> {gaps.length > 0 ? "Re-run analysis" : "Run gap analysis"}
+            </>
+          )}
+        </Button>
       </motion.div>
 
       <motion.ol className="space-y-4" variants={listStagger}>
@@ -116,7 +147,28 @@ function Gaps() {
           </motion.li>
         ))}
         {sorted.length === 0 && (
-          <p className="text-sm text-muted-foreground border border-dashed p-8 text-center rounded-xl bg-card">No skill gaps found!</p>
+          <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center">
+            <Sparkles className="mx-auto h-8 w-8 text-coral" />
+            <p className="mt-3 text-sm text-muted-foreground">
+              No gap analysis yet for <span className="font-medium text-foreground">{targetRole}</span>.
+              Run it to see your ranked skill gaps — needed before the roadmap's deep research.
+            </p>
+            <Button
+              onClick={runAnalysis}
+              disabled={runGap.isPending}
+              className="mt-4 rounded-full bg-coral text-coral-foreground hover:bg-coral/90"
+            >
+              {runGap.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" /> Run gap analysis
+                </>
+              )}
+            </Button>
+          </div>
         )}
       </motion.ol>
 
