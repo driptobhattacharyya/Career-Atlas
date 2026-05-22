@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus, ArrowRight, Loader2 } from "lucide-react";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { useGapAnalysis, useProfile, useTargetRoles } from "@/hooks/queries";
 import { cn } from "@/lib/utils";
+import { pageStagger, fadeUp, listStagger, fadeUpSm, entrance } from "@/lib/motion";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/gaps")({
@@ -56,17 +58,21 @@ function Gaps() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
+    <motion.div className="space-y-8" variants={pageStagger} {...entrance}>
+      <motion.div variants={fadeUp}>
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Skill gap analysis</h1>
         <p className="mt-2 text-muted-foreground">
           The skills standing between you and a typical <span className="font-medium text-foreground">{targetRole}</span> offer, ranked by impact.
         </p>
-      </div>
+      </motion.div>
 
-      <ol className="space-y-4">
+      <motion.ol className="space-y-4" variants={listStagger}>
         {sorted.map((g: any, i: number) => (
-          <li key={g.skill} className="rounded-3xl border border-border bg-card p-6 shadow-soft transition-shadow hover:shadow-warm">
+          <motion.li
+            key={g.skill}
+            variants={fadeUpSm}
+            className="hover-lift rounded-3xl border border-border bg-card p-6 shadow-soft"
+          >
             <div className="flex flex-wrap items-start gap-4">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground font-display font-bold">
                 {i + 1}
@@ -107,15 +113,18 @@ function Gaps() {
                 </Button>
               </div>
             </div>
-          </li>
+          </motion.li>
         ))}
         {sorted.length === 0 && (
           <p className="text-sm text-muted-foreground border border-dashed p-8 text-center rounded-xl bg-card">No skill gaps found!</p>
         )}
-      </ol>
+      </motion.ol>
 
       {explainability && (
-        <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+        <motion.section
+          variants={fadeUp}
+          className="hover-lift rounded-3xl border border-border bg-card p-6 shadow-soft"
+        >
           <h2 className="font-display text-xl font-semibold">Why these gaps?</h2>
           <p className="mt-1 text-sm text-muted-foreground">Backend explainability from the gap analysis agent.</p>
           {typeof explainability.input_skill_count === "number" && (
@@ -144,9 +153,9 @@ function Gaps() {
               Retrieval trace is unavailable for this cached run. Re-run analysis to see the full trace.
             </p>
           )}
-        </section>
+        </motion.section>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -158,7 +167,12 @@ function RelevanceMeter({ value }: { value: number }) {
         <span className="font-semibold text-coral">{value}%</span>
       </div>
       <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-coral transition-all" style={{ width: `${value}%` }} />
+        <motion.div
+          className="h-full rounded-full bg-coral"
+          initial={{ width: 0 }}
+          animate={{ width: `${value}%` }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+        />
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
-import { useTargetRoles, useUploadResume, useRunGapAnalysis } from "@/hooks/queries";
+import { useTargetRoles, useUploadResume, useRunGapAnalysis, useLatestResume } from "@/hooks/queries";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -33,6 +33,14 @@ function Onboarding() {
   useEffect(() => {
     if (!disableAuth && user && step === 0) setStep(1);
   }, [user, step]);
+
+  // Already-onboarded user (signed in + resume on file) → straight to Dashboard.
+  const latestResume = useLatestResume();
+  useEffect(() => {
+    if (!disableAuth && user && latestResume.data) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [user, latestResume.data, navigate]);
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [roleId, setRoleId] = useState<string>("ml-engineer");

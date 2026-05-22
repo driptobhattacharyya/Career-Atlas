@@ -204,4 +204,36 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Card lift on hover — premium micro-interaction. */
+  .hover-lift {
+    transition:
+      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.22s ease,
+      border-color 0.22s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-warm);
+  }
+
+  /* Subtle scale-in for interactive tiles. */
+  .press {
+    transition: transform 0.15s ease;
+  }
+  .press:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Respect reduced-motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

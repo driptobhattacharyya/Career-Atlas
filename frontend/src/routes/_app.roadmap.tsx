@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   ShieldAlert,
 } from "lucide-react";
+import { motion } from "motion/react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
 import { ApiError } from "@/lib/api";
 import type { JudgeVerdict, ValidationResult, MilestoneRow, MilestoneStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { listStagger, fadeUpSm } from "@/lib/motion";
 
 export const Route = createFileRoute("/_app/roadmap")({
   head: () => ({
@@ -106,7 +108,12 @@ function Roadmap() {
   const researching = busy || startMutation.isPending;
 
   return (
-    <div className="space-y-8">
+    <motion.div
+      className="space-y-8"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+    >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
@@ -170,7 +177,7 @@ function Roadmap() {
       )}
 
       {rationale && (
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+        <div className="hover-lift rounded-3xl border border-border bg-card p-6 shadow-soft">
           <h2 className="font-display text-lg font-semibold">Why this ordering</h2>
           <p className="mt-2 text-sm text-muted-foreground">{rationale}</p>
         </div>
@@ -184,16 +191,21 @@ function Roadmap() {
             className="absolute left-5 top-2 bottom-2 w-px bg-border md:left-7"
             aria-hidden
           />
-          <ol className="space-y-6">
+          <motion.ol
+            className="space-y-6"
+            variants={listStagger}
+            initial="hidden"
+            animate="show"
+          >
             {roadmap.map((m, i) => (
               <MilestoneCard key={m.id} milestone={m} index={i + 1} />
             ))}
-          </ol>
+          </motion.ol>
         </div>
       )}
 
       {sources.length > 0 && (
-        <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+        <section className="hover-lift rounded-3xl border border-border bg-card p-6 shadow-soft">
           <h2 className="font-display text-lg font-semibold">
             Sources ({sources.length})
           </h2>
@@ -214,7 +226,7 @@ function Roadmap() {
           </ul>
         </section>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -227,7 +239,7 @@ function QualityPanel({
 }) {
   const passed = verdict.pass_fail === "pass";
   return (
-    <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+    <div className="hover-lift rounded-3xl border border-border bg-card p-6 shadow-soft">
       <div className="flex flex-wrap items-center gap-3">
         <span
           className={cn(
@@ -337,7 +349,7 @@ function MilestoneCard({ milestone, index }: { milestone: MilestoneRow; index: n
       : "bg-muted text-muted-foreground";
 
   return (
-    <li className="relative pl-14 md:pl-20">
+    <motion.li variants={fadeUpSm} className="relative pl-14 md:pl-20">
       <span
         className={cn(
           "absolute left-0 top-1 grid h-10 w-10 place-items-center rounded-full shadow-soft md:h-14 md:w-14",
@@ -497,6 +509,6 @@ function MilestoneCard({ milestone, index }: { milestone: MilestoneRow; index: n
           )}
         </div>
       </div>
-    </li>
+    </motion.li>
   );
 }

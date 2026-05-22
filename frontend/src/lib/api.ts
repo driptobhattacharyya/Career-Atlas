@@ -55,11 +55,21 @@ async function request<T = any>(
     isMultipart ? {} : { "Content-Type": "application/json" },
   );
   Object.assign(headers, extraHeaders || {});
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...rest,
-    headers,
-    body: jsonBody !== undefined ? JSON.stringify(jsonBody) : init.body,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      ...rest,
+      headers,
+      body: jsonBody !== undefined ? JSON.stringify(jsonBody) : init.body,
+    });
+  } catch {
+    // fetch rejects on network failure / backend unreachable / CORS.
+    throw new ApiError(
+      0,
+      "",
+      "Can't reach the server. Check your connection and try again.",
+    );
+  }
   const text = await res.text();
   if (!res.ok) throw new ApiError(res.status, text);
   return (text ? JSON.parse(text) : null) as T;
@@ -87,6 +97,43 @@ export async function getLatestResume() {
   return request<{ success: boolean; resume: any | null }>(
     "/api/parse-resume/latest",
     { method: "GET" },
+  );
+}
+
+// ── Profile editing ─────────────────────────────────────────────────────────
+
+export async function updateTargetRole(targetRoleId: string) {
+  return request<{ success: boolean; target_role_id: string }>(
+    "/api/parse-resume/profile",
+    { method: "PATCH", jsonBody: { target_role_id: targetRoleId } },
+  );
+}
+
+export async function addSkill(skill: string) {
+  return request<{ success: boolean; skill: string }>("/api/parse-resume/skills", {
+    method: "POST",
+    jsonBody: { skill },
+  });
+}
+
+export async function deleteSkill(skill: string) {
+  return request<{ success: boolean; skill: string }>(
+    `/api/parse-resume/skills?skill=${encodeURIComponent(skill)}`,
+    { method: "DELETE" },
+  );
+}
+
+export interface ExperiencePatch {
+  title?: string;
+  company?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+export async function updateExperience(experienceId: string, fields: ExperiencePatch) {
+  return request<{ success: boolean; updated: Record<string, unknown> }>(
+    `/api/parse-resume/experiences/${experienceId}`,
+    { method: "PATCH", jsonBody: fields },
   );
 }
 

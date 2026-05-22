@@ -81,7 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="grid h-9 w-9 place-items-center rounded-full bg-coral text-coral-foreground font-semibold outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                className="grid h-9 w-9 place-items-center rounded-full bg-coral text-coral-foreground font-semibold outline-none ring-offset-background transition-transform duration-200 hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Account menu"
               >
                 {initial}

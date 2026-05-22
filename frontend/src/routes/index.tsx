@@ -1,6 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Compass, FileText, Sparkles, Map, Target, Briefcase } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { ArrowRight, Compass, FileText, Sparkles, Map, Target, Briefcase, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth-context";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -23,6 +25,24 @@ export const Route = createFileRoute("/")({
 });
 
 function Landing() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [loading, user, navigate]);
+
+  // Signed-in (or still resolving) — don't flash the marketing page.
+  if (loading || user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-hero">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-hero">
       {/* Top bar */}

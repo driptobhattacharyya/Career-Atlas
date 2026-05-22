@@ -3,11 +3,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import {
   ApiError,
+  type ExperiencePatch,
   type JobResult,
   type MilestoneRow,
   type MilestoneStatus,
   type TargetRole,
+  addSkill,
   analyzeGaps,
+  deleteSkill,
   getJobMatches,
   getCachedJobSearchResponse,
   getLatestPathway,
@@ -17,7 +20,9 @@ import {
   cacheJobSearchResponse,
   researchJobs,
   startDeepResearch,
+  updateExperience,
   updateMilestoneStatus,
+  updateTargetRole,
   uploadResume,
 } from "@/lib/api";
 
@@ -162,6 +167,55 @@ export function useProjects() {
     queryKey: ["projects-from-resume", latestResume.data?.resume_id],
     enabled: latestResume.isSuccess,
     queryFn: async () => latestResume.data?.projects || [],
+  });
+}
+
+// ── Profile editing ────────────────────────────────────────────────────────
+
+function invalidateResumeViews(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["latest-resume"] });
+  qc.invalidateQueries({ queryKey: ["skills-from-resume"] });
+  qc.invalidateQueries({ queryKey: ["experience-from-resume"] });
+  qc.invalidateQueries({ queryKey: ["profile-from-resume"] });
+}
+
+export function useUpdateTargetRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ roleId }: { roleId: string; roleTitle: string }) =>
+      updateTargetRole(roleId),
+    onSuccess: (_data, { roleId, roleTitle }) => {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("careeratlas:selected_role_id", roleId);
+        window.localStorage.setItem("careeratlas:selected_role_title", roleTitle);
+      }
+      qc.invalidateQueries({ queryKey: ["profile-from-resume"] });
+    },
+  });
+}
+
+export function useAddSkill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (skill: string) => addSkill(skill),
+    onSuccess: () => invalidateResumeViews(qc),
+  });
+}
+
+export function useRemoveSkill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (skill: string) => deleteSkill(skill),
+    onSuccess: () => invalidateResumeViews(qc),
+  });
+}
+
+export function useUpdateExperience() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, fields }: { id: string; fields: ExperiencePatch }) =>
+      updateExperience(id, fields),
+    onSuccess: () => invalidateResumeViews(qc),
   });
 }
 

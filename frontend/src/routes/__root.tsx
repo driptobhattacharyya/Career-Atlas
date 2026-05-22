@@ -1,6 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 
+import "@/lib/sentry";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -20,6 +21,30 @@ function NotFoundComponent() {
             Go home
           </Link>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ErrorComponent({ error }: { error: Error }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="max-w-md text-center">
+        <h1 className="font-display text-3xl font-bold text-foreground">Something went wrong</h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          An unexpected error occurred. Reloading the page usually fixes it.
+        </p>
+        {import.meta.env.DEV && (
+          <pre className="mt-4 max-h-40 overflow-auto rounded-lg bg-muted p-3 text-left text-xs text-muted-foreground">
+            {error?.message}
+          </pre>
+        )}
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-6 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Reload page
+        </button>
       </div>
     </div>
   );
@@ -49,6 +74,7 @@ export const Route = createRootRoute({
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
+  errorComponent: ErrorComponent,
 });
 
 function RootShell({ children }: { children: React.ReactNode }) {

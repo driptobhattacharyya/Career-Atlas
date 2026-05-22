@@ -34,6 +34,9 @@ class Settings(BaseSettings):
 
     # Tools
     tavily_api_key: str = os.getenv("TAVILY_API_KEY", "")
+
+    # Monitoring
+    sentry_dsn: str = os.getenv("SENTRY_DSN", "")
     adzuna_app_id: str = os.getenv("ADZUNA_APP_ID", "")
     adzuna_app_key: str = os.getenv("ADZUNA_APP_KEY", "")
 

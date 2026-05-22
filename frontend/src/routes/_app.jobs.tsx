@@ -2,12 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, MapPin, X, Check, Loader2, BarChart3, ArrowUpRight } from "lucide-react";
+import { motion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useJobMatches, useProfile, useTargetRoles } from "@/hooks/queries";
 import type { JobResult } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { pageStagger, fadeUp, listStagger, fadeUpSm, entrance } from "@/lib/motion";
 import { toast } from "sonner";
 import { cacheJobSearchResponse, researchJobs } from "@/lib/api";
 
@@ -78,8 +80,11 @@ function Jobs() {
   const topJob = filtered[0];
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-6 shadow-soft sm:flex-row sm:items-end sm:justify-between">
+    <motion.div className="space-y-8" variants={pageStagger} {...entrance}>
+      <motion.div
+        variants={fadeUp}
+        className="hover-lift flex flex-col gap-4 rounded-3xl border border-border bg-card p-6 shadow-soft sm:flex-row sm:items-end sm:justify-between"
+      >
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">Job search</p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Ranked job matches</h1>
@@ -92,9 +97,9 @@ function Jobs() {
           <StatPill label="Matches" value={String(jobs.length)} />
           <StatPill label="Top score" value={topJob ? `${Math.round(topJob.score.final)}%` : "N/A"} />
         </div>
-      </div>
+      </motion.div>
 
-      <div className="rounded-3xl border border-border bg-card p-4 shadow-soft">
+      <motion.div variants={fadeUp} className="rounded-3xl border border-border bg-card p-4 shadow-soft">
         <div className="mb-3 flex justify-end">
           <Button
             onClick={() => runJobResearch.mutate()}
@@ -159,9 +164,9 @@ function Jobs() {
             Remote only
           </label>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="grid gap-4">
+      <motion.div className="grid gap-4" variants={listStagger}>
         {filtered.map((job) => (
           <JobCard key={job.job_id} job={job} onOpen={() => setOpenJob(job)} />
         ))}
@@ -170,10 +175,10 @@ function Jobs() {
             No jobs match your filters.
           </div>
         )}
-      </div>
+      </motion.div>
 
       {openJob && <JobDrawer job={openJob} onClose={() => setOpenJob(null)} />}
-    </div>
+    </motion.div>
   );
 }
 
@@ -198,7 +203,12 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
         <span className="font-medium">{pct(value)}%</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-coral transition-all" style={{ width: `${pct(value)}%` }} />
+        <motion.div
+          className="h-full rounded-full bg-coral"
+          initial={{ width: 0 }}
+          animate={{ width: `${pct(value)}%` }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+        />
       </div>
     </div>
   );
@@ -209,7 +219,10 @@ function JobCard({ job, onOpen }: { job: JobResult; onOpen: () => void }) {
   const gaps = job.explanation.gaps.slice(0, 4);
 
   return (
-    <article className="rounded-3xl border border-border bg-card p-5 shadow-soft transition-shadow hover:shadow-warm sm:p-6">
+    <motion.article
+      variants={fadeUpSm}
+      className="hover-lift rounded-3xl border border-border bg-card p-5 shadow-soft sm:p-6"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-display text-lg font-semibold">{job.title}</h3>
@@ -277,7 +290,7 @@ function JobCard({ job, onOpen }: { job: JobResult; onOpen: () => void }) {
           View details
         </Button>
       </div>
-    </article>
+    </motion.article>
   );
 }
 

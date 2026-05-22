@@ -1,9 +1,9 @@
 import re
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 
 from app.dependencies.auth import get_current_user_id
 from app.dependencies.database import db_client
@@ -11,10 +11,9 @@ from app.resume_extraction.service import (
     extract_structured_resume_data,
     pdf_bytes_to_markdown,
 )
+from app.utils.storage import upload_resume_file, download_resume_file
 
 router = APIRouter(prefix="/api/parse-resume", tags=["Resume"])
-RESUME_STORAGE_DIR = Path("static/resumes")
-RESUME_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _safe_filename(name: str) -> str:
@@ -295,17 +294,16 @@ async def parse_resume(
             if not upload_bytes:
                 raise HTTPException(status_code=400, detail="Uploaded file is empty.")
             timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-            stored_name = f"{user_id}_{timestamp}_{_safe_filename(file.filename or 'resume.pdf')}"
-            local_path = RESUME_STORAGE_DIR / stored_name
-            local_path.write_bytes(upload_bytes)
-            resolved_resume_key = str(local_path)
+            object_path = f"{user_id}/{timestamp}_{_safe_filename(file.filename or 'resume.pdf')}"
+            upload_resume_file(object_path, upload_bytes)
+            resolved_resume_key = object_path
             pdf_bytes = upload_bytes
         elif resume_key:
-            local_path = Path(resume_key)
-            if not local_path.exists():
-                raise HTTPException(status_code=404, detail="Local resume file not found.")
-            resolved_resume_key = str(local_path)
-            pdf_bytes = local_path.read_bytes()
+            try:
+                pdf_bytes = download_resume_file(resume_key)
+            except Exception:
+                raise HTTPException(status_code=404, detail="Stored resume not found.")
+            resolved_resume_key = resume_key
         else:
             raise HTTPException(status_code=400, detail="Provide either file upload or resume_key.")
 
@@ -330,4 +328,107 @@ async def get_latest_resume(user_id: str = Depends(get_current_user_id)):
     if not resume_id:
         return {"success": True, "resume": None}
     return {"success": True, "resume": fetch_full_resume(resume_id)}
+
+
+# ── Profile editing ─────────────────────────────────────────────────────────
+
+class ProfileUpdate(BaseModel):
+    target_role_id: str
+
+
+class SkillIn(BaseModel):
+    skill: str
+
+
+class ExperienceUpdate(BaseModel):
+    title: str | None = None
+    company: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+
+
+def _user_resume_ids(user_id: str) -> list[str]:
+    try:
+        resp = db_client.table("resumes").select("id").eq("user_id", user_id).execute()
+        return [r["id"] for r in (resp.data or []) if r.get("id")]
+    except Exception:
+        return []
+
+
+@router.patch("/profile")
+async def update_profile(body: ProfileUpdate, user_id: str = Depends(get_current_user_id)):
+    """Change the user's target role (persisted in the `profiles` table)."""
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        db_client.table("profiles").upsert(
+            {"user_id": user_id, "target_role_id": body.target_role_id},
+            on_conflict="user_id",
+        ).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Profile update failed: {e}")
+    return {"success": True, "target_role_id": body.target_role_id}
+
+
+@router.post("/skills")
+async def add_skill(body: SkillIn, user_id: str = Depends(get_current_user_id)):
+    """Add a skill to the user's latest resume."""
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    skill = (body.skill or "").strip()
+    if not skill:
+        raise HTTPException(status_code=400, detail="Skill cannot be empty")
+    resume_id = _latest_resume_id(user_id)
+    if not resume_id:
+        raise HTTPException(status_code=400, detail="No resume found")
+    existing = (
+        db_client.table("skills").select("skill").eq("resume_id", resume_id).execute()
+    )
+    if any((s.get("skill") or "").strip().lower() == skill.lower() for s in (existing.data or [])):
+        return {"success": True, "skill": skill, "duplicate": True}
+    db_client.table("skills").insert({"resume_id": resume_id, "skill": skill}).execute()
+    return {"success": True, "skill": skill}
+
+
+@router.delete("/skills")
+async def delete_skill(skill: str, user_id: str = Depends(get_current_user_id)):
+    """Remove a skill (by name) from the user's latest resume."""
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    skill = (skill or "").strip()
+    if not skill:
+        raise HTTPException(status_code=400, detail="Skill cannot be empty")
+    resume_id = _latest_resume_id(user_id)
+    if not resume_id:
+        raise HTTPException(status_code=400, detail="No resume found")
+    db_client.table("skills").delete().eq("resume_id", resume_id).eq("skill", skill).execute()
+    db_client.table("programming_languages").delete()\
+        .eq("resume_id", resume_id).eq("language", skill).execute()
+    return {"success": True, "skill": skill}
+
+
+@router.patch("/experiences/{experience_id}")
+async def update_experience(
+    experience_id: str,
+    body: ExperienceUpdate,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Edit an experience entry's title / company / dates."""
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    exp = (
+        db_client.table("experiences")
+        .select("id,resume_id")
+        .eq("id", experience_id)
+        .limit(1)
+        .execute()
+    )
+    if not exp.data:
+        raise HTTPException(status_code=404, detail="Experience not found")
+    if exp.data[0]["resume_id"] not in _user_resume_ids(user_id):
+        raise HTTPException(status_code=404, detail="Experience not found")
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if updates:
+        db_client.table("experiences").update(updates).eq("id", experience_id).execute()
+    return {"success": True, "updated": updates}
 
