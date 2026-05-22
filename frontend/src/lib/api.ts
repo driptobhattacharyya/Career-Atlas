@@ -165,6 +165,13 @@ export async function analyzeGaps(targetRoleTitle: string) {
   });
 }
 
+export async function getGapAnalysis() {
+  return request<{ success: boolean; target_role: string | null; gaps: any[] }>(
+    "/api/analyze-gaps/",
+    { method: "GET" },
+  );
+}
+
 // ── Roadmap (M1) ───────────────────────────────────────────────────────────
 
 export type MilestoneStatus = "locked" | "in_progress" | "completed" | "skipped";

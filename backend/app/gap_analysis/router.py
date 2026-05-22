@@ -21,6 +21,54 @@ from app.gap_analysis.schemas import AnalyzeGapsRequest, GapAnalysisResult
 router = APIRouter(prefix="/api/analyze-gaps", tags=["Gaps"])
 
 
+@router.get("/")
+async def get_saved_gaps(
+    user_id: str = Depends(get_current_user_id, use_cache=True),
+):
+    """Return the user's latest stored skill gaps so results reload on re-sign-in."""
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        # Resolve latest resume for this user
+        try:
+            resume_resp = db_client.table("resumes")\
+                .select("id")\
+                .eq("user_id", user_id)\
+                .order("created_at", desc=True)\
+                .limit(1)\
+                .execute()
+        except Exception:
+            resume_resp = db_client.table("resumes")\
+                .select("id")\
+                .order("created_at", desc=True)\
+                .limit(1)\
+                .execute()
+
+        if not resume_resp.data:
+            return {"success": True, "gaps": [], "target_role": None}
+
+        resume_id = resume_resp.data[0]["id"]
+
+        gaps_resp = db_client.table("skill_gaps")\
+            .select("*")\
+            .eq("resume_id", resume_id)\
+            .execute()
+
+        gaps = gaps_resp.data or []
+        target_role = gaps[0]["target_role"] if gaps else None
+
+        return {
+            "success": True,
+            "target_role": target_role,
+            "gaps": gaps,
+            "retrieval_source": "database",
+        }
+    except Exception as e:
+        print(f"❌ ERROR in get_saved_gaps: {str(e)}")
+        return {"success": True, "gaps": [], "target_role": None}
+
+
 @router.post("/")
 async def analyze_gaps(
     req: AnalyzeGapsRequest,

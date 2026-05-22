@@ -11,6 +11,7 @@ import {
   addSkill,
   analyzeGaps,
   deleteSkill,
+  getGapAnalysis,
   getJobMatches,
   getCachedJobSearchResponse,
   getLatestPathway,
@@ -232,12 +233,21 @@ export function useTargetRoles() {
 // ── Gap analysis ───────────────────────────────────────────────────────────
 
 export function useGapAnalysis() {
-  // Cached gap response is the authoritative source — populated by onboarding
-  // after analyzeGaps() succeeds. We fall back to an empty list rather than
-  // querying skill_gaps directly so the backend stays the only data path.
+  // Backend skill_gaps table is the authoritative source — gaps reload on
+  // re-sign-in / new device. localStorage is only a same-session fallback for
+  // the brief window before the backend query settles.
+  const { user } = useAuth();
+  const enabled = useEnabled();
   return useQuery({
-    queryKey: ["gap-analysis-cache"],
+    queryKey: ["gap-analysis", user?.id, disableAuth],
+    enabled,
     queryFn: async () => {
+      try {
+        const data = await getGapAnalysis();
+        if (Array.isArray(data?.gaps) && data.gaps.length > 0) return data.gaps;
+      } catch {
+        // fall through to localStorage
+      }
       if (typeof window === "undefined") return [];
       const raw = window.localStorage.getItem("careeratlas:last_gap_response");
       if (!raw) return [];
@@ -259,7 +269,7 @@ export function useRunGapAnalysis() {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("careeratlas:last_gap_response", JSON.stringify(data));
       }
-      qc.invalidateQueries({ queryKey: ["gap-analysis-cache"] });
+      qc.invalidateQueries({ queryKey: ["gap-analysis"] });
     },
   });
 }
