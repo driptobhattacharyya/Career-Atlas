@@ -2,8 +2,9 @@
 Deep Researcher — LLM-as-judge evaluation.
 
 Scores a generated Pathway against a 7-criterion rubric using Groq
-Llama-3.3-70b. A different model family than the Gemini structurer that
-wrote the pathway — reduces self-evaluation bias.
+Llama-3.3-70b. Runs at temperature 0.0 (vs 0.2 for the structurer) and
+against an explicit rubric, so it evaluates independently of how the
+pathway was drafted.
 
 Ported from Notebooks/03_deep_researcher.ipynb (cells 0dbeafe3 / 333e7081),
 extended with a `recency` criterion.

@@ -18,7 +18,7 @@ from datetime import datetime
 
 from langgraph.graph import StateGraph, START, END
 
-from app.utils.llm_factory import get_gemini_model, get_groq_model
+from app.utils.llm_factory import get_groq_model
 from app.deep_researcher.tools import search_web
 from app.deep_researcher.judge import evaluate_pathway
 from app.deep_researcher.validation import validate_pathway
@@ -37,7 +37,6 @@ from app.deep_researcher.schemas import (
 
 logger = logging.getLogger(__name__)
 
-RESEARCH_MODEL = "gemini-2.5-flash"
 CURRENT_YEAR = datetime.now().year
 
 
@@ -125,7 +124,7 @@ def node_structure(state: ResearcherState) -> dict:
     else:
         feedback = "(none — first attempt)"
 
-    model = get_gemini_model(model_name=RESEARCH_MODEL, temperature=0.2)
+    model = get_groq_model(temperature=0.2)
     structurer = STRUCTURE_PROMPT | model.with_structured_output(Pathway)
     pathway: Pathway = structurer.invoke({
         "target_role": state["target_role"],
