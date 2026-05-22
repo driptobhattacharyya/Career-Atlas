@@ -31,7 +31,7 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
           workload_identity_provider: projects/791080365827/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-          service_account: github-ci@project-79c93860-4168-42f1-93f.iam.gserviceaccount.com
+          service_account: github-actions-ci@project-79c93860-4168-42f1-93f.iam.gserviceaccount.com
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
