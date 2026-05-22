@@ -139,6 +139,8 @@ celerybeat.pid
 .env.*
 !.env.example
 !.env.*.example
+# Frontend prod build config — VITE_* vars only, all public-safe, needed by CI.
+!/frontend/.env.production
 .envrc
 .venv
 env/
