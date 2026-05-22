@@ -39,22 +39,25 @@ function Onboarding() {
   // it must NOT fire after the in-flow resume upload, or the user skips the
   // gap-analysis step.
   const latestResume = useLatestResume();
+  const uploadMutation = useUploadResume();
   const onboardCheckDone = useRef(false);
   useEffect(() => {
     if (onboardCheckDone.current || disableAuth || !user) return;
+    // If an in-flow upload has started, the user is mid-onboarding — never
+    // bounce them to the dashboard, even if the initial /latest fetch lands
+    // late (after the upload's cache invalidation).
+    if (!uploadMutation.isIdle) return;
     if (!latestResume.isSuccess) return;
     onboardCheckDone.current = true;
     if (latestResume.data) {
       navigate({ to: "/dashboard" });
     }
-  }, [user, latestResume.isSuccess, latestResume.data, navigate]);
+  }, [user, latestResume.isSuccess, latestResume.data, uploadMutation.isIdle, navigate]);
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [roleId, setRoleId] = useState<string>("ml-engineer");
   const [roleTitle, setRoleTitle] = useState<string>("ML Engineer");
   const [roleQuery, setRoleQuery] = useState("");
-
-  const uploadMutation = useUploadResume();
   const parsing = uploadMutation.isPending;
 
   const { data: roles = [] } = useTargetRoles();

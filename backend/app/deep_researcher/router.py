@@ -95,22 +95,14 @@ def _persist_learning_pathway(
 
 
 def _load_user_resume_ids(user_id: str) -> List[str]:
-    """All of the user's resume ids, newest first."""
-    try:
-        resp = (
-            db_client.table("resumes")
-            .select("id")
-            .eq("user_id", user_id)
-            .order("created_at", desc=True)
-            .execute()
-        )
-    except Exception:
-        resp = (
-            db_client.table("resumes")
-            .select("id")
-            .order("created_at", desc=True)
-            .execute()
-        )
+    """All of the user's resume ids, newest first. Strictly scoped to user_id."""
+    resp = (
+        db_client.table("resumes")
+        .select("id")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
     return [r["id"] for r in (resp.data or []) if r.get("id")]
 
 

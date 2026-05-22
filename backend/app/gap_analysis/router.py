@@ -30,20 +30,13 @@ async def get_saved_gaps(
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
-        # Resolve latest resume for this user
-        try:
-            resume_resp = db_client.table("resumes")\
-                .select("id")\
-                .eq("user_id", user_id)\
-                .order("created_at", desc=True)\
-                .limit(1)\
-                .execute()
-        except Exception:
-            resume_resp = db_client.table("resumes")\
-                .select("id")\
-                .order("created_at", desc=True)\
-                .limit(1)\
-                .execute()
+        # Resolve latest resume for this user — strictly scoped to user_id.
+        resume_resp = db_client.table("resumes")\
+            .select("id")\
+            .eq("user_id", user_id)\
+            .order("created_at", desc=True)\
+            .limit(1)\
+            .execute()
 
         if not resume_resp.data:
             return {"success": True, "gaps": [], "target_role": None}
@@ -83,36 +76,26 @@ async def analyze_gaps(
         user_headline = ""
         resume_id = None
         try:
-            try:
-                resume_resp = db_client.table("resumes")\
-                    .select("*")\
-                    .eq("user_id", user_id)\
-                    .order("created_at", desc=True)\
-                    .limit(1)\
-                    .execute()
-            except Exception:
-                resume_resp = db_client.table("resumes")\
-                    .select("*")\
-                    .order("created_at", desc=True)\
-                    .limit(1)\
-                    .execute()
-            
+            # Strictly scoped to user_id — never a global resume lookup.
+            resume_resp = db_client.table("resumes")\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .order("created_at", desc=True)\
+                .limit(1)\
+                .execute()
+
             if resume_resp.data:
                 resume = resume_resp.data[0]
                 resume_id = resume["id"]
                 user_headline = resume.get("headline", "")
-                
-                # Fetch skills from 'skills' table
+
+                # Fetch skills scoped to this resume only.
                 skills_resp = db_client.table("skills").select("skill").eq("resume_id", resume_id).execute()
                 user_skills.extend([s["skill"] for s in skills_resp.data if s.get("skill")])
-                
+
                 # Fetch programming languages from 'programming_languages' table
                 langs_resp = db_client.table("programming_languages").select("language").eq("resume_id", resume_id).execute()
                 user_skills.extend([l["language"] for l in langs_resp.data if l.get("language")])
-            else:
-                # Fallback to old skills table without resume link
-                skills_resp = db_client.table("skills").select("skill").execute()
-                user_skills = [s.get("skill") for s in skills_resp.data if s.get("skill")]
         except Exception as e:
             # Silently fallback to empty if DB schema mismatch occurs
             pass

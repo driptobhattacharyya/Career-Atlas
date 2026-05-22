@@ -22,35 +22,23 @@ def _safe_filename(name: str) -> str:
 
 
 def _insert_resume_row(data: dict[str, Any], user_id: str, resume_key: str) -> str:
-    try:
-        resp = (
-            db_client.table("resumes")
-            .insert(
-                {
-                    "user_id": user_id,
-                    "resume_key": resume_key,
-                    "full_name": data.get("full_name"),
-                    "headline": data.get("headline"),
-                    "summary": data.get("summary"),
-                }
-            )
-            .execute()
+    # Always write user_id. A resume row without an owner is unusable and
+    # would leak into other users' "latest resume" lookups — so never insert
+    # one. Let a failure propagate instead of orphaning the row.
+    resp = (
+        db_client.table("resumes")
+        .insert(
+            {
+                "user_id": user_id,
+                "resume_key": resume_key,
+                "full_name": data.get("full_name"),
+                "headline": data.get("headline"),
+                "summary": data.get("summary"),
+            }
         )
-        return resp.data[0]["id"]
-    except Exception:
-        # Fallback to strict minimal schema.
-        resp = (
-            db_client.table("resumes")
-            .insert(
-                {
-                    "full_name": data.get("full_name"),
-                    "headline": data.get("headline"),
-                    "summary": data.get("summary"),
-                }
-            )
-            .execute()
-        )
-        return resp.data[0]["id"]
+        .execute()
+    )
+    return resp.data[0]["id"]
 
 
 def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> str:
@@ -198,23 +186,21 @@ def _delete_other_resumes(user_id: str, keep_resume_id: str) -> None:
 
 
 def _latest_resume_id(user_id: str) -> str | None:
-    try:
-        by_user = (
-            db_client.table("resumes")
-            .select("id")
-            .eq("user_id", user_id)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if by_user.data:
-            return by_user.data[0]["id"]
-    except Exception:
-        pass
+    """The user's most recent resume id, or None if they have none.
 
-    latest = db_client.table("resumes").select("id").order("created_at", desc=True).limit(1).execute()
-    if latest.data:
-        return latest.data[0]["id"]
+    Strictly scoped to user_id — never falls back to a global lookup, which
+    would hand one user another user's resume.
+    """
+    resp = (
+        db_client.table("resumes")
+        .select("id")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if resp.data:
+        return resp.data[0]["id"]
     return None
 
 

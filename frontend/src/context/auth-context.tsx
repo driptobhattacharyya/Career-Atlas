@@ -14,6 +14,25 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Wipe app-scoped localStorage (`careeratlas:*`) whenever the signed-in user
+ * changes — sign-out, or a different account signing in on the same browser.
+ * Without this, keys like the selected target role and the cached gap-analysis
+ * response leak from one user to the next on a shared device.
+ */
+function syncStorageForUser(uid: string | null) {
+  if (typeof window === "undefined") return;
+  const prevUid = window.localStorage.getItem("careeratlas:auth_uid");
+  if (uid === prevUid) return;
+  const stale: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const k = window.localStorage.key(i);
+    if (k && k.startsWith("careeratlas:")) stale.push(k);
+  }
+  stale.forEach((k) => window.localStorage.removeItem(k));
+  if (uid) window.localStorage.setItem("careeratlas:auth_uid", uid);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(
     disableAuth
@@ -30,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     supabase.auth.getSession().then(({ data, error }) => {
       if (!error) {
+        syncStorageForUser(data.session?.user?.id ?? null);
         setSession(data.session ?? null);
         setUser(data.session?.user ?? null);
       }
@@ -37,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     const { data } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      syncStorageForUser(currentSession?.user?.id ?? null);
       setSession(currentSession ?? null);
       setUser(currentSession?.user ?? null);
       setLoading(false);
