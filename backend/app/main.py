@@ -58,6 +58,11 @@ def _is_rate_limit(text: str) -> bool:
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     # Routers wrap provider errors as HTTPException(500, "...429..."). Rewrite
     # those to 503; pass every other HTTPException through unchanged.
+    # Report any 5xx to Sentry — the original cause rides the exception chain.
+    if exc.status_code >= 500:
+        sentry_sdk.capture_exception(exc)
+        # Cloud Run throttles CPU after the response — flush synchronously now.
+        sentry_sdk.flush(timeout=2.0)
     if exc.status_code >= 500 and _is_rate_limit(str(exc.detail)):
         return JSONResponse(status_code=503, content={"detail": _BUSY_MESSAGE})
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
@@ -65,6 +70,10 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
+    # This handler "handles" the exception, so Sentry's auto-capture won't see
+    # it — report it explicitly, and flush before Cloud Run throttles CPU.
+    sentry_sdk.capture_exception(exc)
+    sentry_sdk.flush(timeout=2.0)
     if _is_rate_limit(str(exc)):
         return JSONResponse(status_code=503, content={"detail": _BUSY_MESSAGE})
     logger.exception("Unhandled error on %s %s", request.method, request.url.path)
@@ -83,3 +92,9 @@ app.include_router(target_roles_router)
 @app.get("/health")
 def health_check():
     return {"status": "ok", "environment": settings.environment}
+
+
+@app.get("/sentry-debug")
+def sentry_debug():
+    """Intentionally errors — used to verify Sentry capture end-to-end."""
+    raise RuntimeError("Sentry backend verification — intentional test error.")

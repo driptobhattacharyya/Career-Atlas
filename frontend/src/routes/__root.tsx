@@ -1,7 +1,8 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 
-import "@/lib/sentry";
+import { Sentry } from "@/lib/sentry";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -27,6 +28,9 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error }: { error: Error }) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
