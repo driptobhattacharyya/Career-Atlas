@@ -107,7 +107,7 @@ async def analyze_gaps(
         # ── SMART CACHE CHECK (Linked to Resume ID) ────────────────────────
         # DESIGN IMPROVEMENT: Link gaps to resume_id. 
         # If the resume changes (new ID), the cache automatically busts.
-        if resume_id:
+        if resume_id and not req.force:
             try:
                 existing_gaps_resp = db_client.table("skill_gaps")\
                     .select("*")\

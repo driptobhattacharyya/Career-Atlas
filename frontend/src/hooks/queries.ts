@@ -264,7 +264,11 @@ export function useGapAnalysis() {
 export function useRunGapAnalysis() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (targetRoleTitle: string) => analyzeGaps(targetRoleTitle),
+    mutationFn: (args: { targetRoleTitle: string; force?: boolean } | string) => {
+      const title = typeof args === "string" ? args : args.targetRoleTitle;
+      const force = typeof args === "string" ? false : !!args.force;
+      return analyzeGaps(title, force);
+    },
     onSuccess: (data) => {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("careeratlas:last_gap_response", JSON.stringify(data));

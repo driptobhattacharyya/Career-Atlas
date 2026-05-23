@@ -42,9 +42,10 @@ Identify the top 6 most critical SKILL GAPS for a candidate wanting to become a 
 5. Use the level_required from the requirements when available.
 6. For prerequisites, list only skills the user does NOT already have.
 7. The "why" field must be a single concise sentence.
-8. The "relevance" score should reflect how frequently this skill appears in job requirements.
+8. The "relevance" MUST BE AN INTEGER between 0 and 100. Do NOT copy the raw float relevance_score (e.g., 0.210) from the requirements; instead, convert it to a percentage (e.g., output 21).
 
-Output strictly as JSON matching the schema."""
+Output strictly as JSON matching the schema. In "justifications", provide a custom 1-2 sentence explanation for each gap, detailing why it is critical for this specific candidate to learn it to succeed as a {target_role}.
+"""
 )
 
 
@@ -117,6 +118,7 @@ async def generate_gaps_for_user(
     explainability = {
         "role_slug": role_slug,
         "input_skill_count": len(user_skills),
+        "justifications": getattr(result, "justifications", {}),
         "retrieved_requirements": [
             {
                 "skill_name": skill.get("skill_name"),
