@@ -51,16 +51,19 @@ function Gaps() {
     "Target Role";
 
   const runAnalysis = () => {
-    runGap.mutate(targetRole, {
-      onSuccess: (data: any) => {
-        const n = Array.isArray(data?.gaps) ? data.gaps.length : 0;
-        toast.success(
-          n > 0 ? `Found ${n} skill gaps` : "Analysis complete — no gaps found",
-        );
-      },
-      onError: (err: any) =>
-        toast.error("Gap analysis failed", { description: err?.message }),
-    });
+    runGap.mutate(
+      { targetRoleTitle: targetRole, force: true },
+      {
+        onSuccess: (data: any) => {
+          const n = Array.isArray(data?.gaps) ? data.gaps.length : 0;
+          toast.success(
+            n > 0 ? `Found ${n} skill gaps` : "Analysis complete — no gaps found",
+          );
+        },
+        onError: (err: any) =>
+          toast.error("Gap analysis failed", { description: err?.message }),
+      }
+    );
   };
 
   if (isLoading) {
@@ -177,31 +180,91 @@ function Gaps() {
           variants={fadeUp}
           className="hover-lift rounded-3xl border border-border bg-card p-6 shadow-soft"
         >
-          <h2 className="font-display text-xl font-semibold">Why these gaps?</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Backend explainability from the gap analysis agent.</p>
-          {typeof explainability.input_skill_count === "number" && (
-            <p className="mt-2 text-xs text-muted-foreground">Input skills analyzed: {explainability.input_skill_count}</p>
-          )}
-          {explainability.note && (
-            <p className="mt-2 text-xs text-muted-foreground">{explainability.note}</p>
-          )}
-          {(explainability.retrieved_requirements || []).length > 0 && (
-            <ul className="mt-4 space-y-2">
-              {(explainability.retrieved_requirements || []).slice(0, 8).map((req: any, idx: number) => (
-                <li key={`${req.skill_name}-${idx}`} className="rounded-xl border border-border/60 bg-background p-3">
-                  <p className="text-sm font-medium">{req.skill_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {req.category} - {req.level_required} - score {Number(req.relevance_score || 0).toFixed(3)}
-                  </p>
-                  {req.prerequisites?.length > 0 && (
-                    <p className="mt-1 text-xs text-muted-foreground">Prerequisites: {req.prerequisites.join(", ")}</p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          {(!explainability.retrieved_requirements || explainability.retrieved_requirements.length === 0) && (
-            <p className="mt-3 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="font-display text-xl font-semibold">Why these gaps?</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Backend explainability and retrieval trace from the gap analysis agent.</p>
+            </div>
+            {typeof explainability.input_skill_count === "number" && (
+              <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                Input Skills Analyzed: {explainability.input_skill_count}
+              </span>
+            )}
+          </div>
+
+          {(explainability.retrieved_requirements || []).length > 0 ? (
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              {(explainability.retrieved_requirements || []).slice(0, 8).map((req: any, idx: number) => {
+                const reason = Object.entries(explainability.justifications || {}).find(
+                  ([key]) => key.toLowerCase() === req.skill_name.toLowerCase()
+                )?.[1];
+
+                const isGap = gaps.some(
+                  (g: any) => g.skill.toLowerCase() === req.skill_name.toLowerCase()
+                );
+
+                return (
+                  <div
+                    key={`${req.skill_name}-${idx}`}
+                    className={cn(
+                      "rounded-2xl border p-4 transition-all space-y-3",
+                      isGap
+                        ? "border-coral/20 bg-coral/5"
+                        : "border-success/20 bg-success/5"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="font-display text-base font-semibold text-foreground truncate">
+                          {req.skill_name}
+                        </h3>
+                        <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
+                          <span className="uppercase tracking-wider font-medium bg-muted px-1.5 py-0.5 rounded">
+                            {req.category}
+                          </span>
+                          <span className="uppercase tracking-wider font-medium bg-muted px-1.5 py-0.5 rounded">
+                            {req.level_required}
+                          </span>
+                          <span className="font-medium px-1.5 py-0.5 rounded bg-muted">
+                            score: {Number(req.relevance_score || 0).toFixed(3)}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={cn(
+                          "rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0",
+                          isGap
+                            ? "bg-coral/15 text-coral"
+                            : "bg-success/15 text-success"
+                        )}
+                      >
+                        {isGap ? "Gap" : "Satisfied"}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {reason || req.description || "Satisfied by your current background."}
+                    </p>
+
+                    {req.prerequisites?.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1 text-[10px] pt-1">
+                        <span className="text-muted-foreground font-medium">Prereqs:</span>
+                        {req.prerequisites.map((p: string) => (
+                          <span
+                            key={p}
+                            className="rounded bg-background border border-border/60 px-1.5 py-0.25 text-foreground"
+                          >
+                            {p}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-4 text-xs text-muted-foreground">
               Retrieval trace is unavailable for this cached run. Re-run analysis to see the full trace.
             </p>
           )}

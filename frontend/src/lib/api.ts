@@ -158,10 +158,10 @@ export async function getTargetRoles(): Promise<TargetRole[]> {
 
 // ── Gap analysis ───────────────────────────────────────────────────────────
 
-export async function analyzeGaps(targetRoleTitle: string) {
+export async function analyzeGaps(targetRoleTitle: string, force = false) {
   return request("/api/analyze-gaps/", {
     method: "POST",
-    jsonBody: { target_role_title: targetRoleTitle },
+    jsonBody: { target_role_title: targetRoleTitle, force },
   });
 }
 
