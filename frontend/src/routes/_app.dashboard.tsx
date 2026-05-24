@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Sparkles, Target, Map, Briefcase, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowRight, Sparkles, Target, Map, Briefcase, Loader2 } from "lucide-react";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { useProfile, useRoadmap, useGapAnalysis, useJobMatches, useTargetRoles } from "@/hooks/queries";
+import { pageStagger, fadeUp, listStagger, fadeUpSm, entrance } from "@/lib/motion";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
@@ -14,6 +16,7 @@ export const Route = createFileRoute("/_app/dashboard")({
 });
 
 function Dashboard() {
+  const isBrowser = typeof window !== "undefined";
   const { data: profile, isLoading: loadingProfile } = useProfile();
   const { data: roadmap = [], isLoading: loadingRoadmap } = useRoadmap();
   const { data: gaps = [], isLoading: loadingGaps } = useGapAnalysis();
@@ -30,26 +33,37 @@ function Dashboard() {
   }
 
   if (!profile) return <div>No profile data found. Please run the onboarding process.</div>;
+  const firstName = (profile.name || "Candidate").split(" ")[0];
 
   const completed = roadmap.filter((m: any) => m.status === "completed").length;
-  const inProgress = roadmap.filter((m: any) => m.status === "in-progress").length;
+  const inProgress = roadmap.filter((m: any) => m.status === "in_progress").length;
   const total = roadmap.length;
   const roadmapPct = total === 0 ? 0 : Math.round(((completed + inProgress * 0.5) / total) * 100);
-  
+
   const topGaps = [...gaps].sort((a: any, b: any) => b.relevance - a.relevance).slice(0, 3);
-  const topJob = [...jobs].sort((a: any, b: any) => b.match_pct - a.match_pct)[0];
-  const activeMilestone = roadmap.find((m: any) => m.status === "in-progress") || roadmap[0];
-  
-  const targetRole = roles.find((r: any) => r.id === profile.target_role_id)?.title || "your target role";
+  const topJob = [...jobs].sort(
+    (a: any, b: any) => (b.score?.final ?? 0) - (a.score?.final ?? 0),
+  )[0];
+  const activeMilestone = roadmap.find((m: any) => m.status === "in_progress") || roadmap[0];
+
+  const localRoleTitle = isBrowser ? window.localStorage.getItem("careeratlas:selected_role_title") : null;
+  const targetRole =
+    roles.find((r: any) => r.id === profile.target_role_id)?.title ||
+    profile.target_role_title ||
+    localRoleTitle ||
+    "your target role";
 
   return (
-    <div className="space-y-8">
+    <motion.div className="space-y-8" variants={pageStagger} {...entrance}>
       {/* Welcome */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <motion.div
+        variants={fadeUp}
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      >
         <div>
           <p className="text-sm text-muted-foreground">Welcome back,</p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            {profile.name.split(" ")[0]} 👋
+            {firstName} 👋
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             You're aiming for <span className="font-medium text-foreground">{targetRole}</span>. Here's where you stand today.
@@ -60,41 +74,50 @@ function Dashboard() {
             Continue roadmap <ArrowRight className="ml-1 h-4 w-4" />
           </Link>
         </Button>
-      </div>
+      </motion.div>
 
       {/* Top stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <CompletenessCard value={profile.completeness || 0} />
-        <StatCard
-          icon={Map}
-          label="Roadmap progress"
-          value={`${roadmapPct}%`}
-          sub={`${completed}/${total} milestones done`}
-          accent="text-primary"
-        />
-        <StatCard
-          icon={Briefcase}
-          label="Top job match"
-          value={topJob ? `${topJob.match_pct}%` : "N/A"}
-          sub={topJob ? topJob.title : "No jobs found"}
-          accent="text-coral"
-        />
-      </div>
+      <motion.div variants={listStagger} className="grid gap-4 sm:grid-cols-3">
+        <motion.div variants={fadeUpSm}>
+          <CompletenessCard value={profile.completeness || 0} />
+        </motion.div>
+        <motion.div variants={fadeUpSm}>
+          <StatCard
+            icon={Map}
+            label="Roadmap progress"
+            value={`${roadmapPct}%`}
+            sub={`${completed}/${total} milestones done`}
+            accent="text-primary"
+          />
+        </motion.div>
+        <motion.div variants={fadeUpSm}>
+          <StatCard
+            icon={Briefcase}
+            label="Top job match"
+            value={topJob ? `${Math.round(topJob.score?.final ?? 0)}%` : "N/A"}
+            sub={topJob ? topJob.title : "No jobs found"}
+            accent="text-coral"
+          />
+        </motion.div>
+      </motion.div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <motion.div variants={fadeUp} className="grid gap-6 lg:grid-cols-3">
         {/* Top gaps */}
-        <section className="lg:col-span-2 rounded-3xl border border-border bg-card p-6 shadow-soft">
+        <section className="hover-lift lg:col-span-2 rounded-3xl border border-border bg-card p-6 shadow-soft">
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
               <Target className="h-4 w-4 text-coral" /> Your top 3 gaps
             </h2>
-            <Link to="/gaps" className="text-xs font-medium text-primary hover:underline">
+            <Link to="/gaps" className="text-xs font-medium text-primary transition-colors hover:underline">
               See all →
             </Link>
           </div>
           <ul className="mt-5 space-y-3">
             {topGaps.map((g: any) => (
-              <li key={g.skill} className="rounded-2xl border border-border/60 bg-background p-4">
+              <li
+                key={g.skill}
+                className="hover-lift rounded-2xl border border-border/60 bg-background p-4"
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="font-medium">{g.skill}</p>
@@ -111,11 +134,11 @@ function Dashboard() {
         </section>
 
         {/* Recommended next */}
-        <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+        <section className="hover-lift rounded-3xl border border-border bg-card p-6 shadow-soft">
           <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
             <Sparkles className="h-4 w-4 text-coral" /> Do this next
           </h2>
-          
+
           {activeMilestone ? (
             <div className="mt-4 rounded-2xl bg-primary-soft/60 p-4">
               <p className="text-xs uppercase tracking-wider text-primary">{activeMilestone.phase} Phase</p>
@@ -143,8 +166,8 @@ function Dashboard() {
             </li>
           </ul>
         </section>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -153,11 +176,11 @@ function CompletenessCard({ value }: { value: number }) {
   const c = 2 * Math.PI * radius;
   const offset = c - (value / 100) * c;
   return (
-    <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+    <div className="hover-lift h-full rounded-3xl border border-border bg-card p-6 shadow-soft">
       <div className="flex items-center gap-4">
         <svg width="72" height="72" viewBox="0 0 72 72" className="-rotate-90">
           <circle cx="36" cy="36" r={radius} stroke="var(--color-muted)" strokeWidth="8" fill="none" />
-          <circle
+          <motion.circle
             cx="36"
             cy="36"
             r={radius}
@@ -166,8 +189,9 @@ function CompletenessCard({ value }: { value: number }) {
             fill="none"
             strokeLinecap="round"
             strokeDasharray={c}
-            strokeDashoffset={offset}
-            className="transition-all"
+            initial={{ strokeDashoffset: c }}
+            animate={{ strokeDashoffset: offset }}
+            transition={{ duration: 1, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
           />
         </svg>
         <div>
@@ -193,7 +217,7 @@ function StatCard({
   accent: string;
 }) {
   return (
-    <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+    <div className="hover-lift h-full rounded-3xl border border-border bg-card p-6 shadow-soft">
       <div className="flex items-center gap-3">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary">
           <Icon className="h-5 w-5" />

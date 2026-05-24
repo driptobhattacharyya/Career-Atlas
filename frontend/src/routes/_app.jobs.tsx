@@ -1,16 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Search, MapPin, X, Check, Loader2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Search, MapPin, X, Check, Loader2, BarChart3, ArrowUpRight } from "lucide-react";
+import { motion } from "motion/react";
+
 import { Button } from "@/components/ui/button";
-import { useJobMatches, useTargetRoles, useProfile } from "@/hooks/queries";
+import { Input } from "@/components/ui/input";
+import { useJobMatches, useProfile, useTargetRoles } from "@/hooks/queries";
+import type { JobResult } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { pageStagger, fadeUp, listStagger, fadeUpSm, entrance } from "@/lib/motion";
 import { toast } from "sonner";
+import { cacheJobSearchResponse, researchJobs } from "@/lib/api";
 
 export const Route = createFileRoute("/_app/jobs")({
   head: () => ({
     meta: [
-      { title: "Jobs — CareerAtlas" },
+      { title: "Jobs - CareerAtlas" },
       { name: "description", content: "Real job matches ranked by fit, with the skills you have and the ones you're missing." },
     ],
   }),
@@ -20,16 +26,40 @@ export const Route = createFileRoute("/_app/jobs")({
 const seniorities = ["Intern", "Entry", "Junior", "Mid", "Senior"];
 
 function Jobs() {
+  const isBrowser = typeof window !== "undefined";
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [activeSeniority, setActiveSeniority] = useState<string>("All");
-  const [openJob, setOpenJob] = useState<any | null>(null);
+  const [openJob, setOpenJob] = useState<JobResult | null>(null);
 
   const { data: profile } = useProfile();
   const { data: roles = [] } = useTargetRoles();
   const { data: jobs = [], isLoading } = useJobMatches();
+  const runJobResearch = useMutation({
+    mutationFn: async () => {
+      const selectedRoleId =
+        profile?.target_role_id ||
+        (isBrowser ? window.localStorage.getItem("careeratlas:selected_role_id") : null);
+      if (!selectedRoleId) throw new Error("No target role selected. Complete onboarding first.");
+      return researchJobs(selectedRoleId);
+    },
+    onSuccess: async (data) => {
+      cacheJobSearchResponse(data);
+      await queryClient.invalidateQueries({ queryKey: ["job-matches"] });
+      toast.success("Job matches refreshed", { description: "Fetched the latest jobs from the backend agent." });
+    },
+    onError: (err: any) => {
+      toast.error("Failed to fetch jobs", { description: err?.message || "Job research failed." });
+    },
+  });
 
-  const targetRole = roles.find((r: any) => r.id === profile?.target_role_id)?.title || "Target Role";
+  const localRoleTitle = isBrowser ? window.localStorage.getItem("careeratlas:selected_role_title") : null;
+  const targetRole =
+    roles.find((r: any) => r.id === profile?.target_role_id)?.title ||
+    profile?.target_role_title ||
+    localRoleTitle ||
+    "Target Role";
 
   if (isLoading) {
     return (
@@ -40,33 +70,63 @@ function Jobs() {
   }
 
   const filtered = jobs
-    .filter((j: any) =>
+    .filter((j) =>
       [j.title, j.company, j.location].some((f) => f && f.toLowerCase().includes(query.toLowerCase())),
     )
-    .filter((j: any) => (remoteOnly ? j.remote : true))
-    .filter((j: any) => (activeSeniority === "All" ? true : j.seniority === activeSeniority))
-    .sort((a: any, b: any) => b.match_pct - a.match_pct);
+    .filter((j) => (remoteOnly ? Boolean(j.remote) : true))
+    .filter((j) => (activeSeniority === "All" ? true : j.seniority === activeSeniority))
+    .sort((a, b) => b.score.final - a.score.final);
+
+  const topJob = filtered[0];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Job matches</h1>
-        <p className="mt-2 text-muted-foreground">
-          Ranked by fit for <span className="font-medium text-foreground">{targetRole}</span>.
-        </p>
-      </div>
+    <motion.div className="space-y-8" variants={pageStagger} {...entrance}>
+      <motion.div
+        variants={fadeUp}
+        className="hover-lift flex flex-col gap-4 rounded-3xl border border-border bg-card p-6 shadow-soft sm:flex-row sm:items-end sm:justify-between"
+      >
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">Job search</p>
+          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Ranked job matches</h1>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Results are scored across semantic fit, skill overlap, experience, and education for{" "}
+            <span className="font-medium text-foreground">{targetRole}</span>.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <StatPill label="Matches" value={String(jobs.length)} />
+          <StatPill label="Top score" value={topJob ? `${Math.round(topJob.score.final)}%` : "N/A"} />
+        </div>
+      </motion.div>
 
-      {/* Filters */}
-      <div className="rounded-3xl border border-border bg-card p-4 shadow-soft">
+      <motion.div variants={fadeUp} className="rounded-3xl border border-border bg-card p-4 shadow-soft">
+        <div className="mb-3 flex justify-end">
+          <Button
+            onClick={() => runJobResearch.mutate()}
+            disabled={runJobResearch.isPending}
+            className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90"
+          >
+            {runJobResearch.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Finding jobs...
+              </>
+            ) : (
+              "Refresh from Job Agent"
+            )}
+          </Button>
+        </div>
+
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search company, role, location…"
+            placeholder="Search company, role, location..."
             className="h-11 rounded-full pl-10"
           />
         </div>
+
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             onClick={() => setActiveSeniority("All")}
@@ -104,75 +164,137 @@ function Jobs() {
             Remote only
           </label>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Cards */}
-      <div className="grid gap-4">
-        {filtered.map((j: any) => (
-          <JobCard key={j.id} job={j} onOpen={() => setOpenJob(j)} />
+      <motion.div className="grid gap-4" variants={listStagger}>
+        {filtered.map((job) => (
+          <JobCard key={job.job_id} job={job} onOpen={() => setOpenJob(job)} />
         ))}
         {filtered.length === 0 && (
-          <p className="rounded-3xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-3xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
             No jobs match your filters.
-          </p>
+          </div>
         )}
-      </div>
+      </motion.div>
 
-      {/* Drawer */}
       {openJob && <JobDrawer job={openJob} onClose={() => setOpenJob(null)} />}
+    </motion.div>
+  );
+}
+
+function pct(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function StatPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-background px-4 py-3">
+      <p className="text-[11px] uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="font-display text-xl font-semibold">{value}</p>
     </div>
   );
 }
 
-function JobCard({ job, onOpen }: { job: any; onOpen: () => void }) {
+function ScoreBar({ label, value }: { label: string; value: number }) {
   return (
-    <article className="rounded-3xl border border-border bg-card p-5 shadow-soft transition-shadow hover:shadow-warm sm:p-6">
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-medium">{pct(value)}%</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-muted">
+        <motion.div
+          className="h-full rounded-full bg-coral"
+          initial={{ width: 0 }}
+          animate={{ width: `${pct(value)}%` }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function JobCard({ job, onOpen }: { job: JobResult; onOpen: () => void }) {
+  const strengths = job.explanation.strengths.slice(0, 4);
+  const gaps = job.explanation.gaps.slice(0, 4);
+
+  return (
+    <motion.article
+      variants={fadeUpSm}
+      className="hover-lift rounded-3xl border border-border bg-card p-5 shadow-soft sm:p-6"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-display text-lg font-semibold">{job.title}</h3>
           <p className="text-sm text-muted-foreground">
-            {job.company} · <MapPin className="inline h-3 w-3" /> {job.location}
-            {job.remote && <span className="ml-1 rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-medium text-success">Remote</span>}
+            {job.company} - <MapPin className="inline h-3 w-3" /> {job.location || "Location not listed"}
+            {job.remote && (
+              <span className="ml-2 rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-medium text-success">
+                Remote
+              </span>
+            )}
           </p>
         </div>
         <div className="text-right">
-          <div className="rounded-full bg-coral/15 px-3 py-1 text-sm font-bold text-coral">{job.match_pct}% match</div>
+          <div className="rounded-full bg-coral/15 px-3 py-1 text-sm font-bold text-coral">
+            {pct(job.score.final)}% match
+          </div>
           {job.salary && <p className="mt-1 text-xs text-muted-foreground">{job.salary}</p>}
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-success">You have</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {job.matched && job.matched.slice(0, 5).map((s: string) => (
-              <span key={s} className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs text-success">
-                <Check className="h-3 w-3" /> {s}
-              </span>
-            ))}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-success">Strengths</p>
+          <div className="flex flex-wrap gap-1.5">
+            {strengths.length > 0 ? (
+              strengths.map((s) => (
+                <span key={s} className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs text-success">
+                  <Check className="h-3 w-3" /> {s}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">No strengths extracted yet.</span>
+            )}
           </div>
         </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-coral">You're missing</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {job.missing && job.missing.map((s: string) => (
-              <span key={s} className="rounded-full bg-coral/10 px-2.5 py-0.5 text-xs text-coral">{s}</span>
-            ))}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-coral">Gaps</p>
+          <div className="flex flex-wrap gap-1.5">
+            {gaps.length > 0 ? (
+              gaps.map((s) => (
+                <span key={s} className="rounded-full bg-coral/10 px-2.5 py-0.5 text-xs text-coral">
+                  {s}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">No major gaps highlighted.</span>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Posted {job.posted_days}d ago · {job.seniority}</span>
+      <div className="mt-5 grid gap-3 rounded-2xl border border-border/60 bg-background p-4">
+        <ScoreBar label="Semantic fit" value={job.score.semantic} />
+        <ScoreBar label="Skill overlap" value={job.score.skill_overlap} />
+        <ScoreBar label="Experience" value={job.score.experience} />
+        <ScoreBar label="Education" value={job.score.education} />
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Why this ranks here:</span>{" "}
+          {job.explanation.reasoning || "The model returned no written reasoning."}
+        </div>
         <Button onClick={onOpen} variant="outline" size="sm" className="rounded-full">
           View details
         </Button>
       </div>
-    </article>
+    </motion.article>
   );
 }
 
-function JobDrawer({ job, onClose }: { job: any; onClose: () => void }) {
+function JobDrawer({ job, onClose }: { job: JobResult; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex" onClick={onClose}>
       <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
@@ -187,38 +309,74 @@ function JobDrawer({ job, onClose }: { job: any; onClose: () => void }) {
         >
           <X className="h-4 w-4" />
         </button>
+
         <h2 className="pr-12 font-display text-2xl font-bold">{job.title}</h2>
-        <p className="mt-1 text-muted-foreground">{job.company} · {job.location}</p>
+        <p className="mt-1 text-muted-foreground">
+          {job.company} - {job.location || "Location not listed"}
+        </p>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <span className="rounded-full bg-coral px-3 py-1 text-xs font-semibold text-coral-foreground">{job.match_pct}% match</span>
-          <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">{job.seniority}</span>
+          <span className="rounded-full bg-coral px-3 py-1 text-xs font-semibold text-coral-foreground">
+            {pct(job.score.final)}% match
+          </span>
+          {job.seniority && <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">{job.seniority}</span>}
           {job.remote && <span className="rounded-full bg-success/15 px-3 py-1 text-xs font-medium text-success">Remote</span>}
+        </div>
+
+        <div className="mt-6 space-y-3 rounded-2xl border border-border/60 bg-background p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <BarChart3 className="h-4 w-4" /> Score breakdown
+          </div>
+          <ScoreBar label="Semantic fit" value={job.score.semantic} />
+          <ScoreBar label="Skill overlap" value={job.score.skill_overlap} />
+          <ScoreBar label="Experience" value={job.score.experience} />
+          <ScoreBar label="Education" value={job.score.education} />
+        </div>
+
+        <div className="mt-6 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-success">Strengths</p>
+          <div className="flex flex-wrap gap-1.5">
+            {job.explanation.strengths.length > 0 ? (
+              job.explanation.strengths.map((s) => (
+                <span key={s} className="rounded-full bg-success/10 px-2.5 py-1 text-xs text-success">
+                  {s}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">No strengths returned.</span>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-coral">Gaps</p>
+          <div className="flex flex-wrap gap-1.5">
+            {job.explanation.gaps.length > 0 ? (
+              job.explanation.gaps.map((s) => (
+                <span key={s} className="rounded-full bg-coral/10 px-2.5 py-1 text-xs text-coral">
+                  {s}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">No gaps returned.</span>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-border/60 bg-background p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reasoning</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {job.explanation.reasoning || "No reasoning text was generated for this role."}
+          </p>
         </div>
 
         <p className="mt-6 text-sm leading-relaxed text-muted-foreground">{job.description}</p>
 
-        <div className="mt-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-success">Skills you have</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {job.matched && job.matched.map((s: string) => (
-              <span key={s} className="rounded-full bg-success/10 px-2.5 py-1 text-xs text-success">{s}</span>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-coral">Skills to build</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {job.missing && job.missing.map((s: string) => (
-              <span key={s} className="rounded-full bg-coral/10 px-2.5 py-1 text-xs text-coral">{s}</span>
-            ))}
-          </div>
-        </div>
-
         <div className="mt-8 flex flex-col gap-2">
           <Button asChild className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90">
-             <a href={job.external_url} target="_blank" rel="noopener noreferrer">Apply now</a>
+            <a href={job.apply_url || job.external_url || "#"} target="_blank" rel="noopener noreferrer">
+              Apply now <ArrowUpRight className="ml-2 h-4 w-4" />
+            </a>
           </Button>
           <Button
             variant="outline"

@@ -1,6 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Compass, FileText, Sparkles, Map, Target, Briefcase } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { ArrowRight, Compass, FileText, Sparkles, Map, Target, Briefcase, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth-context";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -23,6 +25,24 @@ export const Route = createFileRoute("/")({
 });
 
 function Landing() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [loading, user, navigate]);
+
+  // Signed-in (or still resolving) — don't flash the marketing page.
+  if (loading || user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-hero">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-hero">
       {/* Top bar */}
@@ -34,7 +54,7 @@ function Landing() {
           CareerAtlas
         </Link>
         <div className="flex items-center gap-2">
-          <Link to="/dashboard" className="hidden rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-block">
+          <Link to="/onboarding" className="hidden rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-block">
             Sign in
           </Link>
           <Button asChild className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm">
@@ -63,10 +83,10 @@ function Landing() {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="h-12 rounded-full border-border bg-card px-7 text-base">
-              <Link to="/dashboard">See sample dashboard</Link>
+              <Link to="/onboarding">Sign in</Link>
             </Button>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">No account needed • Free during beta</p>
+          <p className="mt-4 text-xs text-muted-foreground">Sign in with Google • Free during beta</p>
         </div>
 
         {/* Mock preview card */}

@@ -1,0 +1,52 @@
+name: Deploy backend to Cloud Run
+
+# Pushes to `prod` that touch the backend rebuild + redeploy the container.
+# The frontend deploys separately via Vercel's native Git integration.
+on:
+  push:
+    branches: [prod]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: project-79c93860-4168-42f1-93f
+  REGION: us-central1
+  REPO: careeratlas
+  SERVICE: careeratlas-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # required for Workload Identity Federation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: projects/791080365827/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-actions-ci@project-79c93860-4168-42f1-93f.iam.gserviceaccount.com
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build, push, deploy
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${SERVICE}:${GITHUB_SHA}"
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker build -t "$IMAGE" backend
+          docker push "$IMAGE"
+          # Image-only update — existing env vars on the service are preserved.
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE" \
+            --region "$REGION" \
+            --platform managed \
+            --min-instances=1 \
+            --no-cpu-throttling \
+            --quiet

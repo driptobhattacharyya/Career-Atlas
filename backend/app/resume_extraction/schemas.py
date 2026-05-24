@@ -1,38 +1,107 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import Optional
 
-class SkillSchema(BaseModel):
-    name: str = Field(description="Name of the skill, e.g., Python, AWS, React.")
-    category: str = Field(description="One of: Languages, Frameworks, Data, Cloud & DevOps, Tools, Soft Skills")
-    level: str = Field(description="One of: beginner, intermediate, advanced")
-    evidence: Optional[str] = Field(None, description="Brief 1-sentence proof of skill found in the resume")
 
-class ExperienceSchema(BaseModel):
-    role: str
-    company: str
-    start_date: Optional[str]
-    end_date: Optional[str]
-    bullets: List[str]
+class ContactInfo(BaseModel):
+    email: Optional[str] = Field(
+        default=None, description="Primary email address.")
+    phone_raw: Optional[str] = Field(
+        default=None, description="Raw phone number as extracted.")
+    country_code: Optional[str] = Field(
+        default=None, description="Country code (e.g., +91).")
+    national_number: Optional[str] = Field(
+        default=None, description="National number without country code.")
+    e164_phone: Optional[str] = Field(
+        default=None, description="E.164 formatted phone number.")
+    location: Optional[str] = Field(
+        default=None, description="Location such as city, state, or country.")
+    linkedin: Optional[str] = Field(
+        default=None, description="LinkedIn profile URL.")
+    github: Optional[str] = Field(
+        default=None, description="GitHub profile URL.")
+    website: Optional[str] = Field(
+        default=None, description="Personal website or portfolio URL.")
 
-class EducationSchema(BaseModel):
-    school: str
-    degree: str
-    start_date: Optional[str]
-    end_date: Optional[str]
 
-class ProjectSchema(BaseModel):
-    name: str
-    description: Optional[str]
-    tech: List[str] = Field(default_factory=list)
-    link: Optional[str]
+class ExperienceItem(BaseModel):
+    company: Optional[str] = Field(
+        default=None, description="Company or organization name.")
+    title: Optional[str] = Field(
+        default=None, description="Job title or role.")
+    location: Optional[str] = Field(
+        default=None, description="Job location if present.")
+    start_date: Optional[str] = Field(
+        default=None, description="Start date as written in the resume.")
+    end_date: Optional[str] = Field(
+        default=None, description="End date as written in the resume.")
+    is_current: Optional[bool] = Field(
+        default=None, description="True if this is the current role.")
+    description_bullets: list[str] = Field(
+        default_factory=list, description="Resume bullet points for the role.")
+    technologies: list[str] = Field(
+        default_factory=list, description="Technologies, tools, or methods mentioned for the role.")
 
-class ResumeExtractionResponse(BaseModel):
-    name: str
-    headline: Optional[str] = Field(None, description="A 1-line professional summary based on experience.")
-    email: Optional[str]
-    location: Optional[str]
-    summary: Optional[str] = Field(None, description="A 2-3 sentence summary of the person's career arc.")
-    skills: List[SkillSchema] = Field(default_factory=list)
-    experience: List[ExperienceSchema] = Field(default_factory=list)
-    education: List[EducationSchema] = Field(default_factory=list)
-    projects: List[ProjectSchema] = Field(default_factory=list)
+
+class EducationItem(BaseModel):
+    institution: Optional[str] = Field(
+        default=None, description="School, college, or university name.")
+    degree: Optional[str] = Field(
+        default=None, description="Degree or qualification.")
+    field_of_study: Optional[str] = Field(
+        default=None, description="Branch, major, or specialization.")
+    start_date: Optional[str] = Field(
+        default=None, description="Start date if present.")
+    end_date: Optional[str] = Field(
+        default=None, description="End date if present.")
+    grade: Optional[str] = Field(
+        default=None, description="CGPA, percentage, or grade if present.")
+    notes: list[str] = Field(
+        default_factory=list, description="Additional notes such as honors or relevant coursework.")
+
+
+class ProjectItem(BaseModel):
+    name: Optional[str] = Field(default=None, description="Project name.")
+    description: Optional[str] = Field(
+        default=None, description="Short description of the project.")
+    technologies: list[str] = Field(
+        default_factory=list, description="Tools, libraries, frameworks, or languages used.")
+    link: Optional[str] = Field(
+        default=None, description="Project URL if present.")
+
+
+class CertificationItem(BaseModel):
+    name: Optional[str] = Field(
+        default=None, description="Certification name.")
+    issuer: Optional[str] = Field(
+        default=None, description="Issuing organization.")
+    date: Optional[str] = Field(default=None, description="Date if present.")
+    credential_id: Optional[str] = Field(
+        default=None, description="Credential ID if present.")
+    link: Optional[str] = Field(
+        default=None, description="Credential URL if present.")
+
+
+class ResumeExtraction(BaseModel):
+    full_name: Optional[str] = Field(
+        default=None, description="Candidate full name.")
+    headline: Optional[str] = Field(
+        default=None, description="Professional headline.")
+    contact: ContactInfo
+    summary: Optional[str] = Field(
+        default=None, description="Professional summary.")
+
+    skills: list[str] = Field(
+        default_factory=list,
+        description="All professional skills, core competencies, tools, frameworks, concepts, methodologies, and technologies explicitly listed in the resume.")
+    programming_languages: list[str] = Field(
+        default_factory=list, description="Programming languages (Python, Java, C, etc.).")
+    spoken_languages: list[str] = Field(
+        default_factory=list, description="Human languages (English, Hindi, etc.).")
+
+    experience: list[ExperienceItem] = Field(default_factory=list)
+    education: list[EducationItem] = Field(default_factory=list)
+    projects: list[ProjectItem] = Field(default_factory=list)
+    certifications: list[CertificationItem] = Field(default_factory=list)
+
+    keywords: list[str] = Field(
+        default_factory=list, description="Important keywords for search/indexing.")

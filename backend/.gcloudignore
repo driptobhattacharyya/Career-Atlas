@@ -1,0 +1,20 @@
+# Keep the Cloud Build source upload small — only ship what the image needs.
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.env
+.env.*
+!.env.example
+static/
+scripts/
+sql/
+Notebooks/
+*.md
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.git/
+.gitignore

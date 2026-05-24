@@ -6,14 +6,13 @@ Orchestrates the full pipeline:
   2. LLM analysis to produce ranked skill gaps
   3. Returns structured GapSchema list
 
-Uses Gemini (via Google AI Studio) for structured gap identification.
+Uses Groq for structured gap identification (embeddings still use Gemini).
 """
 import logging
-from typing import List
+from typing import List, Tuple, Dict, Any
 
 from langchain_core.prompts import PromptTemplate
-from app.config import settings
-from app.utils.llm_factory import get_gemini_model
+from app.utils.llm_factory import get_groq_model
 from app.gap_analysis.schemas import GapAnalysisResponse, GapSchema
 from app.gap_analysis.hybrid_retrieval import (
     hybrid_retrieve,
@@ -43,9 +42,10 @@ Identify the top 6 most critical SKILL GAPS for a candidate wanting to become a 
 5. Use the level_required from the requirements when available.
 6. For prerequisites, list only skills the user does NOT already have.
 7. The "why" field must be a single concise sentence.
-8. The "relevance" score should reflect how frequently this skill appears in job requirements.
+8. The "relevance" MUST BE AN INTEGER between 0 and 100. Do NOT copy the raw float relevance_score (e.g., 0.210) from the requirements; instead, convert it to a percentage (e.g., output 21).
 
-Output strictly as JSON matching the schema."""
+Output strictly as JSON matching the schema. In "justifications", provide a custom 1-2 sentence explanation for each gap, detailing why it is critical for this specific candidate to learn it to succeed as a {target_role}.
+"""
 )
 
 
@@ -53,7 +53,7 @@ async def generate_gaps_for_user(
     user_skills: List[str],
     target_role_title: str,
     user_headline: str = "",
-) -> List[GapSchema]:
+) -> Tuple[List[GapSchema], Dict[str, Any]]:
     """
     Full gap analysis pipeline:
       1. Run hybrid retrieval to get ranked skill requirements
@@ -95,7 +95,7 @@ async def generate_gaps_for_user(
     role_requirements_text = "\n".join(req_lines)
 
     # 2. LLM Structured Generation
-    model = get_gemini_model(model_name=settings.gap_analysis_model, temperature=0.0)
+    model = get_groq_model(temperature=0.0)
     structured_llm = model.with_structured_output(GapAnalysisResponse)
 
     chain = GAP_ANALYSIS_PROMPT | structured_llm
@@ -105,5 +105,32 @@ async def generate_gaps_for_user(
         "role_requirements": role_requirements_text,
     })
 
-    logger.info("Gap analysis complete: %d gaps identified", len(result.gaps))
-    return result.gaps
+    # Deduplicate model output by normalized skill name while preserving order.
+    deduped: List[GapSchema] = []
+    seen: set[str] = set()
+    for gap in result.gaps:
+        key = (gap.skill or "").strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(gap)
+
+    explainability = {
+        "role_slug": role_slug,
+        "input_skill_count": len(user_skills),
+        "justifications": getattr(result, "justifications", {}),
+        "retrieved_requirements": [
+            {
+                "skill_name": skill.get("skill_name"),
+                "category": skill.get("category"),
+                "level_required": skill.get("level_required"),
+                "relevance_score": skill.get("relevance_score"),
+                "description": skill.get("description"),
+                "prerequisites": skill.get("prerequisites", []),
+            }
+            for skill in retrieved_skills
+        ],
+    }
+
+    logger.info("Gap analysis complete: %d gaps identified (%d deduped)", len(result.gaps), len(deduped))
+    return deduped, explainability

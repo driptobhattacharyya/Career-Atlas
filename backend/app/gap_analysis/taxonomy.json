@@ -1,0 +1,837 @@
+[
+  {
+    "role": "ml_engineer",
+    "skill_name": "Python",
+    "description": "Core programming language for ML/AI development. Used for data processing, model training, and API development.",
+    "category": "language",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "Linear Algebra",
+    "description": "Vectors, matrices, eigenvalues, SVD. Core mathematical foundation for understanding neural networks and ML algorithms.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "Statistics and probability",
+    "description": "Foundational knowledge: distributions, hypothesis testing, Bayesian reasoning, confidence intervals. Essential for model evaluation.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "NumPy",
+    "description": "Numerical computing library for Python. Provides n-dimensional array operations, linear algebra, and Fourier transforms.",
+    "category": "tool",
+    "level_required": "beginner",
+    "prerequisites": ["Python"],
+    "source": "curated"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "Pandas",
+    "description": "Data manipulation and analysis library. Used for loading, cleaning, transforming, and analysing structured data.",
+    "category": "tool",
+    "level_required": "beginner",
+    "prerequisites": ["Python", "NumPy"],
+    "source": "curated"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "scikit-learn",
+    "description": "Machine learning library for classical ML algorithms: classification, regression, clustering, dimensionality reduction.",
+    "category": "framework",
+    "level_required": "intermediate",
+    "prerequisites": ["Python", "Statistics basics", "NumPy"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "PyTorch",
+    "description": "Open-source deep learning framework for building and training neural networks. Industry standard for research and production ML.",
+    "category": "framework",
+    "level_required": "intermediate",
+    "prerequisites": ["Python", "Linear Algebra", "Calculus"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "Feature engineering",
+    "description": "Transforming raw data into meaningful features for ML models. Includes encoding, normalisation, imputation, and domain-specific transformations.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Pandas", "Statistics and probability"],
+    "source": "curated"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "Model evaluation and metrics",
+    "description": "Selecting and interpreting evaluation metrics: accuracy, precision, recall, F1, AUC-ROC, BLEU, RMSE. Cross-validation strategies.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Statistics and probability", "scikit-learn"],
+    "source": "curated"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "Docker",
+    "description": "Containerisation platform for packaging applications and dependencies. Required for reproducible ML environments and deployment.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": ["Linux basics"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "Kubernetes",
+    "description": "Container orchestration system for automating deployment, scaling, and management of containerised applications in production.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": ["Docker", "Linux basics"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "MLOps fundamentals",
+    "description": "Practices for deploying, monitoring, and maintaining ML models in production: CI/CD for ML, model versioning, data pipelines.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Docker", "CI/CD basics", "Python"],
+    "source": "curated"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "Experiment tracking (MLflow)",
+    "description": "Tracking ML experiments, parameters, metrics, and model artefacts. MLflow is the open-source standard for experiment management.",
+    "category": "tool",
+    "level_required": "beginner",
+    "prerequisites": ["Python", "scikit-learn"],
+    "source": "curated"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "LangChain or LangGraph",
+    "description": "Framework for building LLM-powered applications and agents. Used for orchestrating multi-step reasoning and RAG pipelines.",
+    "category": "framework",
+    "level_required": "beginner",
+    "prerequisites": ["Python", "REST API basics"],
+    "source": "curated"
+  },
+  {
+    "role": "ml_engineer",
+    "skill_name": "Vector databases",
+    "description": "Databases designed for storing and querying high-dimensional embedding vectors. Used for semantic search and RAG systems. Examples: Pinecone, Weaviate, pgvector.",
+    "category": "concept",
+    "level_required": "beginner",
+    "prerequisites": ["Python", "embeddings basics"],
+    "source": "curated"
+  },
+
+  {
+    "role": "data_scientist",
+    "skill_name": "Statistical modelling",
+    "description": "Building and interpreting statistical models: regression, classification, clustering. Understanding model assumptions and limitations.",
+    "category": "concept",
+    "level_required": "advanced",
+    "prerequisites": ["Statistics and probability", "Python"],
+    "source": "curated"
+  },
+  {
+    "role": "data_scientist",
+    "skill_name": "Machine learning algorithms",
+    "description": "Supervised and unsupervised algorithms: decision trees, SVMs, ensemble methods, clustering, dimensionality reduction.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Statistics and probability", "Linear Algebra", "scikit-learn"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "data_scientist",
+    "skill_name": "Deep learning fundamentals",
+    "description": "Neural network architectures, backpropagation, optimisers, regularisation. CNNs, RNNs, transformers overview.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Linear Algebra", "Calculus", "Python", "PyTorch"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "data_scientist",
+    "skill_name": "Data storytelling and communication",
+    "description": "Translating analytical findings into clear narratives for non-technical stakeholders. Visualisation design principles.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "data_scientist",
+    "skill_name": "Python for data science",
+    "description": "Python with Pandas, NumPy, scikit-learn, and Jupyter for end-to-end data science workflows.",
+    "category": "language",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "data_scientist",
+    "skill_name": "SQL and data extraction",
+    "description": "Querying relational databases to extract, join, and aggregate datasets for analysis and modelling.",
+    "category": "language",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "data_scientist",
+    "skill_name": "Exploratory data analysis",
+    "description": "Profiling datasets: distributions, correlations, outliers, missing data. Forming hypotheses before modelling.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Python for data science", "Statistics and probability"],
+    "source": "curated"
+  },
+  {
+    "role": "data_scientist",
+    "skill_name": "Experimentation and A/B testing",
+    "description": "Designing controlled experiments, computing significance, avoiding common pitfalls in causal inference.",
+    "category": "concept",
+    "level_required": "advanced",
+    "prerequisites": ["Statistics and probability"],
+    "source": "curated"
+  },
+  {
+    "role": "data_scientist",
+    "skill_name": "Data visualisation",
+    "description": "Building clear charts with Matplotlib, Seaborn, or Plotly. Choosing the right chart for the question.",
+    "category": "tool",
+    "level_required": "beginner",
+    "prerequisites": ["Python for data science"],
+    "source": "curated"
+  },
+  {
+    "role": "data_scientist",
+    "skill_name": "Feature engineering",
+    "description": "Creating predictive features from raw data: encoding, scaling, aggregation, time-based and domain features.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Exploratory data analysis"],
+    "source": "curated"
+  },
+  {
+    "role": "data_scientist",
+    "skill_name": "Cloud notebooks and compute",
+    "description": "Running data science workloads on cloud platforms: managed notebooks, scalable compute, and dataset storage.",
+    "category": "tool",
+    "level_required": "beginner",
+    "prerequisites": ["Python for data science"],
+    "source": "curated"
+  },
+
+  {
+    "role": "data_analyst",
+    "skill_name": "SQL",
+    "description": "Primary tool for data extraction, transformation, and analysis in relational databases.",
+    "category": "language",
+    "level_required": "advanced",
+    "prerequisites": [],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "data_analyst",
+    "skill_name": "Excel and Google Sheets",
+    "description": "Advanced spreadsheet skills: pivot tables, VLOOKUP, array formulas, data validation, and macro automation.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "data_analyst",
+    "skill_name": "Python for data analysis",
+    "description": "Using Python (Pandas, NumPy, Matplotlib, Seaborn) for data wrangling, exploration, and visualisation.",
+    "category": "language",
+    "level_required": "intermediate",
+    "prerequisites": ["Python"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "data_analyst",
+    "skill_name": "Statistics and hypothesis testing",
+    "description": "A/B testing, t-tests, chi-square, p-values, confidence intervals. Validating data-driven conclusions rigorously.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "data_analyst",
+    "skill_name": "Tableau or Power BI",
+    "description": "Business intelligence tools for building interactive dashboards and visual reports for stakeholders.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": ["SQL", "Data storytelling basics"],
+    "source": "curated"
+  },
+  {
+    "role": "data_analyst",
+    "skill_name": "Data cleaning and wrangling",
+    "description": "Handling missing values, deduplication, type coercion, and reshaping messy datasets into analysis-ready tables.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Python for data analysis"],
+    "source": "curated"
+  },
+  {
+    "role": "data_analyst",
+    "skill_name": "Data storytelling and communication",
+    "description": "Turning analysis into clear narratives and recommendations for non-technical stakeholders.",
+    "category": "soft",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "data_analyst",
+    "skill_name": "Dashboard design",
+    "description": "Designing dashboards that surface the right metrics: layout, hierarchy, drill-downs, and refresh strategy.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Tableau or Power BI"],
+    "source": "curated"
+  },
+  {
+    "role": "data_analyst",
+    "skill_name": "Business metrics and KPIs",
+    "description": "Defining and interpreting business metrics: retention, conversion, funnel, cohort, and unit economics.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "data_analyst",
+    "skill_name": "ETL and data pipelines basics",
+    "description": "Understanding how data moves from sources to warehouses; scheduled extracts, transforms, and loads.",
+    "category": "concept",
+    "level_required": "beginner",
+    "prerequisites": ["SQL"],
+    "source": "curated"
+  },
+
+  {
+    "role": "swe_backend",
+    "skill_name": "SQL",
+    "description": "Structured Query Language for relational databases. DDL, DML, joins, aggregations, indexing, and query optimisation.",
+    "category": "language",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "swe_backend",
+    "skill_name": "REST API design",
+    "description": "Designing and implementing RESTful APIs following HTTP standards, status codes, resource modelling, and versioning.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["HTTP basics", "JSON"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "swe_backend",
+    "skill_name": "PostgreSQL",
+    "description": "Advanced open-source relational database. JSONB, full-text search, transactions, indexing strategies, and extensions.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": ["SQL"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "swe_backend",
+    "skill_name": "Authentication and authorisation",
+    "description": "JWT, OAuth 2.0, session management, RBAC. Implementing secure auth in APIs and web applications.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["REST API design", "HTTP basics"],
+    "source": "curated"
+  },
+  {
+    "role": "swe_backend",
+    "skill_name": "Docker",
+    "description": "Containerisation for consistent development and production environments. Building images, writing Dockerfiles, docker-compose.",
+    "category": "tool",
+    "level_required": "beginner",
+    "prerequisites": ["Linux basics"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "swe_backend",
+    "skill_name": "Redis",
+    "description": "In-memory data store used for caching, session management, pub/sub, and rate limiting in backend systems.",
+    "category": "tool",
+    "level_required": "beginner",
+    "prerequisites": ["REST API design"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "swe_backend",
+    "skill_name": "Message queues (RabbitMQ / Kafka)",
+    "description": "Asynchronous communication between services using message brokers. Producers, consumers, topics, and delivery guarantees.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["REST API design", "System design"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "swe_backend",
+    "skill_name": "System design",
+    "description": "Designing scalable distributed systems: load balancing, caching, message queues, database sharding, and CAP theorem trade-offs.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["REST API design", "SQL"],
+    "source": "roadmap.sh"
+  },
+
+  {
+    "role": "devops_engineer",
+    "skill_name": "Linux and shell scripting",
+    "description": "System administration, bash scripting, process management, file permissions, cron jobs, and SSH.",
+    "category": "concept",
+    "level_required": "advanced",
+    "prerequisites": [],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "devops_engineer",
+    "skill_name": "Networking fundamentals",
+    "description": "TCP/IP, DNS, HTTP/S, load balancers, firewalls, VPCs, and subnetting. Essential for cloud infrastructure and debugging.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "devops_engineer",
+    "skill_name": "CI/CD pipelines",
+    "description": "Building continuous integration and delivery pipelines using GitHub Actions, Jenkins, or GitLab CI. Automated testing and deployment.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Git", "Linux basics"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "devops_engineer",
+    "skill_name": "Infrastructure as Code (Terraform)",
+    "description": "Provisioning and managing cloud infrastructure declaratively using Terraform. State management, modules, and remote backends.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": ["Cloud provider basics (AWS/GCP/Azure)"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "devops_engineer",
+    "skill_name": "Kubernetes",
+    "description": "Orchestrating containerised workloads at scale. Deployments, services, ingress, ConfigMaps, Helm charts.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": ["Docker", "Linux basics", "Networking basics"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "devops_engineer",
+    "skill_name": "Monitoring and observability",
+    "description": "Setting up metrics, logging, and tracing with tools like Prometheus, Grafana, and ELK stack. Alerting and incident response.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Linux basics", "Docker"],
+    "source": "roadmap.sh"
+  },
+  {
+    "role": "devops_engineer",
+    "skill_name": "Docker",
+    "description": "Containerisation platform for packaging and running applications consistently across environments.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": ["Linux and shell scripting"],
+    "source": "curated"
+  },
+  {
+    "role": "devops_engineer",
+    "skill_name": "Cloud platforms (AWS/GCP/Azure)",
+    "description": "Core cloud services: compute, storage, IAM, managed databases, and networking on a major cloud provider.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": ["Networking fundamentals"],
+    "source": "curated"
+  },
+  {
+    "role": "devops_engineer",
+    "skill_name": "Git and version control",
+    "description": "Branching strategies, pull requests, merge conflict resolution, and trunk-based development.",
+    "category": "tool",
+    "level_required": "beginner",
+    "prerequisites": [],
+    "source": "curated"
+  },
+
+  {
+    "role": "frontend_engineer",
+    "skill_name": "HTML and CSS",
+    "description": "Semantic markup, the box model, Flexbox, Grid, and modern CSS for structuring and styling web pages.",
+    "category": "language",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "JavaScript",
+    "description": "Core language of the web: closures, promises, async/await, the event loop, and ES2020+ features.",
+    "category": "language",
+    "level_required": "advanced",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "TypeScript",
+    "description": "Typed superset of JavaScript: interfaces, generics, discriminated unions. Catches errors before runtime.",
+    "category": "language",
+    "level_required": "intermediate",
+    "prerequisites": ["JavaScript"],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "React",
+    "description": "Component-based UI library: hooks, state, effects, context. The dominant framework for modern web UIs.",
+    "category": "framework",
+    "level_required": "advanced",
+    "prerequisites": ["JavaScript", "HTML and CSS"],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "State management",
+    "description": "Managing client state with Context, Redux, Zustand, or TanStack Query. Server-state vs UI-state separation.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["React"],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "Responsive design",
+    "description": "Building layouts that adapt across devices using media queries, fluid grids, and mobile-first principles.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["HTML and CSS"],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "Web accessibility (a11y)",
+    "description": "WCAG guidelines, semantic HTML, ARIA roles, keyboard navigation, and screen-reader-friendly interfaces.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["HTML and CSS"],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "Frontend build tooling",
+    "description": "Bundlers and dev servers (Vite, Webpack, esbuild): module resolution, code splitting, and asset pipelines.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": ["JavaScript"],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "Browser APIs and the DOM",
+    "description": "DOM manipulation, events, fetch, storage, and rendering performance characteristics of the browser.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["JavaScript"],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "Frontend testing",
+    "description": "Unit and component testing with Jest and Testing Library; end-to-end testing with Playwright or Cypress.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": ["JavaScript", "React"],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "Performance optimisation",
+    "description": "Reducing bundle size, lazy loading, memoisation, and Core Web Vitals. Profiling render bottlenecks.",
+    "category": "concept",
+    "level_required": "advanced",
+    "prerequisites": ["JavaScript", "Browser APIs and the DOM"],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "API integration (REST/GraphQL)",
+    "description": "Consuming backend APIs from the client: data fetching, caching, loading and error states, optimistic updates.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["JavaScript"],
+    "source": "curated"
+  },
+  {
+    "role": "frontend_engineer",
+    "skill_name": "Git and version control",
+    "description": "Branching, pull requests, code review, and resolving merge conflicts in a team workflow.",
+    "category": "tool",
+    "level_required": "beginner",
+    "prerequisites": [],
+    "source": "curated"
+  },
+
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "JavaScript and TypeScript",
+    "description": "Shared language across client and server: async patterns, typing, and modern ES features.",
+    "category": "language",
+    "level_required": "advanced",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "React",
+    "description": "Component-based frontend UIs with hooks, routing, and state management for full-stack apps.",
+    "category": "framework",
+    "level_required": "advanced",
+    "prerequisites": ["JavaScript and TypeScript"],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "Node.js",
+    "description": "Server-side JavaScript runtime: building APIs with Express or Fastify, the event loop, and streams.",
+    "category": "framework",
+    "level_required": "advanced",
+    "prerequisites": ["JavaScript and TypeScript"],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "REST API design",
+    "description": "Designing resource-oriented APIs: HTTP verbs, status codes, pagination, versioning, and error contracts.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["HTTP basics"],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "SQL and relational databases",
+    "description": "Modelling data, writing queries, joins, indexing, and transactions in PostgreSQL or MySQL.",
+    "category": "language",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "Database design and ORMs",
+    "description": "Schema design, normalisation, migrations, and using ORMs like Prisma or SQLAlchemy safely.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["SQL and relational databases"],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "Authentication and authorisation",
+    "description": "Sessions, JWT, OAuth, and role-based access control across the frontend and backend boundary.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["REST API design"],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "Git and version control",
+    "description": "Branching strategies, pull requests, and collaborative review workflows.",
+    "category": "tool",
+    "level_required": "beginner",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "Docker",
+    "description": "Containerising frontend and backend services for consistent local and production environments.",
+    "category": "tool",
+    "level_required": "intermediate",
+    "prerequisites": ["Linux basics"],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "Cloud deployment",
+    "description": "Deploying full-stack apps to platforms like Vercel, Render, AWS, or Fly.io; environment config and secrets.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Docker"],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "Testing (unit and integration)",
+    "description": "Testing across the stack: component tests, API tests, and integration tests with realistic fixtures.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["JavaScript and TypeScript"],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "System design basics",
+    "description": "Structuring an app's services, data flow, caching, and scaling considerations end to end.",
+    "category": "concept",
+    "level_required": "advanced",
+    "prerequisites": ["REST API design", "SQL and relational databases"],
+    "source": "curated"
+  },
+  {
+    "role": "fullstack_engineer",
+    "skill_name": "CI/CD basics",
+    "description": "Automating build, test, and deploy with GitHub Actions or similar for full-stack projects.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Git and version control"],
+    "source": "curated"
+  },
+
+  {
+    "role": "product_manager",
+    "skill_name": "User research",
+    "description": "Planning and running interviews, surveys, and usability tests; synthesising findings into insights.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "Product roadmapping",
+    "description": "Translating strategy into a sequenced, outcome-oriented roadmap and communicating it to stakeholders.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "Agile and Scrum",
+    "description": "Running sprints, backlog grooming, standups, and retrospectives; working effectively with engineering.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "SQL for product analytics",
+    "description": "Querying product data directly to answer questions about usage, funnels, and retention.",
+    "category": "language",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "A/B testing and experimentation",
+    "description": "Designing experiments, defining success metrics, and interpreting results to make product decisions.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Statistics basics"],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "Product metrics and KPIs",
+    "description": "Defining and tracking activation, retention, engagement, and revenue metrics; building metric trees.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "Stakeholder communication",
+    "description": "Aligning engineering, design, leadership, and customers; managing expectations and trade-offs.",
+    "category": "soft",
+    "level_required": "advanced",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "Wireframing and prototyping",
+    "description": "Sketching flows and low-fidelity prototypes in Figma to communicate product ideas quickly.",
+    "category": "tool",
+    "level_required": "beginner",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "Writing PRDs and specs",
+    "description": "Documenting problem statements, requirements, success criteria, and edge cases clearly for the team.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "Prioritisation frameworks",
+    "description": "Applying RICE, MoSCoW, Kano, and cost-of-delay to decide what to build next under constraints.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": ["Product roadmapping"],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "Product strategy",
+    "description": "Defining vision, target segments, positioning, and a defensible path to product-market fit.",
+    "category": "concept",
+    "level_required": "advanced",
+    "prerequisites": ["User research", "Product metrics and KPIs"],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "Technical fluency for PMs",
+    "description": "Understanding APIs, databases, and system constraints well enough to scope work with engineers.",
+    "category": "concept",
+    "level_required": "intermediate",
+    "prerequisites": [],
+    "source": "curated"
+  },
+  {
+    "role": "product_manager",
+    "skill_name": "Data-informed decision making",
+    "description": "Combining quantitative analytics with qualitative insight to make and defend product decisions.",
+    "category": "concept",
+    "level_required": "advanced",
+    "prerequisites": ["SQL for product analytics", "Product metrics and KPIs"],
+    "source": "curated"
+  }
+]

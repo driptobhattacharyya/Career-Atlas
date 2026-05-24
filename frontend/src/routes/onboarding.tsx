@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Compass, FileText, Sparkles, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
-import { useTargetRoles } from "@/hooks/queries";
-import { parseResume, analyzeGaps, generateRoadmap, researchJobs } from "@/lib/api";
-import { insforge } from "@/lib/insforge";
+import { useTargetRoles, useUploadResume, useRunGapAnalysis, useLatestResume } from "@/hooks/queries";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -21,59 +19,82 @@ export const Route = createFileRoute("/onboarding")({
   component: Onboarding,
 });
 
-const STEPS = ["Account", "Resume", "Target role", "Analysis"] as const;
+const disableAuth = (import.meta.env.VITE_DISABLE_AUTH as string | undefined) === "true";
+const STEPS = disableAuth
+  ? (["Resume", "Target role", "Analysis"] as const)
+  : (["Account", "Resume", "Target role", "Analysis"] as const);
 
 function Onboarding() {
   const navigate = useNavigate();
   const { user } = useAuth();
   
   // Start at step 1 if already authenticated, else step 0
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(disableAuth ? 0 : 0);
   useEffect(() => {
-    if (user && step === 0) setStep(1);
-  }, [user]);
+    if (!disableAuth && user && step === 0) setStep(1);
+  }, [user, step]);
+
+  // Redirect already-onboarded users (a resume existed when this page loaded)
+  // straight to the Dashboard. ONE-SHOT: decided on the first resolved fetch —
+  // it must NOT fire after the in-flow resume upload, or the user skips the
+  // gap-analysis step.
+  const latestResume = useLatestResume();
+  const uploadMutation = useUploadResume();
+  const onboardCheckDone = useRef(false);
+  useEffect(() => {
+    if (onboardCheckDone.current || disableAuth || !user) return;
+    // If an in-flow upload has started, the user is mid-onboarding — never
+    // bounce them to the dashboard, even if the initial /latest fetch lands
+    // late (after the upload's cache invalidation).
+    if (!uploadMutation.isIdle) return;
+    if (!latestResume.isSuccess) return;
+    onboardCheckDone.current = true;
+    if (latestResume.data) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [user, latestResume.isSuccess, latestResume.data, uploadMutation.isIdle, navigate]);
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [parsing, setParsing] = useState(false);
   const [roleId, setRoleId] = useState<string>("ml-engineer");
+  const [roleTitle, setRoleTitle] = useState<string>("ML Engineer");
   const [roleQuery, setRoleQuery] = useState("");
+  const parsing = uploadMutation.isPending;
 
   const { data: roles = [] } = useTargetRoles();
   const filteredRoles = roles.filter(
     (r: any) => r.title.toLowerCase().includes(roleQuery.toLowerCase()) || r.category.toLowerCase().includes(roleQuery.toLowerCase()),
   );
+  useEffect(() => {
+    if (!roles.length) return;
+    const selected = roles.find((r: any) => r.id === roleId) || roles[0];
+    if (selected) {
+      setRoleId(selected.id);
+      setRoleTitle(selected.title);
+    }
+  }, [roles]);
 
   const handleFileUpload = async (file: File) => {
     setResumeFile(file);
-    setParsing(true);
-    
+    if (!user && !disableAuth) {
+      toast.error("Sign in first");
+      setResumeFile(null);
+      return;
+    }
     try {
-      if (!user) throw new Error("Must be logged in");
-      
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-      // Upload to Storage
-      const { error: uploadError } = await insforge.storage
-        .from("resumes")
-        .upload(fileName, file);
-        
-      if (uploadError) throw uploadError;
-
-      // Call API
-      await parseResume(fileName);
-      
+      await uploadMutation.mutateAsync(file);
       toast.success("Resume parsed", { description: "We extracted your skills and experience." });
     } catch (err: any) {
       toast.error("Failed to parse resume", { description: err.message });
-      setResumeFile(null); // Reset on failure
-    } finally {
-      setParsing(false);
+      setResumeFile(null);
     }
   };
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
-  const back = () => setStep((s) => Math.max(s - 1, (user ? 1 : 0))); // Don't let users go back to login if they are logged in
+  const back = () =>
+    setStep((s) => {
+      if (disableAuth) return Math.max(s - 1, 0);
+      return Math.max(s - 1, user ? 1 : 0);
+    }); // Don't let signed-in users go back to login
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -120,33 +141,45 @@ function Onboarding() {
         </div>
 
         <div className="rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-10">
-          {step === 0 && <StepAccount />}
-          {step === 1 && (
+          {!disableAuth && step === 0 && <StepAccount />}
+          {step === (disableAuth ? 0 : 1) && (
             <StepResume file={resumeFile} parsing={parsing} onFile={handleFileUpload} />
           )}
-          {step === 2 && (
+      {step === (disableAuth ? 1 : 2) && (
             <StepRole
               query={roleQuery}
               onQuery={setRoleQuery}
               roleId={roleId}
-              onSelect={setRoleId}
+              onSelect={(id, title) => {
+                setRoleId(id);
+                setRoleTitle(title);
+              }}
               roles={filteredRoles}
             />
           )}
-          {step === 3 && <StepAnalysis roleId={roleId} onDone={() => navigate({ to: "/dashboard" })} />}
+          {step === (disableAuth ? 2 : 3) && (
+            <StepAnalysis
+              roleId={roleId}
+              roleTitle={roleTitle}
+              onDone={() => navigate({ to: "/roadmap" })}
+            />
+          )}
         </div>
 
-        {step > 0 && step < 3 && (
+        {step > (disableAuth ? -1 : 0) && step < (disableAuth ? 2 : 3) && (
           <div className="mt-6 flex items-center justify-between">
-            <Button variant="ghost" onClick={back} disabled={step === 1} className="rounded-full">
+            <Button variant="ghost" onClick={back} disabled={step === (disableAuth ? 0 : 1)} className="rounded-full">
               <ArrowLeft className="mr-1 h-4 w-4" /> Back
             </Button>
             <Button
               onClick={next}
-              disabled={(step === 1 && (!resumeFile || parsing)) || (step === 2 && !roleId)}
+              disabled={
+                (step === (disableAuth ? 0 : 1) && (!resumeFile || parsing)) ||
+                (step === (disableAuth ? 1 : 2) && !roleId)
+              }
               className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm"
             >
-              {step === 2 ? "Analyze my profile" : "Continue"} <ArrowRight className="ml-1 h-4 w-4" />
+              {step === (disableAuth ? 1 : 2) ? "Analyze my profile" : "Continue"} <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         )}
@@ -246,7 +279,7 @@ function StepRole({
   query: string;
   onQuery: (q: string) => void;
   roleId: string;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, title: string) => void;
   roles: any[];
 }) {
   return (
@@ -268,7 +301,7 @@ function StepRole({
           return (
             <button
               key={r.id}
-              onClick={() => onSelect(r.id)}
+              onClick={() => onSelect(r.id, r.title)}
               className={cn(
                 "rounded-2xl border-2 p-5 text-left transition-all",
                 selected
@@ -297,30 +330,24 @@ function StepRole({
   );
 }
 
-function StepAnalysis({ roleId, onDone }: { roleId: string; onDone: () => void }) {
+function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle: string; onDone: () => void }) {
   const [progress, setProgress] = useState(0);
   const [stageStr, setStageStr] = useState("Preparing engines...");
   const [error, setError] = useState<string | null>(null);
+
+  const gapMutation = useRunGapAnalysis();
 
   useEffect(() => {
     let unmounted = false;
 
     const runAnalysis = async () => {
       try {
+        window.localStorage.setItem("careeratlas:selected_role_id", roleId);
+        window.localStorage.setItem("careeratlas:selected_role_title", roleTitle);
         if (unmounted) return;
         setStageStr("Analyzing skill gaps vs target role...");
-        setProgress(20);
-        await analyzeGaps(roleId);
-
-        if (unmounted) return;
-        setStageStr("Generating custom learning roadmap milestones...");
-        setProgress(50);
-        await generateRoadmap(roleId);
-
-        if (unmounted) return;
-        setStageStr("Deep researching active internet jobs via Tavily...");
-        setProgress(80);
-        await researchJobs(roleId);
+        setProgress(35);
+        await gapMutation.mutateAsync(roleTitle);
 
         if (unmounted) return;
         setProgress(100);
@@ -334,7 +361,7 @@ function StepAnalysis({ roleId, onDone }: { roleId: string; onDone: () => void }
     runAnalysis();
 
     return () => { unmounted = true; };
-  }, [roleId]);
+  }, [roleId, roleTitle]);
 
   return (
     <div className="py-6 text-center">

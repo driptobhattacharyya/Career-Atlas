@@ -1,0 +1,68 @@
+import type { TargetRole } from "./types";
+
+export const mockRoles: TargetRole[] = [
+  {
+    id: "ml-engineer",
+    title: "Machine Learning Engineer",
+    category: "AI / ML",
+    blurb: "Design, train, and ship ML models into production.",
+    emoji: "🧠",
+    popularSkills: ["Python", "PyTorch", "MLOps", "Docker", "AWS"],
+  },
+  {
+    id: "data-scientist",
+    title: "Data Scientist",
+    category: "Data",
+    blurb: "Turn messy data into insight, experiments, and models.",
+    emoji: "📊",
+    popularSkills: ["Python", "Statistics", "SQL", "Pandas", "Experiment design"],
+  },
+  {
+    id: "frontend-engineer",
+    title: "Frontend Engineer",
+    category: "Web",
+    blurb: "Craft delightful, accessible user interfaces on the web.",
+    emoji: "🎨",
+    popularSkills: ["TypeScript", "React", "CSS", "Accessibility", "Testing"],
+  },
+  {
+    id: "backend-engineer",
+    title: "Backend Engineer",
+    category: "Web",
+    blurb: "Build the APIs, databases, and services that power apps.",
+    emoji: "🛠️",
+    popularSkills: ["Go", "PostgreSQL", "REST", "Docker", "System design"],
+  },
+  {
+    id: "fullstack-engineer",
+    title: "Full-Stack Engineer",
+    category: "Web",
+    blurb: "Own features end to end — UI, API, database, deploy.",
+    emoji: "🧩",
+    popularSkills: ["TypeScript", "React", "Node.js", "PostgreSQL", "AWS"],
+  },
+  {
+    id: "data-analyst",
+    title: "Data Analyst",
+    category: "Data",
+    blurb: "Help teams make decisions with data, dashboards, and SQL.",
+    emoji: "📈",
+    popularSkills: ["SQL", "Excel", "Tableau", "Python", "Storytelling"],
+  },
+  {
+    id: "devops-engineer",
+    title: "DevOps Engineer",
+    category: "Infra",
+    blurb: "Automate deploys, infra, and reliability for product teams.",
+    emoji: "🚀",
+    popularSkills: ["Linux", "Docker", "Kubernetes", "Terraform", "CI/CD"],
+  },
+  {
+    id: "product-manager",
+    title: "Associate Product Manager",
+    category: "Product",
+    blurb: "Bridge users, designers, and engineers to ship the right thing.",
+    emoji: "🧭",
+    popularSkills: ["User research", "SQL", "Roadmapping", "Communication", "A/B testing"],
+  },
+];

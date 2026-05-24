@@ -14,8 +14,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -139,6 +139,8 @@ celerybeat.pid
 .env.*
 !.env.example
 !.env.*.example
+# Frontend prod build config — VITE_* vars only, all public-safe, needed by CI.
+!/frontend/.env.production
 .envrc
 .venv
 env/
@@ -256,3 +258,6 @@ bun.lock
 graphify-out/cost.json
 graphify-out/manifest.json
 graphify-out/cache/
+
+
+backend/static

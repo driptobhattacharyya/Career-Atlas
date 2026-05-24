@@ -21,6 +21,47 @@ from app.gap_analysis.schemas import AnalyzeGapsRequest, GapAnalysisResult
 router = APIRouter(prefix="/api/analyze-gaps", tags=["Gaps"])
 
 
+@router.get("/")
+async def get_saved_gaps(
+    user_id: str = Depends(get_current_user_id, use_cache=True),
+):
+    """Return the user's latest stored skill gaps so results reload on re-sign-in."""
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        # Resolve latest resume for this user — strictly scoped to user_id.
+        resume_resp = db_client.table("resumes")\
+            .select("id")\
+            .eq("user_id", user_id)\
+            .order("created_at", desc=True)\
+            .limit(1)\
+            .execute()
+
+        if not resume_resp.data:
+            return {"success": True, "gaps": [], "target_role": None}
+
+        resume_id = resume_resp.data[0]["id"]
+
+        gaps_resp = db_client.table("skill_gaps")\
+            .select("*")\
+            .eq("resume_id", resume_id)\
+            .execute()
+
+        gaps = gaps_resp.data or []
+        target_role = gaps[0]["target_role"] if gaps else None
+
+        return {
+            "success": True,
+            "target_role": target_role,
+            "gaps": gaps,
+            "retrieval_source": "database",
+        }
+    except Exception as e:
+        print(f"❌ ERROR in get_saved_gaps: {str(e)}")
+        return {"success": True, "gaps": [], "target_role": None}
+
+
 @router.post("/")
 async def analyze_gaps(
     req: AnalyzeGapsRequest,
@@ -35,30 +76,26 @@ async def analyze_gaps(
         user_headline = ""
         resume_id = None
         try:
-            # Try to find the latest resume for this user
+            # Strictly scoped to user_id — never a global resume lookup.
             resume_resp = db_client.table("resumes")\
                 .select("*")\
                 .eq("user_id", user_id)\
                 .order("created_at", desc=True)\
                 .limit(1)\
                 .execute()
-            
+
             if resume_resp.data:
                 resume = resume_resp.data[0]
                 resume_id = resume["id"]
                 user_headline = resume.get("headline", "")
-                
-                # Fetch skills from 'skills' table
+
+                # Fetch skills scoped to this resume only.
                 skills_resp = db_client.table("skills").select("skill").eq("resume_id", resume_id).execute()
                 user_skills.extend([s["skill"] for s in skills_resp.data if s.get("skill")])
-                
+
                 # Fetch programming languages from 'programming_languages' table
                 langs_resp = db_client.table("programming_languages").select("language").eq("resume_id", resume_id).execute()
                 user_skills.extend([l["language"] for l in langs_resp.data if l.get("language")])
-            else:
-                # Fallback to old 'skills' table if resumes not found
-                skills_resp = db_client.table("skills").select("skill").eq("user_id", user_id).execute()
-                user_skills = [s["skill"] for s in skills_resp.data if s.get("skill")]
         except Exception as e:
             # Silently fallback to empty if DB schema mismatch occurs
             pass
@@ -70,7 +107,7 @@ async def analyze_gaps(
         # ── SMART CACHE CHECK (Linked to Resume ID) ────────────────────────
         # DESIGN IMPROVEMENT: Link gaps to resume_id. 
         # If the resume changes (new ID), the cache automatically busts.
-        if resume_id:
+        if resume_id and not req.force:
             try:
                 existing_gaps_resp = db_client.table("skill_gaps")\
                     .select("*")\
@@ -86,12 +123,18 @@ async def analyze_gaps(
                         "role_slug": role_slug,
                         "gaps": existing_gaps_resp.data,
                         "retrieval_source": "database_cache",
+                        "explainability": {
+                            "role_slug": role_slug,
+                            "input_skill_count": len(user_skills),
+                            "retrieved_requirements": [],
+                            "note": "Served from cached DB gaps; retrieval trace unavailable for this run.",
+                        },
                     }
             except Exception:
                 pass
 
         # 3. Run gap analysis pipeline (Only if cache miss)
-        identified_gaps = await generate_gaps_for_user(user_skills, role_title, user_headline)
+        identified_gaps, explainability = await generate_gaps_for_user(user_skills, role_title, user_headline)
 
         # 4. Optional: Save gaps to DB for Deep Researcher
         if resume_id:
@@ -128,6 +171,7 @@ async def analyze_gaps(
             "role_slug": role_slug,
             "gaps": [g.model_dump() for g in identified_gaps],
             "retrieval_source": "hybrid",
+            "explainability": explainability,
         }
 
     except HTTPException:

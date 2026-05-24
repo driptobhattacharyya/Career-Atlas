@@ -2,12 +2,17 @@ fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 pydantic-settings>=2.1.0
 httpx>=0.26.0
+requests>=2.31.0
+numpy>=1.26.0
 python-jose[cryptography]>=3.3.0
 python-multipart>=0.0.9
+supabase>=2.30.0
+sentry-sdk[fastapi]>=2.60.0
 
 # Resume Parsing
 PyMuPDF>=1.23.0
 pymupdf4llm>=0.0.17
+phonenumbers>=9.0.0
 
 # Generative AI & Langchain
 langchain>=0.1.0
@@ -15,10 +20,12 @@ langchain-community>=0.0.10
 langchain-google-genai>=0.0.5
 langchain-groq>=0.0.1
 langchain-huggingface>=0.0.1
+langchain-openai>=0.1.0
 langgraph>=0.0.10
 
 # Search & Retrieval
 tavily-python>=0.3.0
+langchain-tavily>=0.2.0
 pinecone>=6.0.0
 rank-bm25>=0.2.2
 

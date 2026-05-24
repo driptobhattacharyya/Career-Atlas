@@ -1,40 +1,87 @@
-# 🧭 CareerAtlas
+# CareerAtlas
 
-CareerAtlas is an AI-powered early-career development platform designed to catapult junior professionals into their target roles. It ingests user resumes, analyzes skill gaps against a target job title, constructs personalized learning roadmaps, and employs an AI Research Agent to discover highly relevant job opportunities. 
+AI career-planning app. Upload a resume, pick a target role, and get a
+web-grounded, citation-backed learning roadmap plus ranked job matches.
 
-## 🏗 System Architecture
-The application runs on a decoupled architecture containing an interactive frontend client, a Python backend acting as the AI orchestrator, and a cloud DB/Auth provider.
+Pipeline: **resume extraction → gap analysis → learning roadmap → job matches**.
 
-- **Frontend:** Built with Vite, React, and Bun. Handles sophisticated user onboarding, global Google authentication via InsForge, and data-rich asynchronous dashboards using `@tanstack/react-query`.
-- **Backend:** Built with Python FastAPI and managed by `uv`. Contains four discrete AI domain services: `resume_extraction`, `gap_analysis`, `roadmap_generation`, and `job_hunter`.
-- **Database & Auth:** Database schemas, RLS policies, storage, and Auth are handled entirely by InsForge.
+## Stack
 
-## 🚀 Key Features
-- **AI Resume Parsing:** Uses `pymupdf4llm` paired with Google's Gemini Pro to effortlessly translate dense PDF resumes into perfectly structured JSON profile parameters.
-- **Gap Analysis & Roadmapping:** Leverages ultra-fast Llama-3 models (via Groq) to instantly identify missing technical/soft skills and assemble step-by-step career milestones tracking towards your target role.
-- **Deep Research Job Hunter:** Implements a LangGraph ReAct agent equipped with the Tavily search tool to actively scrape the web for live, open job requisitions that fit your exact capability gaps.
+- **Frontend** — Vite + React 19 + TanStack Router/Query (Bun)
+- **Backend** — FastAPI (Python 3.12, `uv`)
+- **Auth + DB** — Supabase (Postgres + Google OAuth)
+- **AI** — Groq (Llama 3.3 70B) for extraction, gap analysis, roadmap/deep
+  research, and the LLM-as-judge; Gemini for embeddings
+- **Retrieval** — Pinecone (skill taxonomy) + Jina rerank; Tavily web search
 
-## ⚙️ Local Development Setup
+## Structure
 
-### 1. Environment Variables
-Before running the system, populate your keys. Update `.env` files in both `/frontend` and `/backend` with your specific API tokens:
-- **InsForge**: Submitting database URL, Anon key, and secure JWT service roles.
-- **AI Tooling**: `GOOGLE_API_KEY`, `GROQ_API_KEY`, `HUGGINGFACE_API_KEY`, `TAVILY_API_KEY`.
+- `frontend/` — React app
+- `backend/` — FastAPI app: `app/resume_extraction`, `app/gap_analysis`,
+  `app/roadmap_generation`, `app/deep_researcher`, `app/job_hunter`
 
-### 2. Backend API
-We enforce using `uv` for lightning-fast python virtual environments and dependencies.
+## Quick start
+
+1. **Backend**
+   ```bash
+   cd backend
+   cp .env.example .env        # then fill in the keys
+   uv sync
+   uv run uvicorn app.main:app --reload
+   ```
+2. **Frontend**
+   ```bash
+   cd frontend
+   cp .env.example .env        # then fill in the keys
+   bun install
+   bun dev
+   ```
+
+Backend → `http://localhost:8000`, frontend → `http://localhost:8080`.
+
+## Environment
+
+Copy each `.env.example` to `.env` and fill it in — see `backend/.env.example`
+and `frontend/.env.example` for the full list. Real `.env` files are
+git-ignored; never commit secrets.
+
+One-time setup: ingest the Pinecone skill taxonomy (gap analysis depends on it):
+
 ```bash
-cd backend
-uv sync
-uv run uvicorn app.main:app --reload
+cd backend && uv run python scripts/ingest_taxonomy.py --wipe
 ```
-*API docs will be available at `http://localhost:8000/docs`*
 
-### 3. Frontend Client
-We use `bun` as the Javascript runtime and package manager.
-```bash
-cd frontend
-bun install
-bun dev
-```
-*App will start locally at `http://localhost:5173`*
+## Google OAuth
+
+Users sign in with Google through Supabase. To enable real sign-in:
+
+1. **Google Cloud Console** → APIs & Services:
+   - *OAuth consent screen* — External; add your account under **Test users**.
+   - *Credentials* → create an **OAuth client ID** (Web application):
+     - Authorized JavaScript origin: `http://localhost:8080`
+     - Authorized redirect URI: `https://<your-project>.supabase.co/auth/v1/callback`
+2. **Supabase** → Authentication:
+   - *Providers* → enable **Google**, paste the client ID + secret.
+   - *URL Configuration* → Site URL `http://localhost:8080`, add redirect
+     URL `http://localhost:8080/**`.
+3. Set `DEV_BYPASS_AUTH=false` (backend) and `VITE_DISABLE_AUTH=false`
+   (frontend); restart both.
+
+The backend verifies Supabase JWTs against the project's JWKS endpoint
+(`/auth/v1/.well-known/jwks.json`) — no JWT secret required.
+
+### Dev bypass
+
+For local work without signing in, set `DEV_BYPASS_AUTH=true` +
+`VITE_DISABLE_AUTH=true`. Every request then runs as `DEV_USER_ID`.
+
+## Notes
+
+- Resumes are parsed to local `backend/static/resumes/` — swap for Supabase
+  Storage before deploying.
+- Database is a normalized Postgres schema: `resumes` + child tables
+  (`contacts`, `skills`, `experiences`, `education`, `projects`, …),
+  `skill_gaps`, `milestones`, `learning_pathways`, `job_matches`,
+  `target_roles`, `profiles`.
+- The roadmap (`/roadmap`) is generated by the deep researcher — web-grounded,
+  cited, quality-scored milestones with progress tracking.

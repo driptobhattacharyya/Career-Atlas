@@ -1,0 +1,104 @@
+{
+  "target_role": "ml-engineer",
+  "milestones": [
+    {
+      "phase": "Foundations",
+      "skill": "Python",
+      "estimated_weeks": 4,
+      "objective": "Learn the basics of Python programming",
+      "resources": [
+        {
+          "title": "Made With ML \u2014 Goku Mohandas",
+          "kind": "course",
+          "provider": "Made With ML",
+          "url": "https://www.datacamp.com/blog/best-ai-courses",
+          "why": "This course provides a comprehensive introduction to Python programming"
+        }
+      ],
+      "checklist": [
+        "Complete basic Python tutorials",
+        "Practice writing Python scripts",
+        "Learn about Python data structures"
+      ],
+      "mini_project": "Build a simple Python script to automate a task"
+    },
+    {
+      "phase": "Foundations",
+      "skill": "MLflow",
+      "estimated_weeks": 2,
+      "objective": "Learn the basics of MLflow",
+      "resources": [
+        {
+          "title": "Made With ML \u2014 Goku Mohandas",
+          "kind": "course",
+          "provider": "Made With ML",
+          "url": "https://www.datacamp.com/blog/best-ai-courses",
+          "why": "This course provides a comprehensive introduction to MLflow"
+        }
+      ],
+      "checklist": [
+        "Complete MLflow tutorials",
+        "Practice using MLflow to track experiments",
+        "Learn about MLflow's features"
+      ],
+      "mini_project": "Use MLflow to track and compare the performance of different machine learning models"
+    },
+    {
+      "phase": "Intermediate",
+      "skill": "PyTorch",
+      "estimated_weeks": 8,
+      "objective": "Learn PyTorch and its applications in deep learning",
+      "resources": [
+        {
+          "title": "Best Overall Deep Learning Course for Beginners (DeepLearning.AI)",
+          "kind": "course",
+          "provider": "DeepLearning.AI",
+          "url": "https://www.classcentral.com/report/best-deep-learning-courses",
+          "why": "This course provides a comprehensive introduction to deep learning with PyTorch"
+        },
+        {
+          "title": "PyTorch Tutorial: Deep Learning Complete Guide 2026",
+          "kind": "tutorial",
+          "provider": "Tech Insider",
+          "url": "https://tech-insider.org/pytorch-tutorial-deep-learning-complete-guide-2026",
+          "why": "This tutorial provides a detailed guide to PyTorch and its applications"
+        }
+      ],
+      "checklist": [
+        "Complete PyTorch tutorials",
+        "Practice building and training PyTorch models",
+        "Learn about PyTorch's features and tools"
+      ],
+      "mini_project": "Build a PyTorch model to classify images"
+    },
+    {
+      "phase": "Advanced",
+      "skill": "Transformers",
+      "estimated_weeks": 12,
+      "objective": "Learn Transformers and their applications in natural language processing",
+      "resources": [
+        {
+          "title": "Hugging Face Transformers",
+          "kind": "course",
+          "provider": "Hugging Face",
+          "url": "https://amberstudent.com/blog/post/best-online-machine-learning-courses",
+          "why": "This course provides a comprehensive introduction to Transformers and their applications"
+        },
+        {
+          "title": "Visual Introduction to Transformers",
+          "kind": "article",
+          "provider": "Class Central",
+          "url": "https://www.classcentral.com/course/youtube-but-what-is-a-gpt-visual-intro-to-transformers-deep-learning-chapter-5-287857",
+          "why": "This article provides a visual introduction to Transformers and their applications"
+        }
+      ],
+      "checklist": [
+        "Complete Transformers tutorials",
+        "Practice building and training Transformer models",
+        "Learn about Transformer architectures and their applications"
+      ],
+      "mini_project": "Build a Transformer model to translate text"
+    }
+  ],
+  "rationale": "The ordering of milestones respects the prerequisite relationships between the skills. The user first needs to learn Python, then PyTorch, and finally Transformers and MLflow. This ordering allows the user to build a strong foundation in the basics before moving on to more advanced topics. The resources provided are a mix of courses, tutorials, and articles that cater to different learning styles and preferences."
+}

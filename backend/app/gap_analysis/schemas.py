@@ -5,8 +5,8 @@ GapSchema — single skill gap with ranking metadata.
 GapAnalysisResponse — LLM structured output (top 6 gaps).
 GapAnalysisResult — full API response including retrieval context.
 """
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional, Union
 
 
 class GapSchema(BaseModel):
@@ -17,12 +17,37 @@ class GapSchema(BaseModel):
     category: str = Field(
         description="Category: framework | language | concept | tool | soft"
     )
-    relevance: int = Field(
+    # int | str so Groq's strict tool-schema validation accepts a quoted
+    # number ("10") from the LLM; the validator coerces it back to int.
+    relevance: Union[int, str] = Field(
         description="Relevance percentage to the target role (0-100)"
     )
     difficulty: str = Field(
         description="One of: Easy, Medium, Hard"
     )
+
+    @field_validator("relevance", mode="before")
+    @classmethod
+    def _coerce_relevance(cls, v):
+        # 1. Handle numeric types
+        if isinstance(v, (int, float)):
+            if 0.0 <= v <= 1.0:
+                return int(v * 100)
+            return int(v)
+            
+        # 2. Handle string types
+        if isinstance(v, str):
+            try:
+                # Try parsing as float first (e.g. "0.210" -> 0.21)
+                val = float(v)
+                if 0.0 <= val <= 1.0:
+                    return int(val * 100)
+                return int(val)
+            except ValueError:
+                # Fallback to digit extraction
+                digits = "".join(c for c in v if c.isdigit())
+                return int(digits) if digits else 0
+        return v
     level_required: str = Field(
         default="intermediate",
         description="Required proficiency: beginner | intermediate | advanced"
@@ -40,10 +65,14 @@ class GapAnalysisResponse(BaseModel):
     gaps: List[GapSchema] = Field(
         description="Top 6 skill gaps for the user, ranked by importance"
     )
+    justifications: dict[str, str] = Field(
+        description="A dictionary mapping each identified skill name to a 1-2 sentence justification of why it is important for the candidate."
+    )
 
 
 class AnalyzeGapsRequest(BaseModel):
     target_role_title: str
+    force: Optional[bool] = False
 
 
 class GapAnalysisResult(BaseModel):
