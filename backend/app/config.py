@@ -51,4 +51,8 @@ class Settings(BaseSettings):
     dev_bypass_auth: bool = os.getenv("DEV_BYPASS_AUTH", "false").lower() == "true"
     dev_user_id: str = os.getenv("DEV_USER_ID", "")
 
+    # GitHub OAuth
+    github_client_id: str = os.getenv("GITHUB_CLIENT_ID", "")
+    github_client_secret: str = os.getenv("GITHUB_CLIENT_SECRET", "")
+
 settings = Settings()

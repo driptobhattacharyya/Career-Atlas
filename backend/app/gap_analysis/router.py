@@ -96,6 +96,14 @@ async def analyze_gaps(
                 # Fetch programming languages from 'programming_languages' table
                 langs_resp = db_client.table("programming_languages").select("language").eq("resume_id", resume_id).execute()
                 user_skills.extend([l["language"] for l in langs_resp.data if l.get("language")])
+
+                # Fetch GitHub profile analysis to enhance headline/context
+                github_resp = db_client.table("github_profiles").select("analysis_summary,coding_behavior").eq("user_id", user_id).execute()
+                if github_resp.data:
+                    github_summary = github_resp.data[0].get("analysis_summary", "")
+                    github_behavior = github_resp.data[0].get("coding_behavior", "")
+                    if github_summary or github_behavior:
+                        user_headline += f"\n\nGitHub Profile Context:\nSummary: {github_summary}\nCoding Behavior: {github_behavior}"
         except Exception as e:
             # Silently fallback to empty if DB schema mismatch occurs
             pass

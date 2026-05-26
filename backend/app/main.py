@@ -81,12 +81,15 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 # ── Routers ──────────────────────────────────────────────────────────────────
+from app.github_analysis.router import router as github_router
+
 app.include_router(resume_router)
 app.include_router(gaps_router)
 app.include_router(roadmap_router)
 app.include_router(jobs_router)
 app.include_router(deep_research_router)
 app.include_router(target_roles_router)
+app.include_router(github_router)
 
 
 @app.get("/health")

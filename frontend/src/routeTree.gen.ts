@@ -12,9 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GithubCallbackRouteImport } from './routes/github.callback'
 import { Route as AppRoadmapRouteImport } from './routes/_app.roadmap'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppJobsRouteImport } from './routes/_app.jobs'
+import { Route as AppGithubRouteImport } from './routes/_app.github'
 import { Route as AppGapsRouteImport } from './routes/_app.gaps'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 
@@ -32,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GithubCallbackRoute = GithubCallbackRouteImport.update({
+  id: '/github/callback',
+  path: '/github/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoadmapRoute = AppRoadmapRouteImport.update({
   id: '/roadmap',
   path: '/roadmap',
@@ -45,6 +52,11 @@ const AppProfileRoute = AppProfileRouteImport.update({
 const AppJobsRoute = AppJobsRouteImport.update({
   id: '/jobs',
   path: '/jobs',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGithubRoute = AppGithubRouteImport.update({
+  id: '/github',
+  path: '/github',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGapsRoute = AppGapsRouteImport.update({
@@ -63,18 +75,22 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/dashboard': typeof AppDashboardRoute
   '/gaps': typeof AppGapsRoute
+  '/github': typeof AppGithubRoute
   '/jobs': typeof AppJobsRoute
   '/profile': typeof AppProfileRoute
   '/roadmap': typeof AppRoadmapRoute
+  '/github/callback': typeof GithubCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
   '/dashboard': typeof AppDashboardRoute
   '/gaps': typeof AppGapsRoute
+  '/github': typeof AppGithubRoute
   '/jobs': typeof AppJobsRoute
   '/profile': typeof AppProfileRoute
   '/roadmap': typeof AppRoadmapRoute
+  '/github/callback': typeof GithubCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -83,9 +99,11 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/gaps': typeof AppGapsRoute
+  '/_app/github': typeof AppGithubRoute
   '/_app/jobs': typeof AppJobsRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/roadmap': typeof AppRoadmapRoute
+  '/github/callback': typeof GithubCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -94,18 +112,22 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/dashboard'
     | '/gaps'
+    | '/github'
     | '/jobs'
     | '/profile'
     | '/roadmap'
+    | '/github/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/onboarding'
     | '/dashboard'
     | '/gaps'
+    | '/github'
     | '/jobs'
     | '/profile'
     | '/roadmap'
+    | '/github/callback'
   id:
     | '__root__'
     | '/'
@@ -113,15 +135,18 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/_app/dashboard'
     | '/_app/gaps'
+    | '/_app/github'
     | '/_app/jobs'
     | '/_app/profile'
     | '/_app/roadmap'
+    | '/github/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   OnboardingRoute: typeof OnboardingRoute
+  GithubCallbackRoute: typeof GithubCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -147,6 +172,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/github/callback': {
+      id: '/github/callback'
+      path: '/github/callback'
+      fullPath: '/github/callback'
+      preLoaderRoute: typeof GithubCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/roadmap': {
       id: '/_app/roadmap'
       path: '/roadmap'
@@ -166,6 +198,13 @@ declare module '@tanstack/react-router' {
       path: '/jobs'
       fullPath: '/jobs'
       preLoaderRoute: typeof AppJobsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/github': {
+      id: '/_app/github'
+      path: '/github'
+      fullPath: '/github'
+      preLoaderRoute: typeof AppGithubRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/gaps': {
@@ -188,6 +227,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppGapsRoute: typeof AppGapsRoute
+  AppGithubRoute: typeof AppGithubRoute
   AppJobsRoute: typeof AppJobsRoute
   AppProfileRoute: typeof AppProfileRoute
   AppRoadmapRoute: typeof AppRoadmapRoute
@@ -196,6 +236,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppGapsRoute: AppGapsRoute,
+  AppGithubRoute: AppGithubRoute,
   AppJobsRoute: AppJobsRoute,
   AppProfileRoute: AppProfileRoute,
   AppRoadmapRoute: AppRoadmapRoute,
@@ -207,17 +248,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   OnboardingRoute: OnboardingRoute,
+  GithubCallbackRoute: GithubCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

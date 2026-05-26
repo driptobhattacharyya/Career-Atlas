@@ -314,10 +314,17 @@ function Profile() {
 
         {/* GitHub signal */}
         <section className="hover-lift rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-8">
-          <h2 className="flex items-center gap-2 font-display text-xl font-semibold">
-            <Github className="h-5 w-5" /> GitHub signal
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">Skills inferred from your public repos.</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 font-display text-xl font-semibold">
+                <Github className="h-5 w-5" /> GitHub signal
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">Skills inferred from your public repos.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => window.location.href = '/github'}>
+              Deep Analysis
+            </Button>
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {githubSkills.map((s: any) => (
               <span key={s.name} className="rounded-full border border-primary/20 bg-primary-soft px-3 py-1 text-xs font-medium text-primary">
