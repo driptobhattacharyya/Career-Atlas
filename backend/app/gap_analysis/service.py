@@ -31,6 +31,9 @@ Identify the top 6 most critical SKILL GAPS for a candidate wanting to become a 
 ## USER CURRENT SKILLS
 {user_skills}
 
+## USER HEADLINE (AND POTENTIAL GITHUB CODING CONTEXT)
+{user_headline}
+
 ## RETRIEVED ROLE REQUIREMENTS (ranked by relevance)
 {role_requirements}
 
@@ -102,6 +105,7 @@ async def generate_gaps_for_user(
     result: GapAnalysisResponse = await chain.ainvoke({
         "target_role": target_role_title,
         "user_skills": ", ".join(user_skills),
+        "user_headline": user_headline,
         "role_requirements": role_requirements_text,
     })
 

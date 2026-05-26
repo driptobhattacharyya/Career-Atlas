@@ -222,10 +222,22 @@ def deep_research(
             detail="No gaps found for this role. Run gap analysis first.",
         )
 
+    # Fetch GitHub profile to enhance the prompt notes if available
+    github_notes = []
+    try:
+        github_resp = db_client.table("github_profiles").select("analysis_summary,coding_behavior").eq("user_id", user_id).execute()
+        if github_resp.data:
+            github_summary = github_resp.data[0].get("analysis_summary", "")
+            github_behavior = github_resp.data[0].get("coding_behavior", "")
+            if github_summary or github_behavior:
+                github_notes.append(f"GitHub Profile Context:\nSummary: {github_summary}\nCoding Behavior: {github_behavior}")
+    except Exception as e:
+        logger.warning(f"Failed to fetch GitHub profile for deep research context: {e}")
+
     state_input = {
         "gaps": gaps,
         "target_role": role_title,
-        "notes": [],
+        "notes": github_notes,
         "iteration": 0,
         "max_iter": max(1, min(req.max_iter, 6)),
         "retry_count": 0,
