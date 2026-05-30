@@ -69,13 +69,7 @@
   "code_summary": {
     "version": "2",
     "type": "frontend",
-    "tech_stack": [
-      "TypeScript",
-      "React",
-      "Vite",
-      "Tailwind CSS",
-      "TanStack Query"
-    ],
+    "tech_stack": ["TypeScript", "React", "Vite", "Tailwind CSS", "TanStack Query"],
     "routes": [
       {
         "path": "/",
@@ -100,9 +94,7 @@
       {
         "name": "Onboarding Flow",
         "description": "Wait for AI tracking to finish on frontend",
-        "files": [
-          "src/routes/onboarding.tsx"
-        ],
+        "files": ["src/routes/onboarding.tsx"],
         "entry_route": "/onboarding",
         "user_interactions": [
           "Drag and drop resume",

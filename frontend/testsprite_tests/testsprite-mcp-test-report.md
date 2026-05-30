@@ -3,6 +3,7 @@
 ---
 
 ## 1️⃣ Document Metadata
+
 - **Project Name:** CareerAtlas (Frontend)
 - **Date:** 2026-04-17
 - **Prepared by:** TestSprite AI Team / Antigravity
@@ -12,7 +13,8 @@
 ## 2️⃣ Requirement Validation Summary
 
 #### Requirement: Authentication & Onboarding
-- **TC002 Sign in and reach onboarding resume upload** 
+
+- **TC002 Sign in and reach onboarding resume upload**
   - Status: ❌ Failed (Missing UI entry point for non-Google flow)
 - **TC003 Resume processing completes and dashboard shows structured profile**
   - Status: 🚫 Blocked (Google OAuth is the only option, which blocks headless tests)
@@ -26,6 +28,7 @@
   - Status: 🚫 Blocked (No email/password form to test against)
 
 #### Requirement: Job Search & Parsing Dashboard
+
 - **TC001 Resume upload with target role begins processing**
   - Status: ❌ Failed (Profile page has no upload mechanisms present)
 - **TC004 Generate roadmap from completed analysis and view results**
@@ -51,16 +54,17 @@
 
 - **0.00%** of tests passed (0/15)
 
-| Requirement | Total Tests | ✅ Passed | ❌ Failed | 🚫 Blocked |
-|-------------|-------------|-----------|-----------|------------|
-| Authentication & Onboarding | 6 | 0 | 1 | 5 |
-| Job Search & Parsing Dashboard | 9 | 0 | 2 | 7 |
-| **Total** | 15 | 0 | 3 | 12 |
+| Requirement                    | Total Tests | ✅ Passed | ❌ Failed | 🚫 Blocked |
+| ------------------------------ | ----------- | --------- | --------- | ---------- |
+| Authentication & Onboarding    | 6           | 0         | 1         | 5          |
+| Job Search & Parsing Dashboard | 9           | 0         | 2         | 7          |
+| **Total**                      | 15          | 0         | 3         | 12         |
 
 ---
 
 ## 4️⃣ Key Gaps / Risks
-1. **OAuth-Only Authentication Lock:** The onboarding flow relies *exclusively* on Google OAuth. Automated e2e tests (like TestSprite) and users without Google cannot access or interact with any feature, rendering the entire app blocked for generic testing.
+
+1. **OAuth-Only Authentication Lock:** The onboarding flow relies _exclusively_ on Google OAuth. Automated e2e tests (like TestSprite) and users without Google cannot access or interact with any feature, rendering the entire app blocked for generic testing.
 2. **InsForge SDK Client Error:** Multiple core dashboard pages report a severe runtime exception: `insforge.auth.getSession is not a function`. The method invoked in the TanStack queries or the Auth Provider is incorrect or deprecated, completely bricking the authenticated dashboard.
 3. **Missing UI Fallback Controls:** Navigating to standalone pages (e.g. `/profile` directly or `/roadmap`) without full backend seeding puts the user in a dead state. There are no "Upload Resume", "Generate Roadmap", or fallback buttons present in the dashboards themselves.
 4. **Infinite Loading States:** Several endpoints get permanently stuck in an empty loading state when querying missing data instead of gracefully degrading to empty states.

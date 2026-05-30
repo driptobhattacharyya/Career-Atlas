@@ -18,10 +18,10 @@ routes:
   - path: /dashboard
     file: src/routes/_app.dashboard.tsx
     auth_required: true
-    description: Main dashboard 
+    description: Main dashboard
 features:
   - name: Onboarding Flow
-    description: Wait for AI tracking to finish on frontend 
+    description: Wait for AI tracking to finish on frontend
     files:
       - src/routes/onboarding.tsx
     entry_route: /onboarding

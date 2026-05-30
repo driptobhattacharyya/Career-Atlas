@@ -1,14 +1,15 @@
-
 ## CareerAtlas — Frontend (Dummy Data) Plan
 
 A warm, friendly UI for early-career users. Stepper-based onboarding flows into a full dashboard. All data mocked in TypeScript fixtures so we can wire the backend later.
 
 ### Visual direction
+
 - **Style:** Friendly + warm — soft cream/peach background, deep teal primary, coral accent, generous rounded corners, gentle shadows.
 - **Type:** Modern friendly sans (e.g. Inter/Plus Jakarta Sans), large headings, airy spacing.
 - **Components:** shadcn/ui as base, customized via design tokens in `styles.css`.
 
 ### Routes
+
 1. **`/` — Landing**
    - Hero ("Find the path to your next role"), how-it-works (3 steps), feature highlights, testimonials, CTA → onboarding.
 2. **`/onboarding` — Stepper wizard** (4 steps)
@@ -33,14 +34,17 @@ A warm, friendly UI for early-career users. Stepper-based onboarding flows into 
    - Ranked gap list with relevance score, prerequisite chain, "Add to roadmap" button (visual only)
 
 ### Shared UI
+
 - App shell with top bar (logo, target role switcher, avatar menu) — no left sidebar; tabs in top bar route between Dashboard / Profile / Roadmap / Jobs / Gaps.
 - Mobile-responsive: tabs collapse to bottom nav.
 - Toast feedback on mocked actions.
 
 ### Mock data
+
 - `src/lib/mock/profile.ts`, `roles.ts`, `gaps.ts`, `roadmap.ts`, `jobs.ts` — typed fixtures that mirror the eventual backend schema (skills with evidence, ranked gaps, roadmap milestones, job matches with match %).
 
 ### Build hygiene
+
 - Fix existing typecheck errors in shadcn `ui/*` components by installing missing deps (`react-day-picker`, `recharts`) and adding required type fixes.
 - Replace placeholder `index.tsx`.
 - Each route gets its own `head()` meta (title + description).
