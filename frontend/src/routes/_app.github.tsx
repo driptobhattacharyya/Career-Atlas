@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Loader2, Github } from "lucide-react"
 
 // Assume we have an apiClient
-import { apiClient } from "@/lib/api"
+import { request } from "@/lib/api"
 
 export const Route = createFileRoute("/_app/github")({
   component: GithubConnectPage,
@@ -21,19 +21,19 @@ function GithubConnectPage() {
   // 1. Check status
   const { data: statusData, isLoading: statusLoading } = useQuery({
     queryKey: ["github-status"],
-    queryFn: () => apiClient.get("/api/github/status").then(r => r.data),
+    queryFn: () => request("/api/github/status"),
   })
 
   // 2. If connected, fetch repos
   const { data: reposData, isLoading: reposLoading } = useQuery({
     queryKey: ["github-repos"],
-    queryFn: () => apiClient.get("/api/github/repos").then(r => r.data),
+    queryFn: () => request("/api/github/repos"),
     enabled: !!statusData?.connected,
   })
 
   // 3. Analyze mutation
   const analyzeMutation = useMutation({
-    mutationFn: (repos: string[]) => apiClient.post("/api/github/analyze", { repos }).then(r => r.data),
+    mutationFn: (repos: string[]) => request("/api/github/analyze", { method: "POST", jsonBody: { repos } }),
     onSuccess: () => {
       navigate({ to: "/profile" })
     }

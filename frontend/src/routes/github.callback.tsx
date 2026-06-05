@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
-import { apiClient } from "@/lib/api"
+import { request } from "@/lib/api"
 import { z } from "zod"
 
 export const Route = createFileRoute("/github/callback")({
@@ -23,7 +23,7 @@ function GithubCallbackPage() {
     }
 
     // Exchange code for token
-    apiClient.post("/api/github/oauth/callback", { code })
+    request("/api/github/oauth/callback", { method: "POST", jsonBody: { code } })
       .then(() => {
         navigate({ to: "/github" })
       })

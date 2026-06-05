@@ -1,0 +1,3 @@
+## 2024-06-05 - Avoid synchronous Supabase client blocking the async event loop
+**Learning:** The default Supabase python client methods (`db_client.table().select().execute()`) are synchronous. In FastAPI applications, doing sequential `.execute()` calls will block the main async event loop and lead to high latency and poor concurrency, and also cause an N+1 query problem when loading nested resources like in `fetch_full_resume`.
+**Action:** Use `asyncio.to_thread` coupled with `asyncio.gather` for making multiple concurrent database queries safely without blocking the event loop. In addition, solve the N+1 queries using batched `.in_()` array query methods and `collections.defaultdict` to efficiently stitch parent-child relationships.

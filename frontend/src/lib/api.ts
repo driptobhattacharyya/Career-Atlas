@@ -46,7 +46,7 @@ async function authHeaders(extra: Record<string, string> = {}): Promise<Record<s
   return headers;
 }
 
-async function request<T = any>(
+export async function request<T = any>(
   path: string,
   init: RequestInit & { jsonBody?: unknown; isMultipart?: boolean } = {},
 ): Promise<T> {
