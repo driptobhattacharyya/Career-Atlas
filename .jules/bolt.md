@@ -1,0 +1,3 @@
+## 2025-02-28 - Avoid Sync DB Blockers in FastAPI Async Router (Supabase python)
+**Learning:** The Supabase Python client's synchronous methods (like `.execute()`) block the async event loop in FastAPI, causing severe latency and N+1 query problems in relationship data fetching (e.g., `fetch_full_resume`).
+**Action:** Always wrap synchronous `.execute()` calls in `asyncio.to_thread` and use `asyncio.gather` for parallel fetching. Avoid loops doing db calls by using `.in_()` with a list of parent IDs, and use `collections.defaultdict` to efficiently stitch parent-child relationships back together in memory.

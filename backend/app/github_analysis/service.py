@@ -160,7 +160,7 @@ async def analyze_repository(repo: GitHubRepoInfo, access_token: str) -> Dict[st
     high_value_files = [f for f in file_tree if is_high_value_file(f)][:10] # Cap at 10 files
 
     file_contents = ""
-    file_contents += f"--- FILE TREE (Partial) ---\n"
+    file_contents += "--- FILE TREE (Partial) ---\n"
     file_contents += "\n".join(file_tree[:50]) + ("\n...(truncated)\n" if len(file_tree) > 50 else "\n")
 
     for file_path in high_value_files:
