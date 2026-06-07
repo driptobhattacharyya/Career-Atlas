@@ -1,0 +1,3 @@
+## 2025-02-20 - Sync Supabase SDK N+1 Avoidance
+**Learning:** The `supabase-py` SDK relies on a synchronous DB connection wrapped around PostgREST. Standard loops that execute multiple database fetches inside synchronous endpoints will block the FastAPI event loop drastically.
+**Action:** When a router endpoint must fetch child relations from multiple tables, abstract the fetches into `asyncio.to_thread` calls and `gather` the promises asynchronously. Follow this up with batched `.in_()` statements to prevent N+1 looping query latency, and perform the stitching loop in Python memory leveraging `collections.defaultdict`.

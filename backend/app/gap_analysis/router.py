@@ -8,15 +8,13 @@ POST /api/analyze-gaps/
   - Stores results in DB
   - Returns ranked gaps
 """
-from fastapi import APIRouter, Depends, HTTPException, Header
-from pydantic import BaseModel
-from app.config import settings
+from fastapi import APIRouter, Depends, HTTPException
 from app.dependencies.auth import get_current_user_id
 from app.dependencies.database import db_client
 from app.gap_analysis.service import generate_gaps_for_user
 from app.gap_analysis.hybrid_retrieval import resolve_role_slug
 
-from app.gap_analysis.schemas import AnalyzeGapsRequest, GapAnalysisResult
+from app.gap_analysis.schemas import AnalyzeGapsRequest
 
 router = APIRouter(prefix="/api/analyze-gaps", tags=["Gaps"])
 
@@ -104,7 +102,7 @@ async def analyze_gaps(
                     github_behavior = github_resp.data[0].get("coding_behavior", "")
                     if github_summary or github_behavior:
                         user_headline += f"\n\nGitHub Profile Context:\nSummary: {github_summary}\nCoding Behavior: {github_behavior}"
-        except Exception as e:
+        except Exception:
             # Silently fallback to empty if DB schema mismatch occurs
             pass
 

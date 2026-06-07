@@ -1,7 +1,6 @@
 import json
 import re
 import tempfile
-import time
 import os
 from typing import Any
 from urllib.parse import urlparse
