@@ -1,3 +1,5 @@
+import asyncio
+from collections import defaultdict
 import re
 from datetime import datetime
 from typing import Any
@@ -204,47 +206,120 @@ def _latest_resume_id(user_id: str) -> str | None:
     return None
 
 
-def fetch_full_resume(resume_id: str) -> dict[str, Any]:
-    resume = db_client.table("resumes").select("*").eq("id", resume_id).execute().data[0]
+async def fetch_full_resume(resume_id: str) -> dict[str, Any]:
+    # ⚡ Bolt Optimization: Use asyncio.to_thread and gather to parallelize
+    # synchronous Supabase calls and avoid blocking the event loop.
+    def fetch_resume(): return db_client.table("resumes").select("*").eq("id", resume_id).execute()
+    def fetch_contact(): return db_client.table("contacts").select("*").eq("resume_id", resume_id).execute()
+    def fetch_skills(): return db_client.table("skills").select("*").eq("resume_id", resume_id).execute()
+    def fetch_prog_langs(): return db_client.table("programming_languages").select("*").eq("resume_id", resume_id).execute()
+    def fetch_spoken_langs(): return db_client.table("spoken_languages").select("*").eq("resume_id", resume_id).execute()
+    def fetch_keywords(): return db_client.table("keywords").select("*").eq("resume_id", resume_id).execute()
+    def fetch_experiences(): return db_client.table("experiences").select("*").eq("resume_id", resume_id).execute()
+    def fetch_education(): return db_client.table("education").select("*").eq("resume_id", resume_id).execute()
+    def fetch_projects(): return db_client.table("projects").select("*").eq("resume_id", resume_id).execute()
+    def fetch_certifications():
+        try:
+            return db_client.table("certifications").select("*").eq("resume_id", resume_id).execute()
+        except Exception:
+            return None
 
-    contact_rows = db_client.table("contacts").select("*").eq("resume_id", resume_id).execute().data
-    contact = contact_rows[0] if contact_rows else {}
+    (
+        resume_res, contact_res, skills_res, prog_langs_res,
+        spoken_langs_res, keywords_res, exp_res, edu_res,
+        proj_res, cert_res
+    ) = await asyncio.gather(
+        asyncio.to_thread(fetch_resume),
+        asyncio.to_thread(fetch_contact),
+        asyncio.to_thread(fetch_skills),
+        asyncio.to_thread(fetch_prog_langs),
+        asyncio.to_thread(fetch_spoken_langs),
+        asyncio.to_thread(fetch_keywords),
+        asyncio.to_thread(fetch_experiences),
+        asyncio.to_thread(fetch_education),
+        asyncio.to_thread(fetch_projects),
+        asyncio.to_thread(fetch_certifications)
+    )
 
-    skills = [x["skill"] for x in db_client.table("skills").select("*").eq("resume_id", resume_id).execute().data]
-    prog_langs = [x["language"] for x in db_client.table("programming_languages").select("*").eq("resume_id", resume_id).execute().data]
-    spoken_langs = [x["language"] for x in db_client.table("spoken_languages").select("*").eq("resume_id", resume_id).execute().data]
-    keywords = [x["keyword"] for x in db_client.table("keywords").select("*").eq("resume_id", resume_id).execute().data]
+    resume = resume_res.data[0]
+    contact = contact_res.data[0] if contact_res.data else {}
+    skills = [x["skill"] for x in skills_res.data]
+    prog_langs = [x["language"] for x in prog_langs_res.data]
+    spoken_langs = [x["language"] for x in spoken_langs_res.data]
+    keywords = [x["keyword"] for x in keywords_res.data]
+    certifications = cert_res.data if cert_res and hasattr(cert_res, 'data') else []
 
-    experiences: list[dict[str, Any]] = []
-    exp_rows = db_client.table("experiences").select("*").eq("resume_id", resume_id).execute().data
-    for exp in exp_rows:
-        exp_id = exp["id"]
-        bullets = [x["bullet"] for x in db_client.table("experience_bullets").select("*").eq("experience_id", exp_id).execute().data]
-        techs = [x["tech"] for x in db_client.table("experience_technologies").select("*").eq("experience_id", exp_id).execute().data]
-        exp["description_bullets"] = bullets
-        exp["technologies"] = techs
-        experiences.append(exp)
+    experiences = exp_res.data
+    exp_ids = [str(x["id"]) for x in experiences]
 
-    education: list[dict[str, Any]] = []
-    edu_rows = db_client.table("education").select("*").eq("resume_id", resume_id).execute().data
-    for edu in edu_rows:
-        edu_id = edu["id"]
-        notes = [x["note"] for x in db_client.table("education_notes").select("*").eq("education_id", edu_id).execute().data]
-        edu["notes"] = notes
-        education.append(edu)
+    education = edu_res.data
+    edu_ids = [str(x["id"]) for x in education]
 
-    projects: list[dict[str, Any]] = []
-    proj_rows = db_client.table("projects").select("*").eq("resume_id", resume_id).execute().data
-    for proj in proj_rows:
-        proj_id = proj["id"]
-        techs = [x["tech"] for x in db_client.table("project_technologies").select("*").eq("project_id", proj_id).execute().data]
-        proj["technologies"] = techs
-        projects.append(proj)
+    projects = proj_res.data
+    proj_ids = [str(x["id"]) for x in projects]
 
-    try:
-        certifications = db_client.table("certifications").select("*").eq("resume_id", resume_id).execute().data
-    except Exception:
-        certifications = []
+    # ⚡ Bolt Optimization: Replace N+1 queries with batched .in_() lookups
+    def fetch_exp_bullets():
+        if not exp_ids:
+            return None
+        return db_client.table("experience_bullets").select("*").in_("experience_id", exp_ids).execute()
+
+    def fetch_exp_techs():
+        if not exp_ids:
+            return None
+        return db_client.table("experience_technologies").select("*").in_("experience_id", exp_ids).execute()
+
+    def fetch_edu_notes():
+        if not edu_ids:
+            return None
+        return db_client.table("education_notes").select("*").in_("education_id", edu_ids).execute()
+
+    def fetch_proj_techs():
+        if not proj_ids:
+            return None
+        return db_client.table("project_technologies").select("*").in_("project_id", proj_ids).execute()
+
+    (
+        exp_bullets_res, exp_techs_res, edu_notes_res, proj_techs_res
+    ) = await asyncio.gather(
+        asyncio.to_thread(fetch_exp_bullets),
+        asyncio.to_thread(fetch_exp_techs),
+        asyncio.to_thread(fetch_edu_notes),
+        asyncio.to_thread(fetch_proj_techs)
+    )
+
+    # Stitch experience data
+    exp_bullets_map = defaultdict(list)
+    if exp_bullets_res and hasattr(exp_bullets_res, 'data'):
+        for row in exp_bullets_res.data:
+            exp_bullets_map[row["experience_id"]].append(row["bullet"])
+
+    exp_techs_map = defaultdict(list)
+    if exp_techs_res and hasattr(exp_techs_res, 'data'):
+        for row in exp_techs_res.data:
+            exp_techs_map[row["experience_id"]].append(row["tech"])
+
+    for exp in experiences:
+        exp["description_bullets"] = exp_bullets_map.get(exp["id"], [])
+        exp["technologies"] = exp_techs_map.get(exp["id"], [])
+
+    # Stitch education data
+    edu_notes_map = defaultdict(list)
+    if edu_notes_res and hasattr(edu_notes_res, 'data'):
+        for row in edu_notes_res.data:
+            edu_notes_map[row["education_id"]].append(row["note"])
+
+    for edu in education:
+        edu["notes"] = edu_notes_map.get(edu["id"], [])
+
+    # Stitch project data
+    proj_techs_map = defaultdict(list)
+    if proj_techs_res and hasattr(proj_techs_res, 'data'):
+        for row in proj_techs_res.data:
+            proj_techs_map[row["project_id"]].append(row["tech"])
+
+    for proj in projects:
+        proj["technologies"] = proj_techs_map.get(proj["id"], [])
 
     return {
         "resume_id": resume_id,
@@ -313,7 +388,7 @@ async def get_latest_resume(user_id: str = Depends(get_current_user_id)):
     resume_id = _latest_resume_id(user_id)
     if not resume_id:
         return {"success": True, "resume": None}
-    return {"success": True, "resume": fetch_full_resume(resume_id)}
+    return {"success": True, "resume": await fetch_full_resume(resume_id)}
 
 
 # ── Profile editing ─────────────────────────────────────────────────────────

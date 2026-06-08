@@ -1,0 +1,3 @@
+## 2024-05-14 - Supabase Sync Client Blocking & N+1 Queries
+**Learning:** The Supabase Python client used in this FastAPI backend is completely synchronous. Using it natively in a request handler blocks the main async event loop. Furthermore, nested loops fetching related records (like experience bullets) create severe N+1 latency issues.
+**Action:** When fetching relational data with the Supabase client, always wrap the calls in `asyncio.to_thread` and use `asyncio.gather` for concurrent top-level queries. For child queries, extract the parent IDs into a list and use batched `.in_()` queries, stitching the objects back together in memory using `collections.defaultdict`.
