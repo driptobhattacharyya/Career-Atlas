@@ -10,11 +10,9 @@
  */
 import { supabase } from "./supabase";
 
-const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
-  "http://localhost:8000"
-) as string;
+  "http://localhost:8000") as string;
 
 const disableAuth = (import.meta.env.VITE_DISABLE_AUTH as string | undefined) === "true";
 
@@ -51,9 +49,7 @@ async function request<T = any>(
   init: RequestInit & { jsonBody?: unknown; isMultipart?: boolean } = {},
 ): Promise<T> {
   const { jsonBody, isMultipart, headers: extraHeaders, ...rest } = init;
-  const headers = await authHeaders(
-    isMultipart ? {} : { "Content-Type": "application/json" },
-  );
+  const headers = await authHeaders(isMultipart ? {} : { "Content-Type": "application/json" });
   Object.assign(headers, extraHeaders || {});
   let res: Response;
   try {
@@ -64,11 +60,7 @@ async function request<T = any>(
     });
   } catch {
     // fetch rejects on network failure / backend unreachable / CORS.
-    throw new ApiError(
-      0,
-      "",
-      "Can't reach the server. Check your connection and try again.",
-    );
+    throw new ApiError(0, "", "Can't reach the server. Check your connection and try again.");
   }
   const text = await res.text();
   if (!res.ok) throw new ApiError(res.status, text);
@@ -94,19 +86,18 @@ export async function uploadResume(file: File): Promise<ParseResumeResult> {
 }
 
 export async function getLatestResume() {
-  return request<{ success: boolean; resume: any | null }>(
-    "/api/parse-resume/latest",
-    { method: "GET" },
-  );
+  return request<{ success: boolean; resume: any | null }>("/api/parse-resume/latest", {
+    method: "GET",
+  });
 }
 
 // ── Profile editing ─────────────────────────────────────────────────────────
 
 export async function updateTargetRole(targetRoleId: string) {
-  return request<{ success: boolean; target_role_id: string }>(
-    "/api/parse-resume/profile",
-    { method: "PATCH", jsonBody: { target_role_id: targetRoleId } },
-  );
+  return request<{ success: boolean; target_role_id: string }>("/api/parse-resume/profile", {
+    method: "PATCH",
+    jsonBody: { target_role_id: targetRoleId },
+  });
 }
 
 export async function addSkill(skill: string) {
@@ -149,10 +140,9 @@ export interface TargetRole {
 }
 
 export async function getTargetRoles(): Promise<TargetRole[]> {
-  const data = await request<{ success: boolean; roles: TargetRole[] }>(
-    "/api/target-roles/",
-    { method: "GET" },
-  );
+  const data = await request<{ success: boolean; roles: TargetRole[] }>("/api/target-roles/", {
+    method: "GET",
+  });
   return data.roles || [];
 }
 
@@ -198,10 +188,9 @@ export interface MilestoneRow {
 
 export async function listMilestones(targetRoleId?: string) {
   const qs = targetRoleId ? `?target_role_id=${encodeURIComponent(targetRoleId)}` : "";
-  return request<{ success: boolean; milestones: MilestoneRow[] }>(
-    `/api/generate-roadmap/${qs}`,
-    { method: "GET" },
-  );
+  return request<{ success: boolean; milestones: MilestoneRow[] }>(`/api/generate-roadmap/${qs}`, {
+    method: "GET",
+  });
 }
 
 export async function updateMilestoneStatus(milestoneId: string, status: MilestoneStatus) {

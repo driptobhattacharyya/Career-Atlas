@@ -44,7 +44,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-gradient-warm">
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
+          <Link
+            to="/"
+            className="flex items-center gap-2 font-display text-lg font-bold tracking-tight"
+          >
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-soft">
               <Compass className="h-5 w-5" />
             </span>
@@ -53,7 +56,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <nav className="hidden items-center gap-1 md:flex">
             {navItems.map((item) => {
-              const active = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+              const active =
+                location.pathname === item.to || location.pathname.startsWith(item.to + "/");
               return (
                 <Link
                   key={item.to}
@@ -114,7 +118,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur md:hidden">
         <div className="mx-auto flex max-w-6xl items-center justify-around px-2 py-2">
           {navItems.map((item) => {
-            const active = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+            const active =
+              location.pathname === item.to || location.pathname.startsWith(item.to + "/");
             const Icon = item.icon;
             return (
               <Link

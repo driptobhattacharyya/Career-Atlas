@@ -1,0 +1,3 @@
+## 2024-05-18 - Supabase Sync Client Blocking Operations
+**Learning:** The Supabase Python client used in the FastAPI backend is synchronous. Database operations like `.execute()` block the async event loop. Since FastAPI router functions like `parse_resume` or `fetch_full_resume` are doing heavy DB operations synchronously within `async def`, this can create serious concurrency bottlenecks. Memory instructions confirm this: "To prevent blocking the async event loop and avoid N+1 query latency, use asyncio.to_thread combined with asyncio.gather and batched .in_() queries for related records".
+**Action:** When working on DB-heavy endpoints, use `asyncio.to_thread` for synchronous Supabase calls and batch related queries to avoid N+1.

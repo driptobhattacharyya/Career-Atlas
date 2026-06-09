@@ -7,13 +7,21 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
-import { useTargetRoles, useUploadResume, useRunGapAnalysis, useLatestResume } from "@/hooks/queries";
+import {
+  useTargetRoles,
+  useUploadResume,
+  useRunGapAnalysis,
+  useLatestResume,
+} from "@/hooks/queries";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
     meta: [
       { title: "Get started — CareerAtlas" },
-      { name: "description", content: "Upload your resume and pick a target role to build your personal career roadmap." },
+      {
+        name: "description",
+        content: "Upload your resume and pick a target role to build your personal career roadmap.",
+      },
     ],
   }),
   component: Onboarding,
@@ -27,7 +35,7 @@ const STEPS = disableAuth
 function Onboarding() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   // Start at step 1 if already authenticated, else step 0
   const [step, setStep] = useState(disableAuth ? 0 : 0);
   useEffect(() => {
@@ -62,7 +70,9 @@ function Onboarding() {
 
   const { data: roles = [] } = useTargetRoles();
   const filteredRoles = roles.filter(
-    (r: any) => r.title.toLowerCase().includes(roleQuery.toLowerCase()) || r.category.toLowerCase().includes(roleQuery.toLowerCase()),
+    (r: any) =>
+      r.title.toLowerCase().includes(roleQuery.toLowerCase()) ||
+      r.category.toLowerCase().includes(roleQuery.toLowerCase()),
   );
   useEffect(() => {
     if (!roles.length) return;
@@ -99,7 +109,10 @@ function Onboarding() {
   return (
     <div className="min-h-screen bg-gradient-hero">
       <header className="mx-auto flex max-w-3xl items-center justify-between px-4 py-5 sm:px-6">
-        <a href="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
+        <a
+          href="/"
+          className="flex items-center gap-2 font-display text-lg font-bold tracking-tight"
+        >
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-soft">
             <Compass className="h-5 w-5" />
           </span>
@@ -121,8 +134,8 @@ function Onboarding() {
                   i < step
                     ? "bg-success text-success-foreground"
                     : i === step
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground",
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground",
                 )}
               >
                 {i < step || (i === 0 && user) ? <Check className="h-4 w-4" /> : i + 1}
@@ -145,7 +158,7 @@ function Onboarding() {
           {step === (disableAuth ? 0 : 1) && (
             <StepResume file={resumeFile} parsing={parsing} onFile={handleFileUpload} />
           )}
-      {step === (disableAuth ? 1 : 2) && (
+          {step === (disableAuth ? 1 : 2) && (
             <StepRole
               query={roleQuery}
               onQuery={setRoleQuery}
@@ -168,7 +181,12 @@ function Onboarding() {
 
         {step > (disableAuth ? -1 : 0) && step < (disableAuth ? 2 : 3) && (
           <div className="mt-6 flex items-center justify-between">
-            <Button variant="ghost" onClick={back} disabled={step === (disableAuth ? 0 : 1)} className="rounded-full">
+            <Button
+              variant="ghost"
+              onClick={back}
+              disabled={step === (disableAuth ? 0 : 1)}
+              className="rounded-full"
+            >
               <ArrowLeft className="mr-1 h-4 w-4" /> Back
             </Button>
             <Button
@@ -179,7 +197,8 @@ function Onboarding() {
               }
               className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm"
             >
-              {step === (disableAuth ? 1 : 2) ? "Analyze my profile" : "Continue"} <ArrowRight className="ml-1 h-4 w-4" />
+              {step === (disableAuth ? 1 : 2) ? "Analyze my profile" : "Continue"}{" "}
+              <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         )}
@@ -196,15 +215,41 @@ function StepAccount() {
       <p className="mt-2 text-sm text-muted-foreground">
         Sign in to save your career atlas progress and personalized jobs.
       </p>
-      <Button onClick={signInWithGoogle} className="mt-8 rounded-full border border-border px-8" variant="outline">
-        <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path></svg>
+      <Button
+        onClick={signInWithGoogle}
+        className="mt-8 rounded-full border border-border px-8"
+        variant="outline"
+      >
+        <svg
+          className="mr-2 h-4 w-4"
+          aria-hidden="true"
+          focusable="false"
+          data-prefix="fab"
+          data-icon="google"
+          role="img"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 488 512"
+        >
+          <path
+            fill="currentColor"
+            d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
+          ></path>
+        </svg>
         Sign in with Google
       </Button>
     </div>
   );
 }
 
-function StepResume({ file, parsing, onFile }: { file: File | null; parsing: boolean; onFile: (f: File) => void }) {
+function StepResume({
+  file,
+  parsing,
+  onFile,
+}: {
+  file: File | null;
+  parsing: boolean;
+  onFile: (f: File) => void;
+}) {
   const [drag, setDrag] = useState(false);
 
   return (
@@ -323,14 +368,24 @@ function StepRole({
           );
         })}
         {roles.length === 0 && (
-          <p className="col-span-full py-6 text-center text-sm text-muted-foreground">Loading specific target roles...</p>
+          <p className="col-span-full py-6 text-center text-sm text-muted-foreground">
+            Loading specific target roles...
+          </p>
         )}
       </div>
     </div>
   );
 }
 
-function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle: string; onDone: () => void }) {
+function StepAnalysis({
+  roleId,
+  roleTitle,
+  onDone,
+}: {
+  roleId: string;
+  roleTitle: string;
+  onDone: () => void;
+}) {
   const [progress, setProgress] = useState(0);
   const [stageStr, setStageStr] = useState("Preparing engines...");
   const [error, setError] = useState<string | null>(null);
@@ -352,7 +407,9 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
         if (unmounted) return;
         setProgress(100);
         setStageStr("All done!");
-        setTimeout(() => { if (!unmounted) onDone(); }, 1000);
+        setTimeout(() => {
+          if (!unmounted) onDone();
+        }, 1000);
       } catch (err: any) {
         if (!unmounted) setError(err.message || "Failed to complete AI processing.");
       }
@@ -360,7 +417,9 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
 
     runAnalysis();
 
-    return () => { unmounted = true; };
+    return () => {
+      unmounted = true;
+    };
   }, [roleId, roleTitle]);
 
   return (
@@ -370,7 +429,7 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
       </span>
       <h2 className="mt-5 font-display text-2xl font-bold sm:text-3xl">Building your atlas</h2>
       <p className="mt-2 text-sm text-muted-foreground">{error || stageStr}</p>
-      
+
       {!error && (
         <>
           <Progress value={progress} className="mx-auto mt-6 max-w-md" />
