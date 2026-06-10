@@ -1,3 +1,5 @@
+import asyncio
+from collections import defaultdict
 import re
 from datetime import datetime
 from typing import Any
@@ -204,47 +206,123 @@ def _latest_resume_id(user_id: str) -> str | None:
     return None
 
 
-def fetch_full_resume(resume_id: str) -> dict[str, Any]:
-    resume = db_client.table("resumes").select("*").eq("id", resume_id).execute().data[0]
+async def fetch_full_resume(resume_id: str) -> dict[str, Any]:
+    def safe_certifications():
+        try:
+            return db_client.table("certifications").select("*").eq("resume_id", resume_id).execute()
+        except Exception as e:
+            return e
 
-    contact_rows = db_client.table("contacts").select("*").eq("resume_id", resume_id).execute().data
-    contact = contact_rows[0] if contact_rows else {}
+    # 1. Fetch top-level entities concurrently
+    results = await asyncio.gather(
+        asyncio.to_thread(lambda: db_client.table("resumes").select("*").eq("id", resume_id).execute()),
+        asyncio.to_thread(lambda: db_client.table("contacts").select("*").eq("resume_id", resume_id).execute()),
+        asyncio.to_thread(lambda: db_client.table("skills").select("*").eq("resume_id", resume_id).execute()),
+        asyncio.to_thread(lambda: db_client.table("programming_languages").select("*").eq("resume_id", resume_id).execute()),
+        asyncio.to_thread(lambda: db_client.table("spoken_languages").select("*").eq("resume_id", resume_id).execute()),
+        asyncio.to_thread(lambda: db_client.table("keywords").select("*").eq("resume_id", resume_id).execute()),
+        asyncio.to_thread(lambda: db_client.table("experiences").select("*").eq("resume_id", resume_id).execute()),
+        asyncio.to_thread(lambda: db_client.table("education").select("*").eq("resume_id", resume_id).execute()),
+        asyncio.to_thread(lambda: db_client.table("projects").select("*").eq("resume_id", resume_id).execute()),
+        asyncio.to_thread(safe_certifications),
+    )
 
-    skills = [x["skill"] for x in db_client.table("skills").select("*").eq("resume_id", resume_id).execute().data]
-    prog_langs = [x["language"] for x in db_client.table("programming_languages").select("*").eq("resume_id", resume_id).execute().data]
-    spoken_langs = [x["language"] for x in db_client.table("spoken_languages").select("*").eq("resume_id", resume_id).execute().data]
-    keywords = [x["keyword"] for x in db_client.table("keywords").select("*").eq("resume_id", resume_id).execute().data]
+    resume_resp = results[0]
+    resume = resume_resp.data[0] if resume_resp.data else {}
 
-    experiences: list[dict[str, Any]] = []
-    exp_rows = db_client.table("experiences").select("*").eq("resume_id", resume_id).execute().data
+    contact_resp = results[1]
+    contact = contact_resp.data[0] if contact_resp.data else {}
+
+    skills = [x["skill"] for x in results[2].data]
+    prog_langs = [x["language"] for x in results[3].data]
+    spoken_langs = [x["language"] for x in results[4].data]
+    keywords = [x["keyword"] for x in results[5].data]
+
+    exp_rows = results[6].data
+    edu_rows = results[7].data
+    proj_rows = results[8].data
+
+    cert_resp = results[9]
+    certifications = [] if isinstance(cert_resp, Exception) else cert_resp.data
+
+    # 2. Extract IDs for batch fetching related rows
+    exp_ids = [exp["id"] for exp in exp_rows]
+    edu_ids = [edu["id"] for edu in edu_rows]
+    proj_ids = [proj["id"] for proj in proj_rows]
+
+    # Prepare concurrent fetching for related rows based on parent IDs
+    child_tasks = []
+    if exp_ids:
+        child_tasks.append(asyncio.to_thread(lambda: db_client.table("experience_bullets").select("*").in_("experience_id", exp_ids).execute()))
+        child_tasks.append(asyncio.to_thread(lambda: db_client.table("experience_technologies").select("*").in_("experience_id", exp_ids).execute()))
+    else:
+        child_tasks.extend([None, None])
+
+    if edu_ids:
+        child_tasks.append(asyncio.to_thread(lambda: db_client.table("education_notes").select("*").in_("education_id", edu_ids).execute()))
+    else:
+        child_tasks.append(None)
+
+    if proj_ids:
+        child_tasks.append(asyncio.to_thread(lambda: db_client.table("project_technologies").select("*").in_("project_id", proj_ids).execute()))
+    else:
+        child_tasks.append(None)
+
+    child_results = await asyncio.gather(*[t for t in child_tasks if t is not None]) if any(t is not None for t in child_tasks) else []
+
+    # Reconstruct dictionary mapping for child_tasks (since some might be None)
+    idx = 0
+    exp_bullets_rows = []
+    exp_techs_rows = []
+    edu_notes_rows = []
+    proj_techs_rows = []
+
+    if exp_ids:
+        exp_bullets_rows = child_results[idx].data
+        idx += 1
+        exp_techs_rows = child_results[idx].data
+        idx += 1
+
+    if edu_ids:
+        edu_notes_rows = child_results[idx].data
+        idx += 1
+
+    if proj_ids:
+        proj_techs_rows = child_results[idx].data
+        idx += 1
+
+    # 3. Stitch child rows back to their parent records in-memory
+    exp_bullets_map = defaultdict(list)
+    for b in exp_bullets_rows:
+        exp_bullets_map[b["experience_id"]].append(b["bullet"])
+
+    exp_techs_map = defaultdict(list)
+    for t in exp_techs_rows:
+        exp_techs_map[t["experience_id"]].append(t["tech"])
+
+    experiences = []
     for exp in exp_rows:
-        exp_id = exp["id"]
-        bullets = [x["bullet"] for x in db_client.table("experience_bullets").select("*").eq("experience_id", exp_id).execute().data]
-        techs = [x["tech"] for x in db_client.table("experience_technologies").select("*").eq("experience_id", exp_id).execute().data]
-        exp["description_bullets"] = bullets
-        exp["technologies"] = techs
+        exp["description_bullets"] = exp_bullets_map[exp["id"]]
+        exp["technologies"] = exp_techs_map[exp["id"]]
         experiences.append(exp)
 
-    education: list[dict[str, Any]] = []
-    edu_rows = db_client.table("education").select("*").eq("resume_id", resume_id).execute().data
+    edu_notes_map = defaultdict(list)
+    for n in edu_notes_rows:
+        edu_notes_map[n["education_id"]].append(n["note"])
+
+    education = []
     for edu in edu_rows:
-        edu_id = edu["id"]
-        notes = [x["note"] for x in db_client.table("education_notes").select("*").eq("education_id", edu_id).execute().data]
-        edu["notes"] = notes
+        edu["notes"] = edu_notes_map[edu["id"]]
         education.append(edu)
 
-    projects: list[dict[str, Any]] = []
-    proj_rows = db_client.table("projects").select("*").eq("resume_id", resume_id).execute().data
-    for proj in proj_rows:
-        proj_id = proj["id"]
-        techs = [x["tech"] for x in db_client.table("project_technologies").select("*").eq("project_id", proj_id).execute().data]
-        proj["technologies"] = techs
-        projects.append(proj)
+    proj_techs_map = defaultdict(list)
+    for t in proj_techs_rows:
+        proj_techs_map[t["project_id"]].append(t["tech"])
 
-    try:
-        certifications = db_client.table("certifications").select("*").eq("resume_id", resume_id).execute().data
-    except Exception:
-        certifications = []
+    projects = []
+    for proj in proj_rows:
+        proj["technologies"] = proj_techs_map[proj["id"]]
+        projects.append(proj)
 
     return {
         "resume_id": resume_id,
@@ -313,7 +391,7 @@ async def get_latest_resume(user_id: str = Depends(get_current_user_id)):
     resume_id = _latest_resume_id(user_id)
     if not resume_id:
         return {"success": True, "resume": None}
-    return {"success": True, "resume": fetch_full_resume(resume_id)}
+    return {"success": True, "resume": await fetch_full_resume(resume_id)}
 
 
 # ── Profile editing ─────────────────────────────────────────────────────────

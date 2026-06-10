@@ -1,0 +1,3 @@
+## 2024-06-10 - Supabase Client Synchronization Bottleneck
+**Learning:** The Supabase Python client used in the FastAPI backend is entirely synchronous. If not carefully wrapped in `asyncio.to_thread` and executed concurrently via `asyncio.gather`, sequential database calls become a major latency bottleneck, particularly when fetching nested N+1 relationships (like iterating through `experiences` to fetch `experience_bullets` individually).
+**Action:** Always batch related child queries using `.in_()` for performance, and wrap Supabase database interactions within `asyncio.to_thread` + `asyncio.gather` for parallelized execution within FastAPI's async event loop. Stitch the parent/child records in-memory using `collections.defaultdict`.
