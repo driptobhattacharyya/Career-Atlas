@@ -18,6 +18,11 @@ const API_BASE_URL = (
 
 const disableAuth = (import.meta.env.VITE_DISABLE_AUTH as string | undefined) === "true";
 
+export const apiClient = {
+  get: (url: string) => request(url, { method: "GET" }).then(data => ({ data })),
+  post: (url: string, jsonBody?: any) => request(url, { method: "POST", jsonBody }).then(data => ({ data })),
+};
+
 export class ApiError extends Error {
   status: number;
   body: string;
