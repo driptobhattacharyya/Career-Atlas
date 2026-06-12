@@ -1,0 +1,3 @@
+## 2024-06-12 - Prevented Supabase N+1 Queries in Backend
+**Learning:** The Supabase Python client is entirely synchronous. If called sequentially inside loops (e.g. fetching nested tables like `experience_bullets` for each `experience`), it will severely bottleneck the async FastAPI event loop.
+**Action:** Extract all parent IDs first, perform a single batched `.in_("id", ids)` Supabase query inside an `asyncio.to_thread` wrapper alongside other requests using `asyncio.gather`, and then stitch the parent and child records together using Python's `collections.defaultdict`. This pattern should be consistently applied wherever nested tables are queried.
