@@ -1,0 +1,3 @@
+## 2025-06-14 - Replace Synchronous Supabase N+1 Queries with Asynchronous Batching
+**Learning:** The synchronous `supabase-python` client used in FastAPI routes blocks the event loop and causes severe performance bottlenecks when used with N+1 queries (like fetching related nested children). This app performs extensive parent-child retrievals for resumes.
+**Action:** Use `asyncio.to_thread` wrapped in `asyncio.gather` for concurrent network requests, replace N+1 queries with batched `.in_()` queries against parent IDs, and use `collections.defaultdict` to efficiently stitch relationships in memory.
