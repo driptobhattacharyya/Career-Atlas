@@ -1,3 +1,5 @@
+import { request, API_BASE_URL } from "./request";
+export const apiClient = { request, API_BASE_URL };
 /**
  * Career-Atlas backend client.
  *
