@@ -1,0 +1,3 @@
+## 2025-06-17 - Supabase Sync Client Blocking and N+1 Latency in FastAPI
+**Learning:** The FastAPI backend relies on a synchronous Supabase client, which blocks the async event loop during database operations. Additionally, fetching complex nested data like full resumes using loops results in N+1 query patterns, severely degrading performance.
+**Action:** Use `asyncio.to_thread` wrapped in `asyncio.gather` for concurrent, non-blocking DB calls. For related records, replace N+1 loop queries with batched `.in_()` queries and reconstruct parent-child relationships in memory using `collections.defaultdict`.

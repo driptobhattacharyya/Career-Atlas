@@ -1,6 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { ArrowRight, Compass, FileText, Sparkles, Map, Target, Briefcase, Loader2 } from "lucide-react";
+import {
+  ArrowRight,
+  Compass,
+  FileText,
+  Sparkles,
+  Map,
+  Target,
+  Briefcase,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 
@@ -47,17 +56,26 @@ function Landing() {
     <div className="min-h-screen bg-gradient-hero">
       {/* Top bar */}
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
-        <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
+        <Link
+          to="/"
+          className="flex items-center gap-2 font-display text-lg font-bold tracking-tight"
+        >
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-soft">
             <Compass className="h-5 w-5" />
           </span>
           CareerAtlas
         </Link>
         <div className="flex items-center gap-2">
-          <Link to="/onboarding" className="hidden rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-block">
+          <Link
+            to="/onboarding"
+            className="hidden rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-block"
+          >
             Sign in
           </Link>
-          <Button asChild className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm">
+          <Button
+            asChild
+            className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm"
+          >
             <Link to="/onboarding">Get started</Link>
           </Button>
         </div>
@@ -74,19 +92,31 @@ function Landing() {
             Find the path to your <span className="text-coral">next role</span>.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
-            Upload your resume, pick a target role, and we'll build a warm, week-by-week roadmap of skills, projects, and jobs that actually move you forward.
+            Upload your resume, pick a target role, and we'll build a warm, week-by-week roadmap of
+            skills, projects, and jobs that actually move you forward.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg" className="h-12 rounded-full bg-coral px-7 text-base text-coral-foreground hover:bg-coral/90 shadow-warm">
+            <Button
+              asChild
+              size="lg"
+              className="h-12 rounded-full bg-coral px-7 text-base text-coral-foreground hover:bg-coral/90 shadow-warm"
+            >
               <Link to="/onboarding">
                 Start your atlas <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="h-12 rounded-full border-border bg-card px-7 text-base">
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="h-12 rounded-full border-border bg-card px-7 text-base"
+            >
               <Link to="/onboarding">Sign in</Link>
             </Button>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">Sign in with Google • Free during beta</p>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Sign in with Google • Free during beta
+          </p>
         </div>
 
         {/* Mock preview card */}
@@ -99,7 +129,9 @@ function Landing() {
                 { label: "Job matches", value: "6 roles", color: "text-success" },
               ].map((s) => (
                 <div key={s.label} className="rounded-2xl bg-muted/40 p-5">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {s.label}
+                  </p>
                   <p className={`mt-2 font-display text-3xl font-bold ${s.color}`}>{s.value}</p>
                 </div>
               ))}
@@ -138,12 +170,17 @@ function Landing() {
           ].map((step) => {
             const Icon = step.icon;
             return (
-              <div key={step.n} className="rounded-3xl border border-border bg-card p-7 shadow-soft transition-shadow hover:shadow-warm">
+              <div
+                key={step.n}
+                className="rounded-3xl border border-border bg-card p-7 shadow-soft transition-shadow hover:shadow-warm"
+              >
                 <div className="flex items-center justify-between">
                   <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary-soft text-primary">
                     <Icon className="h-5 w-5" />
                   </span>
-                  <span className="font-display text-sm font-bold text-muted-foreground">{step.n}</span>
+                  <span className="font-display text-sm font-bold text-muted-foreground">
+                    {step.n}
+                  </span>
                 </div>
                 <h3 className="mt-5 font-display text-xl font-semibold">{step.title}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
@@ -160,14 +197,18 @@ function Landing() {
             <Briefcase className="h-6 w-6 text-coral" />
             <h3 className="mt-4 font-display text-2xl font-semibold">Real jobs, ranked by fit</h3>
             <p className="mt-2 text-muted-foreground">
-              See match percentages, what you have, and what you're missing — for every role we surface.
+              See match percentages, what you have, and what you're missing — for every role we
+              surface.
             </p>
           </div>
           <div className="rounded-3xl border border-border bg-card p-8 shadow-soft">
             <Sparkles className="h-6 w-6 text-coral" />
-            <h3 className="mt-4 font-display text-2xl font-semibold">Friendly, never overwhelming</h3>
+            <h3 className="mt-4 font-display text-2xl font-semibold">
+              Friendly, never overwhelming
+            </h3>
             <p className="mt-2 text-muted-foreground">
-              Bite-sized milestones, suggested side projects, and a checklist you can actually finish.
+              Bite-sized milestones, suggested side projects, and a checklist you can actually
+              finish.
             </p>
           </div>
         </div>
@@ -177,11 +218,24 @@ function Landing() {
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
         <div className="grid gap-6 md:grid-cols-3">
           {[
-            { quote: "Finally a plan that didn't feel like a 200-tab roadmap.", who: "Aarav, CS '25" },
-            { quote: "The gap analysis showed me exactly what to learn next. Landed an internship in 6 weeks.", who: "Riya, Data Science new grad" },
-            { quote: "Felt like having a senior friend who actually checks in.", who: "Sam, Bootcamp grad" },
+            {
+              quote: "Finally a plan that didn't feel like a 200-tab roadmap.",
+              who: "Aarav, CS '25",
+            },
+            {
+              quote:
+                "The gap analysis showed me exactly what to learn next. Landed an internship in 6 weeks.",
+              who: "Riya, Data Science new grad",
+            },
+            {
+              quote: "Felt like having a senior friend who actually checks in.",
+              who: "Sam, Bootcamp grad",
+            },
           ].map((t) => (
-            <figure key={t.who} className="rounded-3xl border border-border bg-card p-7 shadow-soft">
+            <figure
+              key={t.who}
+              className="rounded-3xl border border-border bg-card p-7 shadow-soft"
+            >
               <blockquote className="font-display text-lg leading-snug">"{t.quote}"</blockquote>
               <figcaption className="mt-4 text-sm text-muted-foreground">— {t.who}</figcaption>
             </figure>
@@ -194,12 +248,18 @@ function Landing() {
         <div className="overflow-hidden rounded-3xl bg-primary p-10 text-primary-foreground shadow-warm sm:p-14">
           <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
             <div>
-              <h2 className="font-display text-3xl font-bold sm:text-4xl">Your next role is closer than you think.</h2>
+              <h2 className="font-display text-3xl font-bold sm:text-4xl">
+                Your next role is closer than you think.
+              </h2>
               <p className="mt-2 max-w-xl text-primary-foreground/80">
                 Spend 5 minutes today. Walk away with a plan you'll actually use.
               </p>
             </div>
-            <Button asChild size="lg" className="h-12 rounded-full bg-coral px-7 text-base text-coral-foreground hover:bg-coral/90">
+            <Button
+              asChild
+              size="lg"
+              className="h-12 rounded-full bg-coral px-7 text-base text-coral-foreground hover:bg-coral/90"
+            >
               <Link to="/onboarding">
                 Get started <ArrowRight className="ml-1 h-4 w-4" />
               </Link>

@@ -36,7 +36,14 @@ function syncStorageForUser(uid: string | null) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(
     disableAuth
-      ? ({ id: (import.meta.env.VITE_DEV_USER_ID as string | undefined) || "dev-user", email: "dev@local", app_metadata: {}, user_metadata: {}, aud: "authenticated", created_at: new Date().toISOString() } as unknown as User)
+      ? ({
+          id: (import.meta.env.VITE_DEV_USER_ID as string | undefined) || "dev-user",
+          email: "dev@local",
+          app_metadata: {},
+          user_metadata: {},
+          aud: "authenticated",
+          created_at: new Date().toISOString(),
+        } as unknown as User)
       : null,
   );
   const [session, setSession] = useState<Session | null>(null);

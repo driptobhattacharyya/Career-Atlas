@@ -42,7 +42,11 @@ export const Route = createFileRoute("/_app/profile")({
   head: () => ({
     meta: [
       { title: "Profile — CareerAtlas" },
-      { name: "description", content: "Your extracted profile, skills with evidence, education, projects, and GitHub signal." },
+      {
+        name: "description",
+        content:
+          "Your extracted profile, skills with evidence, education, projects, and GitHub signal.",
+      },
     ],
   }),
   component: Profile,
@@ -98,15 +102,8 @@ function asStringList(value: unknown): string[] {
 }
 
 function normalizeProject(p: any) {
-  const title =
-    p?.name ||
-    p?.title ||
-    p?.project_name ||
-    p?.label ||
-    "Untitled project";
-  const technologies = asStringList(
-    p?.technologies || p?.tech || p?.skills || p?.keywords || [],
-  );
+  const title = p?.name || p?.title || p?.project_name || p?.label || "Untitled project";
+  const technologies = asStringList(p?.technologies || p?.tech || p?.skills || p?.keywords || []);
   return {
     ...p,
     name: title,
@@ -142,10 +139,14 @@ function Profile() {
   if (!profile) return <div>No profile data found.</div>;
   const displayName = profile.name || "Candidate";
 
-  const grouped = categoryOrder.map((cat) => ({
-    cat,
-    skills: skills.filter((s: any) => s.category.toLowerCase() === cat.toLowerCase() || s.category === cat),
-  })).filter(g => g.skills.length > 0);
+  const grouped = categoryOrder
+    .map((cat) => ({
+      cat,
+      skills: skills.filter(
+        (s: any) => s.category.toLowerCase() === cat.toLowerCase() || s.category === cat,
+      ),
+    }))
+    .filter((g) => g.skills.length > 0);
 
   const githubSkills = skills.filter((s: any) => s.source === "github");
   const normalizedProjects = projects.map(normalizeProject);
@@ -189,10 +190,20 @@ function Profile() {
             <h1 className="font-display text-3xl font-bold tracking-tight">{displayName}</h1>
             <p className="mt-1 text-muted-foreground">{profile.headline}</p>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              {profile.email && <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> {profile.email}</span>}
-              {profile.location && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {profile.location}</span>}
+              {profile.email && (
+                <span className="flex items-center gap-1">
+                  <Mail className="h-3.5 w-3.5" /> {profile.email}
+                </span>
+              )}
+              {profile.location && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" /> {profile.location}
+                </span>
+              )}
               {profile.github && (
-                <span className="flex items-center gap-1"><Github className="h-3.5 w-3.5" /> {profile.github}</span>
+                <span className="flex items-center gap-1">
+                  <Github className="h-3.5 w-3.5" /> {profile.github}
+                </span>
               )}
             </div>
           </div>
@@ -228,7 +239,9 @@ function Profile() {
         <div className="mt-6 space-y-6">
           {grouped.map(({ cat, skills }) => (
             <div key={cat}>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{cat}</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {cat}
+              </h3>
               <div className="mt-3 flex flex-wrap gap-2">
                 {skills.map((s: any) => (
                   <span
@@ -253,7 +266,9 @@ function Profile() {
               </div>
             </div>
           ))}
-          {grouped.length === 0 && <p className="text-muted-foreground text-sm">No skills found.</p>}
+          {grouped.length === 0 && (
+            <p className="text-muted-foreground text-sm">No skills found.</p>
+          )}
         </div>
 
         {/* Add skill */}
@@ -287,11 +302,16 @@ function Profile() {
           <h2 className="font-display text-xl font-semibold">Experience</h2>
           <ol className="mt-5 space-y-5">
             {experience.map((e: any) => (
-              <li key={e.id} className="group/exp rounded-2xl border border-border/60 bg-background p-5">
+              <li
+                key={e.id}
+                className="group/exp rounded-2xl border border-border/60 bg-background p-5"
+              >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h3 className="font-semibold">{e.title || e.role}</h3>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{e.start_date} — {e.end_date}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {e.start_date} — {e.end_date}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setEditExp(e)}
@@ -304,11 +324,15 @@ function Profile() {
                 </div>
                 <p className="text-sm text-primary">{e.company}</p>
                 <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                  {(e.description_bullets || e.bullets || []).map((b: string, i: number) => <li key={i}>{b}</li>)}
+                  {(e.description_bullets || e.bullets || []).map((b: string, i: number) => (
+                    <li key={i}>{b}</li>
+                  ))}
                 </ul>
               </li>
             ))}
-            {experience.length === 0 && <p className="text-sm text-muted-foreground">No experience details found.</p>}
+            {experience.length === 0 && (
+              <p className="text-sm text-muted-foreground">No experience details found.</p>
+            )}
           </ol>
         </section>
 
@@ -319,19 +343,26 @@ function Profile() {
               <h2 className="flex items-center gap-2 font-display text-xl font-semibold">
                 <Github className="h-5 w-5" /> GitHub signal
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">Skills inferred from your public repos.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Skills inferred from your public repos.
+              </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => window.location.href = '/github'}>
+            <Button variant="outline" size="sm" onClick={() => (window.location.href = "/github")}>
               Deep Analysis
             </Button>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {githubSkills.map((s: any) => (
-              <span key={s.name} className="rounded-full border border-primary/20 bg-primary-soft px-3 py-1 text-xs font-medium text-primary">
+              <span
+                key={s.name}
+                className="rounded-full border border-primary/20 bg-primary-soft px-3 py-1 text-xs font-medium text-primary"
+              >
                 {s.name}
               </span>
             ))}
-            {githubSkills.length === 0 && <span className="text-sm text-muted-foreground">GitHub integration pending.</span>}
+            {githubSkills.length === 0 && (
+              <span className="text-sm text-muted-foreground">GitHub integration pending.</span>
+            )}
           </div>
         </section>
       </div>
@@ -346,17 +377,29 @@ function Profile() {
               <p className="mt-2 text-sm text-muted-foreground">{p.description}</p>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {(p.technologies || p.tech || []).map((t: string) => (
-                  <span key={t} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{t}</span>
+                  <span
+                    key={t}
+                    className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                  >
+                    {t}
+                  </span>
                 ))}
               </div>
               {p.link && (
-                <a href={p.link} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                <a
+                  href={p.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
                   View <ExternalLink className="h-3 w-3" />
                 </a>
               )}
             </article>
           ))}
-          {projects.length === 0 && <p className="text-sm text-muted-foreground">No projects listed.</p>}
+          {projects.length === 0 && (
+            <p className="text-sm text-muted-foreground">No projects listed.</p>
+          )}
         </div>
       </section>
 
@@ -365,15 +408,22 @@ function Profile() {
         <h2 className="font-display text-xl font-semibold">Education</h2>
         <ul className="mt-4 space-y-3">
           {education.map((ed: any) => (
-            <li key={ed.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl border border-border/60 bg-background p-4">
+            <li
+              key={ed.id}
+              className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl border border-border/60 bg-background p-4"
+            >
               <div>
                 <p className="font-semibold">{ed.institution || ed.school}</p>
                 <p className="text-sm text-muted-foreground">{ed.degree}</p>
               </div>
-              <span className="text-xs text-muted-foreground">{ed.start_date} — {ed.end_date}</span>
+              <span className="text-xs text-muted-foreground">
+                {ed.start_date} — {ed.end_date}
+              </span>
             </li>
           ))}
-          {education.length === 0 && <p className="text-sm text-muted-foreground">No education listed.</p>}
+          {education.length === 0 && (
+            <p className="text-sm text-muted-foreground">No education listed.</p>
+          )}
         </ul>
       </section>
 
@@ -508,11 +558,21 @@ function ExperienceEditForm({ exp, onClose }: { exp: any; onClose: () => void })
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
             <span className="text-xs font-medium text-muted-foreground">Start date</span>
-            <Input value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1" placeholder="Jan 2024" />
+            <Input
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="mt-1"
+              placeholder="Jan 2024"
+            />
           </label>
           <label className="block">
             <span className="text-xs font-medium text-muted-foreground">End date</span>
-            <Input value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-1" placeholder="Present" />
+            <Input
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="mt-1"
+              placeholder="Present"
+            />
           </label>
         </div>
       </div>

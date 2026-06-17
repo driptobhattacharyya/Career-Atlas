@@ -51,8 +51,7 @@ const phaseColors: Record<string, string> = {
 };
 
 const selectedRoleId = () =>
-  (typeof window !== "undefined" &&
-    window.localStorage.getItem("careeratlas:selected_role_id")) ||
+  (typeof window !== "undefined" && window.localStorage.getItem("careeratlas:selected_role_id")) ||
   undefined;
 
 const selectedRoleTitle = () =>
@@ -79,8 +78,7 @@ function Roadmap() {
       setGapHint(false);
       toast.success("Deep research complete");
     } catch (err: any) {
-      const noGaps =
-        err instanceof ApiError && err.status === 400 && /gap/i.test(err.detail);
+      const noGaps = err instanceof ApiError && err.status === 400 && /gap/i.test(err.detail);
       setGapHint(noGaps);
       toast.error("Research failed", { description: err?.message });
     } finally {
@@ -100,8 +98,7 @@ function Roadmap() {
   const validation = pathwayData?.validation ?? null;
   const sources = pathwayData?.sources ?? [];
   const rationale = pathwayData?.pathway?.rationale;
-  const targetRole =
-    pathwayData?.target_role || selectedRoleTitle() || "your target role";
+  const targetRole = pathwayData?.target_role || selectedRoleTitle() || "your target role";
 
   const completed = roadmap.filter((m) => m.status === "completed").length;
   const totalWeeks = roadmap.reduce((sum, m) => sum + (m.estimated_weeks ?? 0), 0);
@@ -154,8 +151,8 @@ function Roadmap() {
             <ShieldAlert className="h-5 w-5 text-coral" /> Gap analysis needed
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            The roadmap builds on your skill gaps for this role, but none were found.
-            Run gap analysis for this target role first, then come back here.
+            The roadmap builds on your skill gaps for this role, but none were found. Run gap
+            analysis for this target role first, then come back here.
           </p>
           <a
             href="/onboarding"
@@ -170,8 +167,7 @@ function Roadmap() {
         <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center">
           <Sparkles className="mx-auto h-8 w-8 text-coral" />
           <p className="mt-3 text-sm text-muted-foreground">
-            No roadmap yet. Deep research takes ~60s and produces a citation-backed,
-            trackable plan.
+            No roadmap yet. Deep research takes ~60s and produces a citation-backed, trackable plan.
           </p>
         </div>
       )}
@@ -187,16 +183,8 @@ function Roadmap() {
 
       {roadmap.length > 0 && (
         <div className="relative">
-          <div
-            className="absolute left-5 top-2 bottom-2 w-px bg-border md:left-7"
-            aria-hidden
-          />
-          <motion.ol
-            className="space-y-6"
-            variants={listStagger}
-            initial="hidden"
-            animate="show"
-          >
+          <div className="absolute left-5 top-2 bottom-2 w-px bg-border md:left-7" aria-hidden />
+          <motion.ol className="space-y-6" variants={listStagger} initial="hidden" animate="show">
             {roadmap.map((m, i) => (
               <MilestoneCard key={m.id} milestone={m} index={i + 1} />
             ))}
@@ -206,9 +194,7 @@ function Roadmap() {
 
       {sources.length > 0 && (
         <section className="hover-lift rounded-3xl border border-border bg-card p-6 shadow-soft">
-          <h2 className="font-display text-lg font-semibold">
-            Sources ({sources.length})
-          </h2>
+          <h2 className="font-display text-lg font-semibold">Sources ({sources.length})</h2>
           <ul className="mt-3 grid gap-2 sm:grid-cols-2">
             {sources.slice(0, 24).map((url) => (
               <li key={url} className="truncate text-xs">
@@ -279,7 +265,11 @@ function QualityPanel({
               <span
                 className={cn(
                   "font-semibold",
-                  s.score >= 4 ? "text-success" : s.score >= 3 ? "text-warm-foreground" : "text-coral",
+                  s.score >= 4
+                    ? "text-success"
+                    : s.score >= 3
+                      ? "text-warm-foreground"
+                      : "text-coral",
                 )}
               >
                 {s.score}/5
@@ -305,7 +295,9 @@ function QualityPanel({
           </h3>
           <ul className="mt-2 space-y-1">
             {verdict.weaknesses.map((w) => (
-              <li key={w} className="text-xs text-muted-foreground">• {w}</li>
+              <li key={w} className="text-xs text-muted-foreground">
+                • {w}
+              </li>
             ))}
           </ul>
         </div>
@@ -326,8 +318,7 @@ function MilestoneCard({ milestone, index }: { milestone: MilestoneRow; index: n
             description: milestone.skill ?? milestone.title ?? undefined,
           });
         },
-        onError: (err: any) =>
-          toast.error("Update failed", { description: err?.message }),
+        onError: (err: any) => toast.error("Update failed", { description: err?.message }),
       },
     );
   };
@@ -336,17 +327,17 @@ function MilestoneCard({ milestone, index }: { milestone: MilestoneRow; index: n
     milestone.status === "completed"
       ? CheckCircle2
       : milestone.status === "in_progress"
-      ? Circle
-      : milestone.status === "skipped"
-      ? SkipForward
-      : Lock;
+        ? Circle
+        : milestone.status === "skipped"
+          ? SkipForward
+          : Lock;
 
   const statusColor =
     milestone.status === "completed"
       ? "bg-success text-success-foreground"
       : milestone.status === "in_progress"
-      ? "bg-coral text-coral-foreground animate-pulse"
-      : "bg-muted text-muted-foreground";
+        ? "bg-coral text-coral-foreground animate-pulse"
+        : "bg-muted text-muted-foreground";
 
   return (
     <motion.li variants={fadeUpSm} className="relative pl-14 md:pl-20">
@@ -409,9 +400,7 @@ function MilestoneCard({ milestone, index }: { milestone: MilestoneRow; index: n
                     <p className="text-xs text-muted-foreground">
                       {[r.kind, r.provider].filter(Boolean).join(" · ")}
                     </p>
-                    {r.why && (
-                      <p className="mt-1 text-xs text-muted-foreground">{r.why}</p>
-                    )}
+                    {r.why && <p className="mt-1 text-xs text-muted-foreground">{r.why}</p>}
                   </li>
                 ))}
               </ul>
@@ -423,16 +412,11 @@ function MilestoneCard({ milestone, index }: { milestone: MilestoneRow; index: n
               <Sparkles className="h-3.5 w-3.5" /> Suggested project
             </h4>
             <p className="mt-3 text-sm font-medium">{milestone.project?.title}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {milestone.project?.description}
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">{milestone.project?.description}</p>
 
             <ul className="mt-4 space-y-1.5">
               {milestone.checklist?.map((item) => (
-                <li
-                  key={item}
-                  className="flex items-start gap-2 text-xs text-muted-foreground"
-                >
+                <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
                   <span
                     className={cn(
                       "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded border",
@@ -441,9 +425,7 @@ function MilestoneCard({ milestone, index }: { milestone: MilestoneRow; index: n
                         : "border-border",
                     )}
                   >
-                    {milestone.status === "completed" && (
-                      <CheckCircle2 className="h-3 w-3" />
-                    )}
+                    {milestone.status === "completed" && <CheckCircle2 className="h-3 w-3" />}
                   </span>
                   <span>{item}</span>
                 </li>
