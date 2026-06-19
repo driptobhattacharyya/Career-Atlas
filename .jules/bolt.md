@@ -1,0 +1,3 @@
+## 2025-02-23 - Async Database Operations in FastAPI with Synchronous Supabase Client
+**Learning:** The Supabase Python client is synchronous. In endpoints that require heavily nested database reads (e.g., retrieving a resume and all its child objects), executing synchronous database requests sequentially in a FastAPI `async` path operation creates a massive N+1 query bottleneck that blocks the event loop.
+**Action:** Use `asyncio.to_thread()` within an `asyncio.gather()` block to perform parallel fetches for root tables without blocking. For N+1 problems on children objects, extract primary keys, perform exactly one batch query using `.in_()`, and use memory mapping (`collections.defaultdict(list)`) to stitch parent-child relationships back together.
