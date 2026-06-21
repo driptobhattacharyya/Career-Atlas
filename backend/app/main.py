@@ -13,6 +13,7 @@ from app.roadmap_generation.router import router as roadmap_router
 from app.job_hunter.router import router as jobs_router
 from app.deep_researcher.router import router as deep_research_router
 from app.target_roles.router import router as target_roles_router
+from app.github_analysis.router import router as github_router
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +82,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 # ── Routers ──────────────────────────────────────────────────────────────────
-from app.github_analysis.router import router as github_router
-
+# moved app.github_analysis.router import to top to fix ruff E402
 app.include_router(resume_router)
 app.include_router(gaps_router)
 app.include_router(roadmap_router)

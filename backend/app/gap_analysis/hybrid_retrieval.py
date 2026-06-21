@@ -9,7 +9,6 @@ Implements the "Hybrid Retrieval" block from the architecture diagram:
 
 BM25 corpus is built once per role per cold-start and cached in memory.
 """
-import math
 from typing import List, Dict, Tuple
 from functools import lru_cache
 
