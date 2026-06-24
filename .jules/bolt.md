@@ -1,0 +1,3 @@
+## 2024-06-24 - Supabase client is synchronous and causes blocking N+1 calls
+**Learning:** The FastAPI setup here uses `supabase-py`'s synchronous client wrapper. Iterating over an array of items and querying inside a loop blocked the main async event loop completely, while generating massive network roundtrips (`N+1`).
+**Action:** When querying parent-child relationships through Supabase via Python, I should always construct a batch query using `asyncio.to_thread` with `.in_("foreign_key_id", ids)` to parallelize across concurrent requests using `asyncio.gather` and to offload blocking I/O calls from the main thread. Results can be effectively stitched in Python via `collections.defaultdict`.
