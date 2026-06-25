@@ -420,3 +420,13 @@ export function getCachedJobSearchResponse(): JobSearchResponse | undefined {
 }
 
 export const API_BASE = API_BASE_URL;
+
+// ── Generic client (axios-style shim used by the GitHub routes) ──────────────
+// ponytail: thin wrapper over request() so prod's github code (apiClient.get/post
+// returning {data}) works without an axios dep. Add more verbs if a route needs them.
+export const apiClient = {
+  get: async <T = any>(path: string) => ({ data: await request<T>(path) }),
+  post: async <T = any>(path: string, body?: unknown) => ({
+    data: await request<T>(path, { method: "POST", jsonBody: body }),
+  }),
+};
