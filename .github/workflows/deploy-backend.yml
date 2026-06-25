@@ -1,7 +1,9 @@
 name: Deploy backend to Cloud Run
 
 # Pushes to `prod` that touch the backend rebuild + redeploy the container.
-# The frontend deploys separately via Vercel's native Git integration.
+# Deploys from source (Cloud Build) to the careeratlas-backend service. Existing
+# env vars / secrets on the service are preserved — they are NOT set here, so the
+# YAML stays free of secret references.
 on:
   push:
     branches: [prod]
@@ -11,10 +13,9 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: project-79c93860-4168-42f1-93f
+  PROJECT_ID: project-aaa2b18d-7173-407a-993
   REGION: us-central1
-  REPO: careeratlas
-  SERVICE: careeratlas-api
+  SERVICE: careeratlas-backend
 
 jobs:
   deploy:
@@ -30,23 +31,15 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
-          workload_identity_provider: projects/791080365827/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-          service_account: github-actions-ci@project-79c93860-4168-42f1-93f.iam.gserviceaccount.com
+          workload_identity_provider: projects/625656057654/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-actions-ci@project-aaa2b18d-7173-407a-993.iam.gserviceaccount.com
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Build, push, deploy
+      - name: Deploy from source
         run: |
-          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${SERVICE}:${GITHUB_SHA}"
-          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
-          docker build -t "$IMAGE" backend
-          docker push "$IMAGE"
-          # Image-only update — existing env vars on the service are preserved.
           gcloud run deploy "$SERVICE" \
-            --image "$IMAGE" \
+            --source backend \
             --region "$REGION" \
-            --platform managed \
-            --min-instances=1 \
-            --no-cpu-throttling \
             --quiet
