@@ -331,7 +331,7 @@ function Profile() {
                 {s.name}
               </span>
             ))}
-            {githubSkills.length === 0 && <span className="text-sm text-muted-foreground">GitHub integration pending.</span>}
+            {githubSkills.length === 0 && <span className="text-sm text-muted-foreground">Click <strong>Deep Analysis</strong> to connect GitHub and review inferred skills.</span>}
           </div>
         </section>
       </div>
