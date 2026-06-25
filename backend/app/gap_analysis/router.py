@@ -8,15 +8,13 @@ POST /api/analyze-gaps/
   - Stores results in DB
   - Returns ranked gaps
 """
-from fastapi import APIRouter, Depends, HTTPException, Header
-from pydantic import BaseModel
-from app.config import settings
+from fastapi import APIRouter, Depends, HTTPException
 from app.dependencies.auth import get_current_user_id
 from app.dependencies.database import db_client
 from app.gap_analysis.service import generate_gaps_for_user
 from app.gap_analysis.hybrid_retrieval import resolve_role_slug
 
-from app.gap_analysis.schemas import AnalyzeGapsRequest, GapAnalysisResult
+from app.gap_analysis.schemas import AnalyzeGapsRequest
 
 router = APIRouter(prefix="/api/analyze-gaps", tags=["Gaps"])
 
@@ -95,7 +93,7 @@ async def analyze_gaps(
 
                 # Fetch programming languages from 'programming_languages' table
                 langs_resp = db_client.table("programming_languages").select("language").eq("resume_id", resume_id).execute()
-                user_skills.extend([l["language"] for l in langs_resp.data if l.get("language")])
+                user_skills.extend([lang_row["language"] for lang_row in langs_resp.data if lang_row.get("language")])
 
                 # Fetch GitHub profile analysis to enhance headline/context
                 github_resp = db_client.table("github_profiles").select("analysis_summary,coding_behavior").eq("user_id", user_id).execute()
@@ -104,7 +102,7 @@ async def analyze_gaps(
                     github_behavior = github_resp.data[0].get("coding_behavior", "")
                     if github_summary or github_behavior:
                         user_headline += f"\n\nGitHub Profile Context:\nSummary: {github_summary}\nCoding Behavior: {github_behavior}"
-        except Exception as e:
+        except Exception:
             # Silently fallback to empty if DB schema mismatch occurs
             pass
 

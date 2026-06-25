@@ -4,12 +4,13 @@ import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from app.resume_extraction.router import router as resume_router
+from app.roadmap_generation.router import router as roadmap_router
+from app.github_analysis.router import router as github_router
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
-from app.resume_extraction.router import router as resume_router
 from app.gap_analysis.router import router as gaps_router
-from app.roadmap_generation.router import router as roadmap_router
 from app.job_hunter.router import router as jobs_router
 from app.deep_researcher.router import router as deep_research_router
 from app.target_roles.router import router as target_roles_router
@@ -81,7 +82,6 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 # ── Routers ──────────────────────────────────────────────────────────────────
-from app.github_analysis.router import router as github_router
 
 app.include_router(resume_router)
 app.include_router(gaps_router)
