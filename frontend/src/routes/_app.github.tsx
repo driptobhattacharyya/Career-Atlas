@@ -35,15 +35,19 @@ function GithubConnectPage() {
   const analyzeMutation = useMutation({
     mutationFn: (repos: string[]) => apiClient.post("/api/github/analyze", { repos }).then(r => r.data),
     onSuccess: () => {
-      navigate({ to: "/profile" })
+      navigate({ to: "/github-insights" })
     }
   })
 
   const handleConnect = () => {
-    // Initiate OAuth flow
+    // Initiate OAuth flow.
+    // CATRK-6: least privilege within OAuth App limits. `repo` is the narrowest
+    // scope that can still READ private repos (OAuth Apps have no read-only-private
+    // scope — that needs a GitHub App: Contents:read + Metadata:read). Dropped the
+    // redundant `read:user` (we only read the login, which any token returns).
     const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID
     const redirectUri = window.location.origin + "/github/callback"
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=repo,read:user`
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=repo`
   }
 
   const handleToggleRepo = (repoName: string) => {

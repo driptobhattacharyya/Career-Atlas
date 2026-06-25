@@ -97,7 +97,14 @@ async def analyze_gaps(
                 langs_resp = db_client.table("programming_languages").select("language").eq("resume_id", resume_id).execute()
                 user_skills.extend([l["language"] for l in langs_resp.data if l.get("language")])
 
-                # Fetch GitHub profile analysis to enhance headline/context
+                # CATRK-14: only CONFIRMED GitHub skills count toward the profile —
+                # quarantined guesses must never feed gap analysis. We only ADD skills
+                # here, so a skill absent from GitHub can never widen a gap.
+                confirmed_resp = db_client.table("github_skill_evidence")\
+                    .select("skill").eq("user_id", user_id).eq("confirmed", True).execute()
+                user_skills.extend([e["skill"] for e in (confirmed_resp.data or []) if e.get("skill")])
+
+                # GitHub prose stays as context only (never a counted skill).
                 github_resp = db_client.table("github_profiles").select("analysis_summary,coding_behavior").eq("user_id", user_id).execute()
                 if github_resp.data:
                     github_summary = github_resp.data[0].get("analysis_summary", "")

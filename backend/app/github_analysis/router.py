@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from app.dependencies.auth import get_current_user_id
 from app.dependencies.database import db_client
 from app.config import settings
-from app.github_analysis.schemas import GitHubOAuthCallback, RepoSelection, GitHubReposResponse
+from app.github_analysis.schemas import GitHubOAuthCallback, RepoSelection, GitHubReposResponse, SkillAction
 from app.github_analysis.service import fetch_top_repositories, analyze_selected_repositories
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,13 @@ async def github_oauth_callback(
         github_user_id = str(github_user.get("id"))
         github_username = github_user.get("login")
 
-        # Save token to database
+        # Save token to database.
+        # CATRK-7 token storage review: token is never returned by any endpoint
+        # (status->username, /profile->no token) nor logged (errors carry response
+        # bodies, token lives only in request headers). RLS + service-key-only access
+        # + Supabase at-rest disk encryption is the baseline. App-layer column
+        # encryption (pgcrypto/Vault) deferred — defense-in-depth, not a missing
+        # control; add if tokens ever need to survive a DB-read compromise.
         db_client.table("github_tokens").upsert({
             "user_id": user_id,
             "access_token": access_token,
@@ -111,7 +117,7 @@ async def analyze_github_repos(
         profile = analysis_data["profile"]
         repo_analyses = analysis_data["repo_analyses"]
 
-        # Save profile
+        # Save profile (display summary + flat skill-name list for the headline).
         db_client.table("github_profiles").upsert({
             "user_id": user_id,
             "analysis_summary": profile["summary"],
@@ -119,44 +125,94 @@ async def analyze_github_repos(
             "inferred_skills": profile["skills"]
         }, on_conflict="user_id").execute()
 
-        # Save individual repos
+        # Save per-repo structured facts (languages%, commit activity) for the panel.
         for repo_name, analysis in repo_analyses.items():
             db_client.table("github_repositories").upsert({
                 "user_id": user_id,
                 "repo_name": repo_name,
                 "analysis_summary": analysis["summary"],
-                "coding_behavior": analysis["coding_behavior"]
+                "coding_behavior": analysis["coding_behavior"],
+                "languages": analysis.get("languages"),
+                "commit_count": analysis.get("commit_count"),
+                "first_commit_at": analysis.get("first_commit_at"),
+                "last_commit_at": analysis.get("last_commit_at"),
             }, on_conflict="user_id, repo_name").execute()
 
-        # Append inferred skills to the user's latest resume skills list
-        # We find the latest resume first
-        resume_resp = db_client.table("resumes").select("id").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
-        if resume_resp.data:
-            resume_id = resume_resp.data[0]["id"]
-
-            # Add skills (ignore conflicts if constraint exists, though we're inserting line by line)
-            for skill in profile["skills"]:
+        # CATRK-10: inferred skills land QUARANTINED in github_skill_evidence
+        # (confirmed=false). They never touch the resume `skills` table until the
+        # user confirms — a guess can't masquerade as resume truth.
+        for repo_name, analysis in repo_analyses.items():
+            for ev in analysis["inferred_skills"]:
                 try:
-                    existing = db_client.table("skills").select("skill").eq("resume_id", resume_id).eq("skill", skill).execute()
-                    if not existing.data:
-                        db_client.table("skills").insert({
-                            "resume_id": resume_id,
-                            "skill": skill,
-                            "source": "github"
-                        }).execute()
+                    db_client.table("github_skill_evidence").upsert({
+                        "user_id": user_id,
+                        "skill": ev.skill,
+                        "evidence": ev.evidence,
+                        "confidence": ev.confidence,
+                        "source_repo": repo_name,
+                        "confirmed": False,
+                    }, on_conflict="user_id, skill, source_repo").execute()
                 except Exception as e:
-                    logger.warning(f"Failed to add skill {skill}: {e}")
+                    logger.warning(f"Failed to store evidence for {ev.skill}: {e}")
 
         return {
             "success": True,
             "summary": profile["summary"],
             "coding_behavior": profile["coding_behavior"],
-            "skills": profile["skills"]
+            "skills": profile["skills"],
         }
 
     except Exception as e:
         logger.exception("Failed to analyze github repos")
         raise HTTPException(status_code=500, detail=f"Failed to analyze repositories: {e}")
+
+@router.get("/profile")
+async def get_github_insights(user_id: str = Depends(get_current_user_id)):
+    """Powers the insights panel: stored profile + per-repo facts + quarantined
+    skill suggestions (with evidence/confidence/confirmed)."""
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    profile_resp = db_client.table("github_profiles").select("*").eq("user_id", user_id).execute()
+    repos_resp = db_client.table("github_repositories").select("*").eq("user_id", user_id).execute()
+    evidence_resp = db_client.table("github_skill_evidence").select("*").eq("user_id", user_id)\
+        .order("confidence", desc=True).execute()
+
+    return {
+        "success": True,
+        "profile": profile_resp.data[0] if profile_resp.data else None,
+        "repositories": repos_resp.data or [],
+        "skill_evidence": evidence_resp.data or [],
+    }
+
+
+@router.post("/skills/confirm")
+async def confirm_github_skills(req: SkillAction, user_id: str = Depends(get_current_user_id)):
+    """Promote suggested skills into the verified profile (confirmed=true). Gap
+    analysis only counts confirmed GitHub skills."""
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not req.evidence_ids:
+        return {"success": True, "updated": 0}
+
+    resp = db_client.table("github_skill_evidence").update({"confirmed": True})\
+        .eq("user_id", user_id).in_("id", req.evidence_ids).execute()
+    return {"success": True, "updated": len(resp.data or [])}
+
+
+@router.post("/skills/reject")
+async def reject_github_skills(req: SkillAction, user_id: str = Depends(get_current_user_id)):
+    """Discard suggested skills. ponytail: reject = delete the row; re-analyze
+    re-suggests it if the evidence is still there."""
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not req.evidence_ids:
+        return {"success": True, "deleted": 0}
+
+    resp = db_client.table("github_skill_evidence").delete()\
+        .eq("user_id", user_id).in_("id", req.evidence_ids).execute()
+    return {"success": True, "deleted": len(resp.data or [])}
+
 
 @router.get("/status")
 async def get_github_status(user_id: str = Depends(get_current_user_id)):

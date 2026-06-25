@@ -16,6 +16,7 @@ import { Route as GithubCallbackRouteImport } from './routes/github.callback'
 import { Route as AppRoadmapRouteImport } from './routes/_app.roadmap'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppJobsRouteImport } from './routes/_app.jobs'
+import { Route as AppGithubInsightsRouteImport } from './routes/_app.github-insights'
 import { Route as AppGithubRouteImport } from './routes/_app.github'
 import { Route as AppGapsRouteImport } from './routes/_app.gaps'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -54,6 +55,11 @@ const AppJobsRoute = AppJobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => AppRoute,
 } as any)
+const AppGithubInsightsRoute = AppGithubInsightsRouteImport.update({
+  id: '/github-insights',
+  path: '/github-insights',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppGithubRoute = AppGithubRouteImport.update({
   id: '/github',
   path: '/github',
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/gaps': typeof AppGapsRoute
   '/github': typeof AppGithubRoute
+  '/github-insights': typeof AppGithubInsightsRoute
   '/jobs': typeof AppJobsRoute
   '/profile': typeof AppProfileRoute
   '/roadmap': typeof AppRoadmapRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/gaps': typeof AppGapsRoute
   '/github': typeof AppGithubRoute
+  '/github-insights': typeof AppGithubInsightsRoute
   '/jobs': typeof AppJobsRoute
   '/profile': typeof AppProfileRoute
   '/roadmap': typeof AppRoadmapRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/gaps': typeof AppGapsRoute
   '/_app/github': typeof AppGithubRoute
+  '/_app/github-insights': typeof AppGithubInsightsRoute
   '/_app/jobs': typeof AppJobsRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/roadmap': typeof AppRoadmapRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gaps'
     | '/github'
+    | '/github-insights'
     | '/jobs'
     | '/profile'
     | '/roadmap'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gaps'
     | '/github'
+    | '/github-insights'
     | '/jobs'
     | '/profile'
     | '/roadmap'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/gaps'
     | '/_app/github'
+    | '/_app/github-insights'
     | '/_app/jobs'
     | '/_app/profile'
     | '/_app/roadmap'
@@ -200,6 +212,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppJobsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/github-insights': {
+      id: '/_app/github-insights'
+      path: '/github-insights'
+      fullPath: '/github-insights'
+      preLoaderRoute: typeof AppGithubInsightsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/github': {
       id: '/_app/github'
       path: '/github'
@@ -228,6 +247,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppGapsRoute: typeof AppGapsRoute
   AppGithubRoute: typeof AppGithubRoute
+  AppGithubInsightsRoute: typeof AppGithubInsightsRoute
   AppJobsRoute: typeof AppJobsRoute
   AppProfileRoute: typeof AppProfileRoute
   AppRoadmapRoute: typeof AppRoadmapRoute
@@ -237,6 +257,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppGapsRoute: AppGapsRoute,
   AppGithubRoute: AppGithubRoute,
+  AppGithubInsightsRoute: AppGithubInsightsRoute,
   AppJobsRoute: AppJobsRoute,
   AppProfileRoute: AppProfileRoute,
   AppRoadmapRoute: AppRoadmapRoute,
@@ -253,3 +274,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

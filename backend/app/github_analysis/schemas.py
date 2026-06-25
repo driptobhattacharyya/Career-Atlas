@@ -7,6 +7,9 @@ class GitHubOAuthCallback(BaseModel):
 class RepoSelection(BaseModel):
     repos: List[str]
 
+class SkillAction(BaseModel):
+    evidence_ids: List[str]
+
 class GitHubRepoInfo(BaseModel):
     name: str
     owner: str
