@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Sparkles, Target, Map, Briefcase, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
+import { NoProfileView } from "@/components/no-profile-view";
 import { useProfile, useRoadmap, useGapAnalysis, useJobMatches, useTargetRoles } from "@/hooks/queries";
 import { pageStagger, fadeUp, listStagger, fadeUpSm, entrance } from "@/lib/motion";
 
@@ -32,7 +33,7 @@ function Dashboard() {
     );
   }
 
-  if (!profile) return <div>No profile data found. Please run the onboarding process.</div>;
+  if (!profile) return <NoProfileView feature="your personalized dashboard" />;
   const firstName = (profile.name || "Candidate").split(" ")[0];
 
   const completed = roadmap.filter((m: any) => m.status === "completed").length;

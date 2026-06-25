@@ -93,11 +93,28 @@ export async function uploadResume(file: File): Promise<ParseResumeResult> {
   });
 }
 
+export async function submitManualResume(data: any): Promise<ParseResumeResult> {
+  return request<ParseResumeResult>("/api/parse-resume/manual", {
+    method: "POST",
+    jsonBody: data,
+  });
+}
+
 export async function getLatestResume() {
   return request<{ success: boolean; resume: any | null }>(
     "/api/parse-resume/latest",
     { method: "GET" },
   );
+}
+
+export async function getAllResumes() {
+  return request<{ success: boolean; resumes: any[] }>("/api/parse-resume/all");
+}
+
+export async function selectResume(resumeId: string) {
+  return request<{ success: boolean; resume_id: string }>(`/api/parse-resume/select/${resumeId}`, {
+    method: "POST"
+  });
 }
 
 // ── Profile editing ─────────────────────────────────────────────────────────

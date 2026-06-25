@@ -9,7 +9,7 @@ import logging
 
 from app.dependencies.database import db_client
 
-RESUME_BUCKET = "resumes"
+RESUME_BUCKET = "CareerAtlas"
 
 logger = logging.getLogger(__name__)
 

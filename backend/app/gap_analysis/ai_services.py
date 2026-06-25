@@ -12,7 +12,7 @@ TASK_PREFIXES = {
 class AIService:
     def __init__(self):
         self.jina_api_key = settings.jina_api_key
-        self.google_api_key = settings.google_api_key
+        self.google_api_key = settings.google_api_key or (settings.google_api_keys[0] if settings.google_api_keys else None)
         self.jina_base_url = "https://api.jina.ai/v1"
 
     async def get_embeddings(self, texts: List[str], task_type: str = "retrieval_query") -> List[List[float]]:
@@ -28,7 +28,7 @@ class AIService:
         
         embeddings = GoogleGenerativeAIEmbeddings(
             model="models/gemini-embedding-2-preview",
-            google_api_key=settings.google_api_key,
+            google_api_key=self.google_api_key,
             task_type=task_type
         )
         return await embeddings.aembed_documents(prefixed_texts)
