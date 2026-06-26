@@ -66,6 +66,7 @@ function Onboarding() {
   );
   useEffect(() => {
     if (!roles.length) return;
+    if (roleId === "custom") return; // don't clobber a free-text custom role
     const selected = roles.find((r: any) => r.id === roleId) || roles[0];
     if (selected) {
       setRoleId(selected.id);
@@ -292,7 +293,7 @@ function StepRole({
         Don't overthink it — you can change this anytime.
       </p>
       <Input
-        placeholder="Search roles…"
+        placeholder="Search or type any role…"
         value={query}
         onChange={(e) => onQuery(e.target.value)}
         className="mt-5 h-11 rounded-full"
@@ -325,7 +326,37 @@ function StepRole({
             </button>
           );
         })}
-        {roles.length === 0 && (
+
+        {/* Free-text custom role: works for unlisted tech AND non-tech roles.
+            Gap analysis lazily generates the skill map for it (labeled experimental). */}
+        {query.trim() &&
+          !roles.some((r) => r.title.toLowerCase() === query.trim().toLowerCase()) && (
+            <button
+              onClick={() => onSelect("custom", query.trim())}
+              className={cn(
+                "rounded-2xl border-2 border-dashed p-5 text-left transition-all sm:col-span-2",
+                roleId === "custom"
+                  ? "border-coral bg-coral/5 shadow-warm"
+                  : "border-border bg-card hover:border-primary-soft hover:bg-muted/40",
+              )}
+            >
+              <div className="flex items-start justify-between">
+                <span className="text-2xl">✨</span>
+                {roleId === "custom" && (
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-coral text-coral-foreground">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                )}
+              </div>
+              <h3 className="mt-3 font-display text-base font-semibold">Use "{query.trim()}"</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Custom role — we'll map the skills with AI. Works for non-tech roles too.{" "}
+                <span className="font-medium text-coral">Experimental.</span>
+              </p>
+            </button>
+          )}
+
+        {roles.length === 0 && !query.trim() && (
           <p className="col-span-full py-6 text-center text-sm text-muted-foreground">Loading specific target roles...</p>
         )}
       </div>

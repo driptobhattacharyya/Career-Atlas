@@ -17,7 +17,9 @@ from app.gap_analysis.schemas import GapAnalysisResponse, GapSchema
 from app.gap_analysis.hybrid_retrieval import (
     hybrid_retrieve,
     resolve_role_slug,
+    _build_bm25_corpus,
 )
+from app.gap_analysis.taxonomy_gen import ensure_role_taxonomy
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +70,14 @@ async def generate_gaps_for_user(
         "Gap analysis: role='%s' slug='%s' user_skills=%d",
         target_role_title, role_slug, len(user_skills),
     )
+
+    # 0. Remove the role ceiling: for any non-curated role, lazily generate its
+    # skill taxonomy so retrieval has rows to work with (else gaps come back empty).
+    taxonomy_source = await ensure_role_taxonomy(target_role_title)
+    if taxonomy_source == "generated":
+        _build_bm25_corpus.cache_clear()  # fresh rows — drop the stale (empty) BM25 corpus
+    elif taxonomy_source == "unavailable":
+        logger.warning("No taxonomy for role '%s' and generation failed", target_role_title)
 
     # 1. Hybrid Retrieval
     retrieved_skills = await hybrid_retrieve(
@@ -121,6 +131,7 @@ async def generate_gaps_for_user(
 
     explainability = {
         "role_slug": role_slug,
+        "taxonomy_source": taxonomy_source,  # curated | generated | unavailable (UI labels generated as experimental)
         "input_skill_count": len(user_skills),
         "justifications": getattr(result, "justifications", {}),
         "retrieved_requirements": [
