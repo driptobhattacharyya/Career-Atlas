@@ -9,7 +9,7 @@ Implements the "Hybrid Retrieval" block from the architecture diagram:
 
 BM25 corpus is built once per role per cold-start and cached in memory.
 """
-import math
+import asyncio
 from typing import List, Dict, Tuple
 from functools import lru_cache
 
@@ -76,6 +76,8 @@ def _build_bm25_corpus(role_slug: str) -> Tuple:
     dim = 3072  # Gemini Embedding 2 dimension
 
     # Fetch all taxonomy nodes for this role using a zero vector
+    # Note: If _build_bm25_corpus is called in a separate thread (e.g. asyncio.to_thread),
+    # this synchronous call is safe and won't block the async event loop.
     zero_vec = [0.0] * dim
     results = index.query(
         vector=zero_vec,
@@ -123,27 +125,35 @@ async def hybrid_retrieve(
     role_slug = resolve_role_slug(target_role_title)
     index = get_pinecone_index()
 
-    # ── 1. Semantic search ────────────────────────────────────────────
-    # Embedded query refinement: Include user context if available
-    query_text = (
-        f"Identify essential skills for a {target_role_title}. "
-        f"The candidate is a {user_headline or 'professional'}. "
-        f"Known skills: {', '.join(user_skills)}"
-    )
-    query_vec = (
-        await ai_service.get_embeddings([query_text], task_type="retrieval_query")
-    )[0]
+    # ── 1. & 2. Concurrent Semantic and BM25 keyword search ───────────
+    # We fetch embeddings and semantic results, while simultaneously building/fetching
+    # the BM25 corpus to avoid blocking the event loop and improve latency.
 
-    sem_results = index.query(
-        vector=query_vec,
-        top_k=semantic_top_k,
-        namespace="taxonomy",
-        filter={"role": {"$eq": role_slug}},
-        include_metadata=True,
+    async def fetch_semantic():
+        # Embedded query refinement: Include user context if available
+        query_text = (
+            f"Identify essential skills for a {target_role_title}. "
+            f"The candidate is a {user_headline or 'professional'}. "
+            f"Known skills: {', '.join(user_skills)}"
+        )
+        query_vec = (
+            await ai_service.get_embeddings([query_text], task_type="retrieval_query")
+        )[0]
+
+        return await asyncio.to_thread(
+            index.query,
+            vector=query_vec,
+            top_k=semantic_top_k,
+            namespace="taxonomy",
+            filter={"role": {"$eq": role_slug}},
+            include_metadata=True,
+        )
+
+    sem_results, (bm25, corpus_texts, metadata_list) = await asyncio.gather(
+        fetch_semantic(),
+        asyncio.to_thread(_build_bm25_corpus, role_slug)
     )
 
-    # ── 2. BM25 keyword search ────────────────────────────────────────
-    bm25, corpus_texts, metadata_list = _build_bm25_corpus(role_slug)
     meta_lookup = {m["skill_name"]: m for m in metadata_list}
 
     bm25_scores_map: Dict[str, float] = {}
