@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Compass, FileText, Sparkles, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Compass, FileText, Sparkles, Upload, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -21,8 +21,8 @@ export const Route = createFileRoute("/onboarding")({
 
 const disableAuth = (import.meta.env.VITE_DISABLE_AUTH as string | undefined) === "true";
 const STEPS = disableAuth
-  ? (["Resume", "Target role", "Analysis"] as const)
-  : (["Account", "Resume", "Target role", "Analysis"] as const);
+  ? (["Resume", "Target role", "Analysis", "GitHub"] as const)
+  : (["Account", "Resume", "Target role", "Analysis", "GitHub"] as const);
 
 function Onboarding() {
   const navigate = useNavigate();
@@ -161,8 +161,11 @@ function Onboarding() {
             <StepAnalysis
               roleId={roleId}
               roleTitle={roleTitle}
-              onDone={() => navigate({ to: "/roadmap" })}
+              onDone={next}
             />
+          )}
+          {step === (disableAuth ? 3 : 4) && (
+            <StepGithub onSkip={() => navigate({ to: "/roadmap" })} />
           )}
         </div>
 
@@ -383,6 +386,38 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
           Retry
         </Button>
       )}
+    </div>
+  );
+}
+
+// UX-6: offered AFTER the gap analysis (first value), fully skippable. We send
+// "Connect" into the existing /github flow rather than embedding the OAuth
+// redirect round-trip in the stepper — simpler and the user lands on their
+// GitHub insights. "Skip" continues to the roadmap; the navbar + Profile keep
+// GitHub reachable later either way.
+function StepGithub({ onSkip }: { onSkip: () => void }) {
+  return (
+    <div className="py-6 text-center">
+      <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-primary-soft text-primary">
+        <Github className="h-7 w-7" />
+      </span>
+      <h2 className="mt-5 font-display text-2xl font-bold sm:text-3xl">Add skills proven by your code</h2>
+      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+        Connect GitHub and we'll read your repositories to find skills, projects, and how you build.
+        Strong matches are added to your profile — you review the rest. Optional, and you can do this
+        anytime from the GitHub tab.
+      </p>
+      <div className="mt-8 flex flex-col items-center gap-3">
+        <Button
+          onClick={() => (window.location.href = "/github")}
+          className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm px-8"
+        >
+          <Github className="mr-2 h-4 w-4" /> Connect GitHub
+        </Button>
+        <Button variant="ghost" onClick={onSkip} className="rounded-full">
+          Skip for now
+        </Button>
+      </div>
     </div>
   );
 }
