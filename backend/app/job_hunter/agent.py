@@ -12,7 +12,7 @@ from app.job_hunter.schemas import (
     JobSearchResponse,
     ScoreBreakdown,
 )
-from app.utils.llm_factory import get_gemini_model
+from app.utils.llm_factory import invoke_gemini
 
 INDIA_CITY_ALIASES = {
     "pune": {"pune", "poona"},
@@ -347,8 +347,7 @@ For each job return:
 
 
 def gemini_generate_json(prompt: str) -> str:
-    model = get_gemini_model(temperature=0.1)
-    response = model.invoke(prompt)
+    response = invoke_gemini(prompt, temperature=0.1)
     content = getattr(response, "content", "")
     if isinstance(content, str):
         return content

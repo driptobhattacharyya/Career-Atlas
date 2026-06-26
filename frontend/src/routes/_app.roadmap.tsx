@@ -24,7 +24,9 @@ import {
   useLatestPathway,
   useStartDeepResearch,
   useUpdateMilestoneStatus,
+  useProfile,
 } from "@/hooks/queries";
+import { NoProfileView } from "@/components/no-profile-view";
 import { ApiError } from "@/lib/api";
 import type { JudgeVerdict, ValidationResult, MilestoneRow, MilestoneStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -61,6 +63,7 @@ const selectedRoleTitle = () =>
   undefined;
 
 function Roadmap() {
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const roleId = selectedRoleId();
   const { data: roadmap = [], isLoading } = useRoadmap(roleId);
   const { data: pathwayData } = useLatestPathway(roleId);
@@ -88,13 +91,15 @@ function Roadmap() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || profileLoading) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
+
+  if (!profile) return <NoProfileView feature="your roadmap" />;
 
   const verdict = pathwayData?.quality_verdict ?? null;
   const validation = pathwayData?.validation ?? null;

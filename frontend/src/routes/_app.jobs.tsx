@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, MapPin, X, Check, Loader2, BarChart3, ArrowUpRight } from "lucide-react";
 import { motion } from "motion/react";
 
+import { NoProfileView } from "@/components/no-profile-view";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useJobMatches, useProfile, useTargetRoles } from "@/hooks/queries";
@@ -68,6 +69,8 @@ function Jobs() {
       </div>
     );
   }
+
+  if (!profile) return <NoProfileView feature="your job matches" />;
 
   const filtered = jobs
     .filter((j) =>

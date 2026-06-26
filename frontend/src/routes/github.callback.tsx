@@ -8,16 +8,28 @@ import { z } from "zod"
 export const Route = createFileRoute("/github/callback")({
   validateSearch: z.object({
     code: z.string().optional(),
+    state: z.string().optional(),
   }),
   component: GithubCallbackPage,
 })
 
 function GithubCallbackPage() {
-  const { code } = Route.useSearch()
+  const { code, state } = Route.useSearch()
   const navigate = useNavigate()
 
   useEffect(() => {
     if (!code) {
+      navigate({ to: "/profile" })
+      return
+    }
+
+    // CSRF protection: the state returned by GitHub must match the one we stored
+    // before redirecting. A missing/mismatched state means this callback wasn't
+    // initiated by us — abort without exchanging the code.
+    const expected = sessionStorage.getItem("gh_oauth_state")
+    sessionStorage.removeItem("gh_oauth_state")
+    if (!state || !expected || state !== expected) {
+      console.error("GitHub OAuth state mismatch — aborting")
       navigate({ to: "/profile" })
       return
     }
@@ -31,7 +43,7 @@ function GithubCallbackPage() {
         console.error("OAuth failed", err)
         navigate({ to: "/profile" })
       })
-  }, [code, navigate])
+  }, [code, state, navigate])
 
   return (
     <div className="flex h-screen w-screen items-center justify-center">

@@ -21,14 +21,15 @@ import {
   useEducation,
   useExperience,
   useProfile,
-  useProjects,
   useSkills,
+  useProjects,
   useTargetRoles,
   useUpdateTargetRole,
   useAddSkill,
   useRemoveSkill,
   useUpdateExperience,
 } from "@/hooks/queries";
+import { NoProfileView } from "@/components/no-profile-view";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -145,7 +146,7 @@ function Profile() {
     );
   }
 
-  if (!profile) return <div>No profile data found.</div>;
+  if (!profile) return <NoProfileView feature="your profile" />;
   const displayName = profile.name || "Candidate";
 
   const grouped = categoryOrder.map((cat) => ({

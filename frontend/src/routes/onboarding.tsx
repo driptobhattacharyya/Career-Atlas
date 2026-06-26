@@ -7,7 +7,10 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
-import { useTargetRoles, useUploadResume, useRunGapAnalysis, useLatestResume } from "@/hooks/queries";
+import { useTargetRoles, useUploadResume, useSubmitManualResume, useRunGapAnalysis, useLatestResume, useAllResumes, useSelectResume } from "@/hooks/queries";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ThemeSelector } from "@/components/theme-selector";
+import { ManualResumeForm } from "@/components/manual-resume-form";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -26,7 +29,7 @@ const STEPS = disableAuth
 
 function Onboarding() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   
   // Start at step 1 if already authenticated, else step 0
   const [step, setStep] = useState(disableAuth ? 0 : 0);
@@ -34,31 +37,30 @@ function Onboarding() {
     if (!disableAuth && user && step === 0) setStep(1);
   }, [user, step]);
 
-  // Redirect already-onboarded users (a resume existed when this page loaded)
-  // straight to the Dashboard. ONE-SHOT: decided on the first resolved fetch —
-  // it must NOT fire after the in-flow resume upload, or the user skips the
-  // gap-analysis step.
   const latestResume = useLatestResume();
   const uploadMutation = useUploadResume();
   const onboardCheckDone = useRef(false);
-  useEffect(() => {
-    if (onboardCheckDone.current || disableAuth || !user) return;
-    // If an in-flow upload has started, the user is mid-onboarding — never
-    // bounce them to the dashboard, even if the initial /latest fetch lands
-    // late (after the upload's cache invalidation).
-    if (!uploadMutation.isIdle) return;
-    if (!latestResume.isSuccess) return;
-    onboardCheckDone.current = true;
-    if (latestResume.data) {
-      navigate({ to: "/dashboard" });
-    }
-  }, [user, latestResume.isSuccess, latestResume.data, uploadMutation.isIdle, navigate]);
+  
+  const { data: allResumes = [] } = useAllResumes();
+  const selectMutation = useSelectResume();
+  const selecting = selectMutation.isPending;
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [hasResume, setHasResume] = useState(false);
+  const [userWantsNew, setUserWantsNew] = useState(false);
   const [roleId, setRoleId] = useState<string>("ml-engineer");
   const [roleTitle, setRoleTitle] = useState<string>("ML Engineer");
   const [roleQuery, setRoleQuery] = useState("");
+  
+  useEffect(() => {
+    if (latestResume.data) {
+      setHasResume(true);
+    }
+  }, [latestResume.data]);
+  
   const parsing = uploadMutation.isPending;
+  const manualMutation = useSubmitManualResume();
+  const manualSubmitting = manualMutation.isPending;
 
   const { data: roles = [] } = useTargetRoles();
   const filteredRoles = roles.filter(
@@ -83,10 +85,35 @@ function Onboarding() {
     }
     try {
       await uploadMutation.mutateAsync(file);
+      setHasResume(true);
       toast.success("Resume parsed", { description: "We extracted your skills and experience." });
     } catch (err: any) {
       toast.error("Failed to parse resume", { description: err.message });
       setResumeFile(null);
+    }
+  };
+
+  const handleManualSubmit = async (data: any) => {
+    if (!user && !disableAuth) {
+      toast.error("Sign in first");
+      return;
+    }
+    try {
+      await manualMutation.mutateAsync(data);
+      setHasResume(true);
+      toast.success("Profile saved", { description: "Your manual entry was saved." });
+    } catch (err: any) {
+      toast.error("Failed to save profile", { description: err.message });
+    }
+  };
+
+  const handleSelectExisting = async (resumeId: string) => {
+    try {
+      await selectMutation.mutateAsync(resumeId);
+      setHasResume(true);
+      toast.success("Profile selected", { description: "We loaded your previous profile." });
+    } catch (err: any) {
+      toast.error("Failed to select profile", { description: err.message });
     }
   };
 
@@ -106,9 +133,17 @@ function Onboarding() {
           </span>
           CareerAtlas
         </a>
-        <span className="text-xs text-muted-foreground">
-          Step {step + 1} of {STEPS.length}
-        </span>
+        <div className="flex items-center gap-4">
+          <ThemeSelector />
+          <span className="text-xs text-muted-foreground">
+            Step {step + 1} of {STEPS.length}
+          </span>
+          {user && step > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => signOut()} className="h-8 text-xs text-muted-foreground hover:text-foreground">
+              Sign out
+            </Button>
+          )}
+        </div>
       </header>
 
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
@@ -144,7 +179,19 @@ function Onboarding() {
         <div className="rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-10">
           {!disableAuth && step === 0 && <StepAccount />}
           {step === (disableAuth ? 0 : 1) && (
-            <StepResume file={resumeFile} parsing={parsing} onFile={handleFileUpload} />
+            <StepResume 
+              file={resumeFile} 
+              parsing={parsing} 
+              onFile={handleFileUpload} 
+              onManualSubmit={handleManualSubmit}
+              manualSubmitting={manualSubmitting}
+              allResumes={allResumes}
+              onSelectExisting={handleSelectExisting}
+              selecting={selecting}
+              latestResumeId={latestResume.data?.resume_id}
+              userWantsNew={userWantsNew}
+              setUserWantsNew={setUserWantsNew}
+            />
           )}
       {step === (disableAuth ? 1 : 2) && (
             <StepRole
@@ -178,7 +225,7 @@ function Onboarding() {
             <Button
               onClick={next}
               disabled={
-                (step === (disableAuth ? 0 : 1) && (!resumeFile || parsing)) ||
+                (step === (disableAuth ? 0 : 1) && (!hasResume)) ||
                 (step === (disableAuth ? 1 : 2) && !roleId)
               }
               className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm"
@@ -208,67 +255,150 @@ function StepAccount() {
   );
 }
 
-function StepResume({ file, parsing, onFile }: { file: File | null; parsing: boolean; onFile: (f: File) => void }) {
+function StepResume({ 
+  file, parsing, onFile, onManualSubmit, manualSubmitting,
+  allResumes, onSelectExisting, selecting,
+  latestResumeId, userWantsNew, setUserWantsNew
+}: { 
+  file: File | null; 
+  parsing: boolean; 
+  onFile: (f: File) => void;
+  onManualSubmit: (data: any) => void;
+  manualSubmitting: boolean;
+  allResumes: any[];
+  onSelectExisting: (id: string) => void;
+  selecting: boolean;
+  latestResumeId?: string;
+  userWantsNew: boolean;
+  setUserWantsNew: (val: boolean) => void;
+}) {
   const [drag, setDrag] = useState(false);
+
+  if (allResumes.length > 0 && !userWantsNew) {
+    return (
+      <div>
+        <h2 className="font-display text-2xl font-bold sm:text-3xl">Select a Profile</h2>
+        <p className="mt-2 text-sm text-muted-foreground mb-6">
+          Choose an existing profile or create a new one.
+        </p>
+        
+        <div className="grid gap-4 mb-6">
+          {allResumes.map(r => {
+            const isSelected = r.id === latestResumeId;
+            return (
+              <button
+                key={r.id}
+                onClick={() => onSelectExisting(r.id)}
+                disabled={selecting}
+                className={cn(
+                  "rounded-2xl border-2 p-5 text-left transition-all relative flex flex-col justify-between",
+                  isSelected
+                    ? "border-coral bg-coral/5 shadow-warm"
+                    : "border-border bg-card hover:border-primary-soft hover:bg-muted/40"
+                )}
+              >
+                <div className="flex w-full items-start justify-between">
+                  <h3 className="font-display text-base font-semibold">{r.headline || r.full_name || "Untitled Profile"}</h3>
+                  {isSelected && (
+                    <span className="flex items-center gap-1 rounded-full bg-coral/20 px-2 py-0.5 text-[10px] font-semibold text-coral uppercase tracking-wider">
+                      <Check className="h-3 w-3" /> Selected
+                    </span>
+                  )}
+                </div>
+                {r.summary && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{r.summary}</p>}
+                <p className="mt-2 text-xs text-muted-foreground">Created on {new Date(r.created_at).toLocaleDateString()}</p>
+              </button>
+            );
+          })}
+        </div>
+        
+        <Button variant="outline" className="w-full rounded-full" onClick={() => setUserWantsNew(true)}>
+          Create New Profile
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h2 className="font-display text-2xl font-bold sm:text-3xl">Upload your resume</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        PDF works best. We'll extract your skills, projects, and experience — no manual entry.
-      </p>
-
-      <label
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDrag(true);
-        }}
-        onDragLeave={() => setDrag(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDrag(false);
-          const f = e.dataTransfer.files?.[0];
-          if (f) onFile(f);
-        }}
-        className={cn(
-          "mt-6 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 text-center transition-colors",
-          drag ? "border-coral bg-coral/5" : "border-border bg-muted/30 hover:bg-muted/50",
-        )}
-      >
-        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-primary">
-          <Upload className="h-6 w-6" />
-        </span>
-        <p className="mt-4 font-medium">Drop your resume here, or click to browse</p>
-        <p className="mt-1 text-xs text-muted-foreground">PDF, DOCX up to 10 MB</p>
-        <input
-          type="file"
-          accept=".pdf,.doc,.docx"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) onFile(f);
-          }}
-        />
-      </label>
-
-      {file && (
-        <div className="mt-5 flex items-center gap-3 rounded-2xl border border-border bg-background p-4">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-coral/15 text-coral">
-            <FileText className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{file.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {(file.size / 1024).toFixed(0)} KB • {parsing ? "Parsing via Gemini…" : "Ready"}
-            </p>
-          </div>
-          {parsing ? (
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          ) : (
-            <Check className="h-5 w-5 text-success" />
-          )}
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h2 className="font-display text-2xl font-bold sm:text-3xl">Your Profile</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Choose how you want to build your profile.
+          </p>
         </div>
-      )}
+        {allResumes.length > 0 && (
+          <Button variant="ghost" size="sm" onClick={() => setUserWantsNew(false)}>
+            Use Existing Profile
+          </Button>
+        )}
+      </div>
+
+      <Tabs defaultValue="manual" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="manual">Fill Manually</TabsTrigger>
+          <TabsTrigger value="upload">Upload PDF</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="manual">
+          <ManualResumeForm onSubmit={onManualSubmit} isSubmitting={manualSubmitting} />
+        </TabsContent>
+        
+        <TabsContent value="upload">
+          <label
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDrag(true);
+            }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDrag(false);
+              const f = e.dataTransfer.files?.[0];
+              if (f) onFile(f);
+            }}
+            className={cn(
+              "mt-2 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 text-center transition-colors",
+              drag ? "border-coral bg-coral/5" : "border-border bg-muted/30 hover:bg-muted/50",
+            )}
+          >
+            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-primary">
+              <Upload className="h-6 w-6" />
+            </span>
+            <p className="mt-4 font-medium">Drop your resume here, or click to browse</p>
+            <p className="mt-1 text-xs text-muted-foreground">PDF, DOCX up to 10 MB</p>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onFile(f);
+              }}
+            />
+          </label>
+
+          {file && (
+            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-border bg-background p-4">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-coral/15 text-coral">
+                <FileText className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{file.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {(file.size / 1024).toFixed(0)} KB • {parsing ? "Parsing via Gemini…" : "Ready"}
+                </p>
+              </div>
+              {parsing ? (
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              ) : (
+                <Check className="h-5 w-5 text-success" />
+              )}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
