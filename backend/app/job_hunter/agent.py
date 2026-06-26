@@ -102,8 +102,11 @@ def fetch_jobs(query_role: str, where: str, results: int = 20) -> list[dict[str,
 
 
 def _search_url(query_role: str, location: str) -> str:
-    q = f"{query_role} jobs {location}".strip()
-    return "https://www.google.com/search?q=" + requests.utils.quote(q)
+    # Used only by fallback listings. LinkedIn's job search lands on real
+    # postings, unlike a raw Google search results page.
+    kw = requests.utils.quote(query_role.strip())
+    loc = requests.utils.quote(location.strip())
+    return f"https://www.linkedin.com/jobs/search/?keywords={kw}&location={loc}"
 
 
 def _fallback_jobs(query_role: str, user_location_pref: str, count: int = 5) -> list[dict[str, Any]]:
@@ -142,7 +145,9 @@ def _fetch_jobs_with_fallback(query_role: str, user_location_pref: str, results:
         f"senior {query_role}",
         f"{query_role} engineer",
     ]
-    where = query_role if user_location_pref.lower().strip() not in {"remote", "hybrid"} else ""
+    # Adzuna's `where` is a LOCATION, not the role. Passing the job title here
+    # made every search return nothing and silently fall back to Google links.
+    where = user_location_pref if user_location_pref.lower().strip() not in {"remote", "hybrid"} else ""
 
     for variant in search_variants:
         try:
