@@ -27,10 +27,15 @@ jobs:
 
       - name: Deploy to Cloudflare
         working-directory: frontend
-        # vite build (@cloudflare/vite-plugin) emits the deployable worker +
-        # generated config to dist/server/. Deploying the ROOT wrangler.jsonc
-        # (main: src/server.ts) makes wrangler re-bundle source and fail on
-        # TanStack's build-time virtual modules — deploy the built config instead.
-        run: bunx wrangler deploy -c dist/server/wrangler.json
+        # @cloudflare/vite-plugin emits the deployable worker + a generated
+        # wrangler.json under dist/<env>/ (the dir name varies by plugin version).
+        # Deploying the ROOT wrangler.jsonc (main: src/server.ts) makes wrangler
+        # re-bundle source and fail on TanStack's build-time virtual modules, so
+        # discover the generated config and deploy that instead.
+        run: |
+          CONFIG="$(find dist -name wrangler.json | head -1)"
+          echo "Deploying with generated config: $CONFIG"
+          test -n "$CONFIG" || { echo "No generated wrangler.json found under dist/"; ls -R dist | head -50; exit 1; }
+          bunx wrangler deploy -c "$CONFIG"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
