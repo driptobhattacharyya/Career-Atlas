@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 GAP_ANALYSIS_PROMPT = PromptTemplate.from_template(
     """You are an expert career coach and technical recruiter.
 
-Identify the top 6 most critical SKILL GAPS for a candidate wanting to become a {target_role}.
+Identify the most critical SKILL GAPS (up to 6 gaps) for a candidate wanting to become a {target_role}.
 
 ## USER CURRENT SKILLS
 {user_skills}
@@ -42,12 +42,13 @@ Identify the top 6 most critical SKILL GAPS for a candidate wanting to become a 
 ## RULES
 1. Compare the user's current skills against each requirement.
 2. If the user already has a skill (or a very close equivalent), do NOT include it.
-3. Rank the 6 gaps by importance: most critical first.
+3. Rank the gaps by importance: most critical first (maximum 6 gaps).
 4. Use the category field from the requirements (framework | language | concept | tool | soft).
 5. Use the level_required from the requirements when available.
 6. For prerequisites, list only skills the user does NOT already have.
 7. The "why" field must be a single concise sentence.
-8. The "relevance" MUST BE AN INTEGER between 0 and 100. Do NOT copy the raw float relevance_score (e.g., 0.210) from the requirements; instead, convert it to a percentage (e.g., output 21).
+8. The "relevance" MUST BE AN INTEGER between 0 and 100. Do NOT copy the raw float relevance_score (e.g., 0.210) from the requirements; instead, convert it to a percentage (e.g., if relevance_score is 0.210, output 21).
+9. Do NOT invent or include any skills that are not present in the RETRIEVED ROLE REQUIREMENTS list.
 
 Output strictly as JSON matching the schema. In "justifications", provide a custom 1-2 sentence explanation for each gap, detailing why it is critical for this specific candidate to learn it to succeed as a {target_role}.
 """
@@ -91,9 +92,14 @@ async def generate_gaps_for_user(
     )
 
     # Format retrieved skills for the LLM
+    import math
     req_lines = []
     for i, skill in enumerate(retrieved_skills, 1):
-        score = skill.get("relevance_score", 0)
+        raw_score = skill.get("relevance_score", 0)
+        # Sigmoid normalization maps Jina cross-encoder scores (typically [-0.2, 0.5]) to a clean [0.1, 0.95] range.
+        norm_score = 1.0 / (1.0 + math.exp(-5.0 * raw_score))
+        skill["relevance_score"] = norm_score
+        
         prereqs = ", ".join(skill.get("prerequisites", []))
         line = (
             f"{i}. {skill['skill_name']} "
@@ -101,7 +107,7 @@ async def generate_gaps_for_user(
             f"(level: {skill.get('level_required', 'intermediate')}) "
             f"— {skill.get('description', 'N/A')} "
             f"(prerequisites: {prereqs or 'none'}) "
-            f"[relevance_score: {score:.3f}]"
+            f"[relevance_score: {norm_score:.3f}]"
         )
         req_lines.append(line)
 

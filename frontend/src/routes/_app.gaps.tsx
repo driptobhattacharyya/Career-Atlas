@@ -192,64 +192,54 @@ function Gaps() {
             )}
           </div>
 
-          {(explainability.retrieved_requirements || []).length > 0 ? (
+          {(gaps || []).length > 0 ? (
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              {(explainability.retrieved_requirements || []).slice(0, 8).map((req: any, idx: number) => {
+              {(gaps || []).map((gap: any, idx: number) => {
+                const req = (explainability.retrieved_requirements || []).find(
+                  (r: any) => r.skill_name.toLowerCase() === gap.skill.toLowerCase()
+                );
+
                 const reason = Object.entries(explainability.justifications || {}).find(
-                  ([key]) => key.toLowerCase() === req.skill_name.toLowerCase()
+                  ([key]) => key.toLowerCase() === gap.skill.toLowerCase()
                 )?.[1];
 
-                const isGap = gaps.some(
-                  (g: any) => g.skill.toLowerCase() === req.skill_name.toLowerCase()
-                );
+                const category = gap.category || req?.category || "unknown";
+                const level_required = gap.level_required || req?.level_required || "intermediate";
+                const description = reason || gap.why || req?.description || "";
+                const prerequisites = gap.prerequisites || req?.prerequisites || [];
 
                 return (
                   <div
-                    key={`${req.skill_name}-${idx}`}
-                    className={cn(
-                      "rounded-2xl border p-4 transition-all space-y-3",
-                      isGap
-                        ? "border-coral/20 bg-coral/5"
-                        : "border-success/20 bg-success/5"
-                    )}
+                    key={`${gap.skill}-${idx}`}
+                    className="rounded-2xl border border-coral/20 bg-coral/5 p-4 transition-all space-y-3"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <h3 className="font-display text-base font-semibold text-foreground truncate">
-                          {req.skill_name}
+                          {gap.skill}
                         </h3>
                         <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
                           <span className="uppercase tracking-wider font-medium bg-muted px-1.5 py-0.5 rounded">
-                            {req.category}
+                            {category}
                           </span>
                           <span className="uppercase tracking-wider font-medium bg-muted px-1.5 py-0.5 rounded">
-                            {req.level_required}
-                          </span>
-                          <span className="font-medium px-1.5 py-0.5 rounded bg-muted">
-                            score: {Number(req.relevance_score || 0).toFixed(3)}
+                            {level_required}
                           </span>
                         </div>
                       </div>
-                      <span
-                        className={cn(
-                          "rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0",
-                          isGap
-                            ? "bg-coral/15 text-coral"
-                            : "bg-success/15 text-success"
-                        )}
-                      >
-                        {isGap ? "Gap" : "Satisfied"}
+                      <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 bg-coral/15 text-coral">
+                        Gap
                       </span>
                     </div>
 
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      {reason || req.description || "Satisfied by your current background."}
+                      {description}
                     </p>
 
-                    {req.prerequisites?.length > 0 && (
+                    {prerequisites.length > 0 && (
                       <div className="flex flex-wrap items-center gap-1 text-[10px] pt-1">
                         <span className="text-muted-foreground font-medium">Prereqs:</span>
-                        {req.prerequisites.map((p: string) => (
+                        {prerequisites.map((p: string) => (
                           <span
                             key={p}
                             className="rounded bg-background border border-border/60 px-1.5 py-0.25 text-foreground"

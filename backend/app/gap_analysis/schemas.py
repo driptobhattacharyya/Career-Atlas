@@ -63,7 +63,7 @@ class GapSchema(BaseModel):
 class GapAnalysisResponse(BaseModel):
     """LLM structured output schema."""
     gaps: List[GapSchema] = Field(
-        description="Top 6 skill gaps for the user, ranked by importance"
+        description="Up to 6 identified skill gaps for the user, ranked by importance"
     )
     justifications: dict[str, str] = Field(
         description="A dictionary mapping each identified skill name to a 1-2 sentence justification of why it is important for the candidate."
