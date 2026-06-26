@@ -49,7 +49,12 @@ function GithubConnectPage() {
     // redundant `read:user` (we only read the login, which any token returns).
     const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID
     const redirectUri = window.location.origin + "/github/callback"
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=repo`
+    // CSRF protection: random state round-trips through GitHub and is verified in
+    // the callback before the code is exchanged, so an attacker can't trick a
+    // victim into linking an account they didn't initiate.
+    const state = crypto.randomUUID()
+    sessionStorage.setItem("gh_oauth_state", state)
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=repo&state=${state}`
   }
 
   const handleToggleRepo = (repoName: string) => {
