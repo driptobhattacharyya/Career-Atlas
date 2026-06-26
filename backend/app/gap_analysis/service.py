@@ -12,7 +12,7 @@ import logging
 from typing import List, Tuple, Dict, Any
 
 from langchain_core.prompts import PromptTemplate
-from app.utils.llm_factory import get_groq_model
+from app.utils.llm_factory import ainvoke_gemini
 from app.gap_analysis.schemas import GapAnalysisResponse, GapSchema
 from app.gap_analysis.hybrid_retrieval import (
     hybrid_retrieve,
@@ -108,16 +108,16 @@ async def generate_gaps_for_user(
     role_requirements_text = "\n".join(req_lines)
 
     # 2. LLM Structured Generation
-    model = get_groq_model(temperature=0.0)
-    structured_llm = model.with_structured_output(GapAnalysisResponse)
-
-    chain = GAP_ANALYSIS_PROMPT | structured_llm
-    result: GapAnalysisResponse = await chain.ainvoke({
-        "target_role": target_role_title,
-        "user_skills": ", ".join(user_skills),
-        "user_headline": user_headline,
-        "role_requirements": role_requirements_text,
-    })
+    result: GapAnalysisResponse = await ainvoke_gemini(
+        prompt=GAP_ANALYSIS_PROMPT.invoke({
+            "target_role": target_role_title,
+            "user_skills": ", ".join(user_skills),
+            "user_headline": user_headline,
+            "role_requirements": role_requirements_text,
+        }),
+        temperature=0.0,
+        schema=GapAnalysisResponse
+    )
 
     # Deduplicate model output by normalized skill name while preserving order.
     deduped: List[GapSchema] = []

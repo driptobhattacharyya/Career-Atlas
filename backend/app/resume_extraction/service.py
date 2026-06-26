@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from phonenumbers import PhoneNumberFormat
 
 from app.resume_extraction.schemas import ResumeExtraction
-from app.utils.llm_factory import get_gemini_model
+from app.utils.llm_factory import invoke_gemini
 
 URL_TRAILING_PUNCT = ".,;:!?)]}>'\""
 KNOWN_RESUME_TLDS = {
@@ -312,8 +312,7 @@ END_RESUME_TEXT>>>
 
 def _invoke_llm(prompt: str) -> str:
     # Resume extraction is intentionally pinned to Gemini for better parsing quality.
-    model = get_gemini_model(temperature=0.0)
-    response = model.invoke(prompt)
+    response = invoke_gemini(prompt, temperature=0.0)
     content = getattr(response, "content", "")
     if isinstance(content, str):
         raw_text = content

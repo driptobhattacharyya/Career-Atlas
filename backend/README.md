@@ -11,8 +11,15 @@ uv run uvicorn app.main:app --reload
   - accepts multipart `file` (preferred) or `resume_key` form field
   - extracts resume via Gemini
   - writes normalized resume data into Supabase tables
+- `POST /api/parse-resume/manual`
+  - accepts structured `ResumeExtraction` JSON body
+  - writes manually entered profile data into Supabase tables
 - `GET /api/parse-resume/latest`
-  - returns latest fully assembled resume payload
+  - returns the latest fully assembled resume payload
+- `GET /api/parse-resume/all`
+  - returns a list of all resumes/profiles owned by the authenticated user
+- `POST /api/parse-resume/select/{resume_id}`
+  - selects a resume/profile as active by updating its `created_at` timestamp
 - `POST /api/analyze-gaps/`
   - body: `{ "target_role_title": "..." }`
 - `POST /api/generate-roadmap/`

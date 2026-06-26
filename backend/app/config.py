@@ -5,6 +5,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+def _get_google_api_keys() -> list[str]:
+    keys = []
+    main_key = os.getenv("GOOGLE_API_KEY", "").strip()
+    if main_key:
+        keys.append(main_key)
+    for i in range(1, 5):
+        k = os.getenv(f"GOOGLE_API_KEY_{i}", "").strip()
+        if k and k not in keys:
+            keys.append(k)
+    return keys
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -24,6 +35,7 @@ class Settings(BaseSettings):
     
     # LLMs
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
+    google_api_keys: list[str] = _get_google_api_keys()
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     groq_model: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     gap_analysis_model: str = os.getenv("GAP_ANALYSIS_MODEL", "gemini-1.5-flash")

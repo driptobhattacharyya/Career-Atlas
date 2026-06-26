@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.dependencies.auth import get_current_user_id
 from app.dependencies.database import db_client
+from app.resume_extraction.schemas import ResumeExtraction
 from app.resume_extraction.service import (
     extract_structured_resume_data,
     pdf_bytes_to_markdown,
@@ -297,9 +298,30 @@ async def parse_resume(
         extracted = extract_structured_resume_data(md_text)
         extracted_dict = extracted.model_dump(mode="json")
         resume_id = insert_full_resume(extracted_dict, user_id, resolved_resume_key or "")
-        _delete_other_resumes(user_id, resume_id)
 
         return {"success": True, "message": "Resume parsed and stored successfully.", "resume_id": resume_id}
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/manual")
+async def submit_manual_resume(
+    payload: ResumeExtraction,
+    user_id: str = Depends(get_current_user_id),
+):
+    try:
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        resume_key = f"manual_{user_id}_{timestamp}"
+        
+        extracted_dict = payload.model_dump(mode="json")
+        resume_id = insert_full_resume(extracted_dict, user_id, resume_key)
+
+        return {"success": True, "message": "Manual profile saved successfully.", "resume_id": resume_id}
     except Exception as exc:
         import traceback
         traceback.print_exc()
@@ -314,6 +336,40 @@ async def get_latest_resume(user_id: str = Depends(get_current_user_id)):
     if not resume_id:
         return {"success": True, "resume": None}
     return {"success": True, "resume": fetch_full_resume(resume_id)}
+
+
+@router.get("/all")
+async def get_all_resumes(user_id: str = Depends(get_current_user_id)):
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    resp = db_client.table("resumes")\
+        .select("id, created_at, full_name, headline, summary, resume_key")\
+        .eq("user_id", user_id)\
+        .order("created_at", desc=True)\
+        .execute()
+    
+    return {"success": True, "resumes": resp.data or []}
+
+
+@router.post("/select/{resume_id}")
+async def select_resume(resume_id: str, user_id: str = Depends(get_current_user_id)):
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+        
+    # Verify ownership
+    resp = db_client.table("resumes").select("id").eq("user_id", user_id).eq("id", resume_id).execute()
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="Resume not found")
+        
+    # Bump created_at so this resume sorts as the latest (gap/jobs/github all
+    # read the most-recent resume). The literal string "now()" is NOT a valid
+    # timestamp via PostgREST — send a real ISO-8601 UTC timestamp instead.
+    db_client.table("resumes").update(
+        {"created_at": datetime.now(timezone.utc).isoformat()}
+    ).eq("id", resume_id).execute()
+    
+    return {"success": True, "resume_id": resume_id}
 
 
 # ── Profile editing ─────────────────────────────────────────────────────────

@@ -9,6 +9,9 @@ import logging
 
 from app.dependencies.database import db_client
 
+# Prod Supabase has a single private bucket named "resumes" (teammate's branch
+# renamed this to "CareerAtlas" to match their own project — that bucket does
+# NOT exist in prod, so keep "resumes" or PDF upload 500s).
 RESUME_BUCKET = "resumes"
 
 logger = logging.getLogger(__name__)

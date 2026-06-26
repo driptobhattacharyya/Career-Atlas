@@ -25,6 +25,9 @@ import {
   updateMilestoneStatus,
   updateTargetRole,
   uploadResume,
+  submitManualResume,
+  getAllResumes,
+  selectResume,
 } from "@/lib/api";
 
 const disableAuth = (import.meta.env.VITE_DISABLE_AUTH as string | undefined) === "true";
@@ -55,6 +58,40 @@ export function useUploadResume() {
     mutationFn: (file: File) => uploadResume(file),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["latest-resume"] });
+    },
+  });
+}
+
+export function useSubmitManualResume() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => submitManualResume(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["latest-resume"] });
+    },
+  });
+}
+
+export function useAllResumes() {
+  const { user } = useAuth();
+  const enabled = useEnabled();
+  return useQuery({
+    queryKey: ["all-resumes", user?.id, disableAuth],
+    enabled,
+    queryFn: async () => {
+      const payload = await getAllResumes();
+      return payload.resumes || [];
+    },
+  });
+}
+
+export function useSelectResume() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (resumeId: string) => selectResume(resumeId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["latest-resume"] });
+      qc.invalidateQueries({ queryKey: ["all-resumes"] });
     },
   });
 }
