@@ -138,9 +138,13 @@ async def analyze_github_repos(
                 "last_commit_at": analysis.get("last_commit_at"),
             }, on_conflict="user_id, repo_name").execute()
 
-        # CATRK-10: inferred skills land QUARANTINED in github_skill_evidence
-        # (confirmed=false). They never touch the resume `skills` table until the
-        # user confirms — a guess can't masquerade as resume truth.
+        # CATRK-10 + UX-3: inferred skills land in github_skill_evidence.
+        # HIGH-confidence (manifest/language-backed) auto-confirm so the user
+        # isn't ticking 15 boxes; medium/low stay quarantined for explicit review
+        # — the human gate stays where misrepresentation risk is real. Nothing
+        # touches the resume `skills` table.
+        # ignore_duplicates: never clobber a prior user confirm/reject decision on
+        # re-analyze. ponytail: full re-sync (re-score changed repos) is a later task.
         for repo_name, analysis in repo_analyses.items():
             for ev in analysis["inferred_skills"]:
                 try:
@@ -150,8 +154,8 @@ async def analyze_github_repos(
                         "evidence": ev.evidence,
                         "confidence": ev.confidence,
                         "source_repo": repo_name,
-                        "confirmed": False,
-                    }, on_conflict="user_id, skill, source_repo").execute()
+                        "confirmed": ev.confidence == "high",
+                    }, on_conflict="user_id, skill, source_repo", ignore_duplicates=True).execute()
                 except Exception as e:
                     logger.warning(f"Failed to store evidence for {ev.skill}: {e}")
 

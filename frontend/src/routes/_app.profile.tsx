@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api";
 import {
   Github,
   MapPin,
@@ -123,6 +125,10 @@ function Profile() {
   const { data: education = [], isLoading: loadingEducation } = useEducation();
   const { data: projects = [], isLoading: loadingProjects } = useProjects();
   const { data: roles = [] } = useTargetRoles();
+  const { data: githubData } = useQuery({
+    queryKey: ["github-insights"],
+    queryFn: () => apiClient.get("/api/github/profile").then((r) => r.data),
+  });
 
   const addSkill = useAddSkill();
   const removeSkill = useRemoveSkill();
@@ -147,7 +153,16 @@ function Profile() {
     skills: skills.filter((s: any) => s.category.toLowerCase() === cat.toLowerCase() || s.category === cat),
   })).filter(g => g.skills.length > 0);
 
-  const githubSkills = skills.filter((s: any) => s.source === "github");
+  // UX-5: GitHub skills live in github_skill_evidence (CATRK-10 decoupled them
+  // from resume skills). Show CONFIRMED ones here, deduped by name — the same
+  // shared ["github-insights"] cache the GitHub page uses, so it stays in sync.
+  const githubSkills = Array.from(
+    new Set(
+      (githubData?.skill_evidence || [])
+        .filter((e: any) => e.confirmed)
+        .map((e: any) => e.skill),
+    ),
+  ).map((name) => ({ name }));
   const normalizedProjects = projects.map(normalizeProject);
 
   const currentRole = roles.find((r: any) => r.id === profile.target_role_id);
@@ -319,10 +334,10 @@ function Profile() {
               <h2 className="flex items-center gap-2 font-display text-xl font-semibold">
                 <Github className="h-5 w-5" /> GitHub signal
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">Skills inferred from your public repos.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Skills verified from your GitHub repositories.</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => window.location.href = '/github'}>
-              Deep Analysis
+            <Button variant="outline" size="sm" onClick={() => window.location.href = '/github-insights'}>
+              {githubSkills.length > 0 ? "Manage" : "Analyze GitHub"}
             </Button>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -331,7 +346,7 @@ function Profile() {
                 {s.name}
               </span>
             ))}
-            {githubSkills.length === 0 && <span className="text-sm text-muted-foreground">Click <strong>Deep Analysis</strong> to connect GitHub and review inferred skills.</span>}
+            {githubSkills.length === 0 && <span className="text-sm text-muted-foreground">Connect GitHub to add skills proven by your code — open the GitHub tab to start.</span>}
           </div>
         </section>
       </div>

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { Compass, LayoutDashboard, User, Map, Briefcase, Target, LogOut } from "lucide-react";
+import { Compass, LayoutDashboard, User, Map, Briefcase, Target, Github, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 import {
@@ -17,6 +17,7 @@ const navItems = [
   { to: "/roadmap", label: "Roadmap", icon: Map },
   { to: "/gaps", label: "Gaps", icon: Target },
   { to: "/jobs", label: "Jobs", icon: Briefcase },
+  { to: "/github-insights", label: "GitHub", icon: Github },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
