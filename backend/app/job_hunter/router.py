@@ -288,6 +288,24 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(get_cur
 
         user_skills = [row["skill"] for row in (skills_resp.data or []) if row.get("skill")]
         user_skills.extend([row["language"] for row in (langs_resp.data or []) if row.get("language")])
+
+        # JOB-1: confirmed GitHub skills count toward job matching too (parity with
+        # gap analysis). Only confirmed=true — quarantined guesses never inflate matches.
+        try:
+            gh_resp = (
+                db_client.table("github_skill_evidence")
+                .select("skill")
+                .eq("user_id", user_id)
+                .eq("confirmed", True)
+                .execute()
+            )
+            user_skills.extend([r["skill"] for r in (gh_resp.data or []) if r.get("skill")])
+        except Exception:
+            pass  # github optional — never block a job search on it
+
+        # Dedupe (resume ∪ GitHub can overlap) while preserving order.
+        user_skills = list(dict.fromkeys(user_skills))
+
         if not user_skills:
             raise HTTPException(status_code=400, detail="No skills found. Re-run resume extraction.")
 
