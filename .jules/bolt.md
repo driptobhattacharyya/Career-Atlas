@@ -1,0 +1,3 @@
+## 2024-06-27 - Supabase Python Client N+1 Queries & Async Event Loop Blocking
+**Learning:** The Supabase Python client inside the FastAPI backend uses synchronous `httpx` under the hood. Using it directly inside standard `for` loops not only creates N+1 query latency, but also completely blocks the FastAPI event loop, severely degrading concurrency performance.
+**Action:** Always wrap Supabase client database calls in `asyncio.to_thread` for non-blocking execution, and resolve N+1 patterns by grouping parent IDs, batching via `.in_()`, executing them concurrently via `asyncio.gather`, and stitching parents and children back together in-memory using `collections.defaultdict`.
