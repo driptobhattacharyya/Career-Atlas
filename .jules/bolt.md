@@ -1,0 +1,3 @@
+## 2024-06-28 - [Eliminate N+1 queries in Supabase via backend fetching]
+**Learning:** In FastAPI routes fetching records from Supabase, iterative loop lookups directly translate into N+1 database queries. Since the underlying Postgres-backed client isn't an ORM that transparently batches fetch calls, looping over `execute()` operations stalls backend performance.
+**Action:** When fetching relational child rows in Python via the Supabase client, replace loops of lookups with batch `.in_()` operations and process the mapping in memory using `collections.defaultdict`. This dramatically improves network usage and request latency by condensing query execution.

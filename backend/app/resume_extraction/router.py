@@ -1,5 +1,6 @@
 import re
 from datetime import datetime, timezone
+from collections import defaultdict
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -218,29 +219,57 @@ def fetch_full_resume(resume_id: str) -> dict[str, Any]:
 
     experiences: list[dict[str, Any]] = []
     exp_rows = db_client.table("experiences").select("*").eq("resume_id", resume_id).execute().data
-    for exp in exp_rows:
-        exp_id = exp["id"]
-        bullets = [x["bullet"] for x in db_client.table("experience_bullets").select("*").eq("experience_id", exp_id).execute().data]
-        techs = [x["tech"] for x in db_client.table("experience_technologies").select("*").eq("experience_id", exp_id).execute().data]
-        exp["description_bullets"] = bullets
-        exp["technologies"] = techs
-        experiences.append(exp)
+
+    if exp_rows:
+        exp_ids = [exp["id"] for exp in exp_rows]
+
+        # Batch query bullets
+        all_bullets = db_client.table("experience_bullets").select("*").in_("experience_id", exp_ids).execute().data
+        bullets_by_exp = defaultdict(list)
+        for b in all_bullets:
+            bullets_by_exp[b["experience_id"]].append(b["bullet"])
+
+        # Batch query technologies
+        all_techs = db_client.table("experience_technologies").select("*").in_("experience_id", exp_ids).execute().data
+        techs_by_exp = defaultdict(list)
+        for t in all_techs:
+            techs_by_exp[t["experience_id"]].append(t["tech"])
+
+        for exp in exp_rows:
+            exp_id = exp["id"]
+            exp["description_bullets"] = bullets_by_exp.get(exp_id, [])
+            exp["technologies"] = techs_by_exp.get(exp_id, [])
+            experiences.append(exp)
 
     education: list[dict[str, Any]] = []
     edu_rows = db_client.table("education").select("*").eq("resume_id", resume_id).execute().data
-    for edu in edu_rows:
-        edu_id = edu["id"]
-        notes = [x["note"] for x in db_client.table("education_notes").select("*").eq("education_id", edu_id).execute().data]
-        edu["notes"] = notes
-        education.append(edu)
+
+    if edu_rows:
+        edu_ids = [edu["id"] for edu in edu_rows]
+        all_notes = db_client.table("education_notes").select("*").in_("education_id", edu_ids).execute().data
+        notes_by_edu = defaultdict(list)
+        for n in all_notes:
+            notes_by_edu[n["education_id"]].append(n["note"])
+
+        for edu in edu_rows:
+            edu_id = edu["id"]
+            edu["notes"] = notes_by_edu.get(edu_id, [])
+            education.append(edu)
 
     projects: list[dict[str, Any]] = []
     proj_rows = db_client.table("projects").select("*").eq("resume_id", resume_id).execute().data
-    for proj in proj_rows:
-        proj_id = proj["id"]
-        techs = [x["tech"] for x in db_client.table("project_technologies").select("*").eq("project_id", proj_id).execute().data]
-        proj["technologies"] = techs
-        projects.append(proj)
+
+    if proj_rows:
+        proj_ids = [proj["id"] for proj in proj_rows]
+        all_proj_techs = db_client.table("project_technologies").select("*").in_("project_id", proj_ids).execute().data
+        techs_by_proj = defaultdict(list)
+        for t in all_proj_techs:
+            techs_by_proj[t["project_id"]].append(t["tech"])
+
+        for proj in proj_rows:
+            proj_id = proj["id"]
+            proj["technologies"] = techs_by_proj.get(proj_id, [])
+            projects.append(proj)
 
     try:
         certifications = db_client.table("certifications").select("*").eq("resume_id", resume_id).execute().data
