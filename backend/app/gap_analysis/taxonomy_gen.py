@@ -14,6 +14,7 @@ ponytail: this is the lazy-generate path; grounding generation in real Adzuna
 postings (higher fidelity) is the planned phase-2 quality booster.
 """
 import hashlib
+import asyncio
 import logging
 from typing import List
 
@@ -96,7 +97,8 @@ async def ensure_role_taxonomy(role_title: str) -> str:
     # Already generated on a prior run? (zero-vector probe — same hack the BM25
     # corpus builder uses; fine for this small namespace.)
     try:
-        probe = index.query(
+        probe = await asyncio.to_thread(
+            index.query,
             vector=[0.0] * EMBED_DIM, top_k=1, namespace=NAMESPACE,
             filter={"role": {"$eq": role_slug}}, include_metadata=False,
         )
@@ -135,6 +137,6 @@ async def ensure_role_taxonomy(role_title: str) -> str:
     if not records:
         return "unavailable"
 
-    index.upsert(vectors=records, namespace=NAMESPACE)
+    await asyncio.to_thread(index.upsert, vectors=records, namespace=NAMESPACE)
     logger.info("generated %d taxonomy rows for role '%s' (%s)", len(records), role_title, role_slug)
     return "generated"

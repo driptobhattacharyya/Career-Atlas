@@ -1,0 +1,3 @@
+## 2024-06-30 - Prevent blocking the event loop with synchronous Pinecone client methods
+**Learning:** Pinecone's Python client methods (like `index.query()` and `index.upsert()`) are synchronous and execute blocking I/O. In an asynchronous FastAPI application, calling these directly in async endpoints will block the main event loop, causing severe latency and N+1 query like bottlenecks under load.
+**Action:** Always wrap synchronous Pinecone client methods with `await asyncio.to_thread(...)` to offload their execution to a separate thread, preserving the concurrency of the FastAPI event loop.
