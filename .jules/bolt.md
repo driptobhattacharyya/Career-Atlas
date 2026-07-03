@@ -1,0 +1,3 @@
+## 2025-03-08 - [Pinecone Synchronous Client Blocks Event Loop]
+**Learning:** Pinecone's Python client methods (e.g., `index.query()`, `index.upsert()`) are fully synchronous. In a FastAPI application, calling these methods directly inside async route handlers (like our gap analysis agent) completely blocks the ASGI event loop. This leads to severe concurrency issues where a single retrieval request can stall all other incoming requests.
+**Action:** Always wrap Pinecone client calls with `asyncio.to_thread` when executing inside an asynchronous context in FastAPI to properly offload them to a thread pool and prevent blocking the main event loop.

@@ -9,7 +9,7 @@ Implements the "Hybrid Retrieval" block from the architecture diagram:
 
 BM25 corpus is built once per role per cold-start and cached in memory.
 """
-import math
+import asyncio
 from typing import List, Dict, Tuple
 from functools import lru_cache
 
@@ -77,6 +77,8 @@ def _build_bm25_corpus(role_slug: str) -> Tuple:
 
     # Fetch all taxonomy nodes for this role using a zero vector
     zero_vec = [0.0] * dim
+    # Note: this is inside a cached function, but calling it via asyncio.to_thread in hybrid_retrieve
+    # means it runs in a thread.
     results = index.query(
         vector=zero_vec,
         top_k=10000,
@@ -134,7 +136,8 @@ async def hybrid_retrieve(
         await ai_service.get_embeddings([query_text], task_type="retrieval_query")
     )[0]
 
-    sem_results = index.query(
+    sem_results = await asyncio.to_thread(
+        index.query,
         vector=query_vec,
         top_k=semantic_top_k,
         namespace="taxonomy",
@@ -143,7 +146,7 @@ async def hybrid_retrieve(
     )
 
     # ── 2. BM25 keyword search ────────────────────────────────────────
-    bm25, corpus_texts, metadata_list = _build_bm25_corpus(role_slug)
+    bm25, corpus_texts, metadata_list = await asyncio.to_thread(_build_bm25_corpus, role_slug)
     meta_lookup = {m["skill_name"]: m for m in metadata_list}
 
     bm25_scores_map: Dict[str, float] = {}

@@ -1,6 +1,6 @@
 import logging
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException
 from app.dependencies.auth import get_current_user_id
 from app.dependencies.database import db_client
 from app.config import settings
