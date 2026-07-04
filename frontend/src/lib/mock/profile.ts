@@ -10,14 +10,44 @@ export const mockProfile: Profile = {
     "Curious builder with a CS background, internship experience at two startups, and a love for turning messy data into useful products.",
   completeness: 72,
   skills: [
-    { name: "Python", category: "Languages", level: "advanced", source: "resume", evidence: "Used in 3 internships and 5 projects." },
-    { name: "TypeScript", category: "Languages", level: "intermediate", source: "github", evidence: "Primary language across 4 GitHub repos." },
-    { name: "SQL", category: "Languages", level: "intermediate", source: "resume", evidence: "Wrote analytics queries during Acme internship." },
+    {
+      name: "Python",
+      category: "Languages",
+      level: "advanced",
+      source: "resume",
+      evidence: "Used in 3 internships and 5 projects.",
+    },
+    {
+      name: "TypeScript",
+      category: "Languages",
+      level: "intermediate",
+      source: "github",
+      evidence: "Primary language across 4 GitHub repos.",
+    },
+    {
+      name: "SQL",
+      category: "Languages",
+      level: "intermediate",
+      source: "resume",
+      evidence: "Wrote analytics queries during Acme internship.",
+    },
     { name: "Java", category: "Languages", level: "beginner", source: "resume" },
 
-    { name: "React", category: "Frameworks", level: "intermediate", source: "github", evidence: "Built 3 React apps including a portfolio dashboard." },
+    {
+      name: "React",
+      category: "Frameworks",
+      level: "intermediate",
+      source: "github",
+      evidence: "Built 3 React apps including a portfolio dashboard.",
+    },
     { name: "FastAPI", category: "Frameworks", level: "intermediate", source: "resume" },
-    { name: "PyTorch", category: "Frameworks", level: "beginner", source: "resume", evidence: "Coursework + 1 image-classification project." },
+    {
+      name: "PyTorch",
+      category: "Frameworks",
+      level: "beginner",
+      source: "resume",
+      evidence: "Coursework + 1 image-classification project.",
+    },
 
     { name: "Pandas", category: "Data", level: "advanced", source: "resume" },
     { name: "NumPy", category: "Data", level: "advanced", source: "resume" },
@@ -64,7 +94,8 @@ export const mockProfile: Profile = {
   projects: [
     {
       name: "LeafID",
-      description: "CNN that classifies 38 plant diseases from a phone photo. Deployed as a tiny FastAPI service.",
+      description:
+        "CNN that classifies 38 plant diseases from a phone photo. Deployed as a tiny FastAPI service.",
       tech: ["PyTorch", "FastAPI", "Docker"],
       link: "https://github.com/mayapatel/leafid",
     },
