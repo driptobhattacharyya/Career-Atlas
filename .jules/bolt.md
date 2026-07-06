@@ -1,0 +1,3 @@
+## 2024-07-06 - N+1 Query Fix with Supabase Sync Client
+**Learning:** The Supabase Python client currently used in the backend is synchronous. Operations like `index.query()` block the FastAPI async event loop. Furthermore, fetching parent entities and then sequentially iterating over them to fetch their child relationships leads to N+1 query latency and heavy blocking.
+**Action:** Always wrap synchronous Supabase client calls within `asyncio.to_thread` and use `asyncio.gather` for parallel execution. When fetching 1:N relations, fetch the parent IDs first, then fetch the child items batched using `.in_()` (e.g. `db_client.table('child').select('*').in_('parent_id', parent_ids)`), and reconstruct the relations in memory with `collections.defaultdict`.
