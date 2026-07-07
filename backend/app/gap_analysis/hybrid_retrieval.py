@@ -9,7 +9,7 @@ Implements the "Hybrid Retrieval" block from the architecture diagram:
 
 BM25 corpus is built once per role per cold-start and cached in memory.
 """
-import math
+import asyncio
 from typing import List, Dict, Tuple
 from functools import lru_cache
 
@@ -134,7 +134,9 @@ async def hybrid_retrieve(
         await ai_service.get_embeddings([query_text], task_type="retrieval_query")
     )[0]
 
-    sem_results = index.query(
+    # ⚡ Bolt: Offload synchronous Pinecone network call to a background thread to prevent blocking the async event loop.
+    sem_results = await asyncio.to_thread(
+        index.query,
         vector=query_vec,
         top_k=semantic_top_k,
         namespace="taxonomy",
@@ -143,7 +145,8 @@ async def hybrid_retrieve(
     )
 
     # ── 2. BM25 keyword search ────────────────────────────────────────
-    bm25, corpus_texts, metadata_list = _build_bm25_corpus(role_slug)
+    # ⚡ Bolt: Offload the potentially blocking BM25 corpus build (which queries Pinecone internally if cache misses) to a background thread.
+    bm25, corpus_texts, metadata_list = await asyncio.to_thread(_build_bm25_corpus, role_slug)
     meta_lookup = {m["skill_name"]: m for m in metadata_list}
 
     bm25_scores_map: Dict[str, float] = {}

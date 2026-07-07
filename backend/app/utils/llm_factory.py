@@ -8,7 +8,6 @@ from app.config import settings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
 
