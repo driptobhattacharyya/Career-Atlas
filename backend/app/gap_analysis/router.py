@@ -93,7 +93,7 @@ async def analyze_gaps(
 
                 # Fetch programming languages from 'programming_languages' table
                 langs_resp = db_client.table("programming_languages").select("language").eq("resume_id", resume_id).execute()
-                user_skills.extend([l["language"] for l in langs_resp.data if l.get("language")])
+                user_skills.extend([lang_item["language"] for lang_item in langs_resp.data if lang_item.get("language")])
 
                 # CATRK-14: only CONFIRMED GitHub skills count toward the profile —
                 # quarantined guesses must never feed gap analysis. We only ADD skills

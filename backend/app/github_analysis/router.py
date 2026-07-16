@@ -1,5 +1,6 @@
 import logging
 import httpx
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from app.dependencies.auth import get_current_user_id
 from app.dependencies.database import db_client
@@ -177,10 +178,14 @@ async def get_github_insights(user_id: str = Depends(get_current_user_id)):
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    profile_resp = db_client.table("github_profiles").select("*").eq("user_id", user_id).execute()
-    repos_resp = db_client.table("github_repositories").select("*").eq("user_id", user_id).execute()
-    evidence_resp = db_client.table("github_skill_evidence").select("*").eq("user_id", user_id)\
-        .order("confidence", desc=True).execute()
+    # ⚡ Bolt Optimization: Fix N+1 query performance bottleneck
+    # What: Replaced sequential, synchronous Supabase queries with concurrent batch fetching via asyncio.to_thread.
+    # Why: The Supabase Python client is synchronous and blocks the FastAPI event loop. Doing these sequentially was adding significant latency.
+    profile_resp, repos_resp, evidence_resp = await asyncio.gather(
+        asyncio.to_thread(lambda: db_client.table("github_profiles").select("*").eq("user_id", user_id).execute()),
+        asyncio.to_thread(lambda: db_client.table("github_repositories").select("*").eq("user_id", user_id).execute()),
+        asyncio.to_thread(lambda: db_client.table("github_skill_evidence").select("*").eq("user_id", user_id).order("confidence", desc=True).execute())
+    )
 
     return {
         "success": True,
