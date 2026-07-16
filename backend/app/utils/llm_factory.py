@@ -26,7 +26,7 @@ def _get_rotating_gemini_model(model_name: str, temperature: float, attempt: int
     )
 
 
-def invoke_gemini(prompt: Any, model_name: str = "gemini-2.5-flash", temperature: float = 0.2, schema: Any = None, max_retries: int = 5):
+def invoke_gemini(prompt: Any, model_name: str = "gemini-3.5-flash", temperature: float = 0.2, schema: Any = None, max_retries: int = 5):
     last_exception = None
     for attempt in range(max_retries):
         try:
@@ -47,7 +47,7 @@ def invoke_gemini(prompt: Any, model_name: str = "gemini-2.5-flash", temperature
     raise last_exception
 
 
-async def ainvoke_gemini(prompt: Any, model_name: str = "gemini-2.5-flash", temperature: float = 0.2, schema: Any = None, max_retries: int = 5):
+async def ainvoke_gemini(prompt: Any, model_name: str = "gemini-3.5-flash", temperature: float = 0.2, schema: Any = None, max_retries: int = 5):
     last_exception = None
     for attempt in range(max_retries):
         try:
