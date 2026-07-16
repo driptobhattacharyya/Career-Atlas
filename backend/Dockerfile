@@ -1,5 +1,10 @@
-# CareerAtlas backend — FastAPI on Cloud Run.
+# CareerAtlas backend — FastAPI on AWS Lambda (container image + Function URL).
 FROM python:3.12-slim
+
+# Lambda Web Adapter: lets this ordinary web-server image run on Lambda.
+# Inert outside Lambda, so local `docker run` still works unchanged.
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
+ENV AWS_LWA_READINESS_CHECK_PATH=/health
 
 WORKDIR /app
 
@@ -10,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Application code.
 COPY app ./app
 
-# Cloud Run injects $PORT (defaults to 8080); bind to it.
+# Bind to $PORT (8080 default) — Lambda Web Adapter proxies to it.
 ENV PORT=8080
 EXPOSE 8080
 

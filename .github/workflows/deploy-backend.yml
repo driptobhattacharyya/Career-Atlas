@@ -1,9 +1,10 @@
-name: Deploy backend to Cloud Run
+name: Deploy backend to AWS Lambda
 
-# Pushes to `prod` that touch the backend rebuild + redeploy the container.
-# Deploys from source (Cloud Build) to the careeratlas-backend service. Existing
-# env vars / secrets on the service are preserved — they are NOT set here, so the
-# YAML stays free of secret references.
+# Pushes to `prod` that touch the backend build backend/Dockerfile, push it
+# to ECR (tagged `:latest` and with the commit SHA), then point the
+# careeratlas-backend Lambda at the immutable SHA tag. Lambda does NOT follow
+# the `:latest` tag, so the explicit update-function-code call IS the deploy;
+# we then wait for the function update to finish.
 on:
   push:
     branches: [prod]
@@ -13,33 +14,44 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: project-aaa2b18d-7173-407a-993
-  REGION: us-central1
-  SERVICE: careeratlas-backend
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 072146869341.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REPOSITORY: careeratlas-backend
+  FUNCTION_NAME: careeratlas-backend
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write   # required for Workload Identity Federation
+      id-token: write   # required for GitHub OIDC
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud (Workload Identity Federation)
-        uses: google-github-actions/auth@v2
+      - name: Configure AWS credentials (GitHub OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          project_id: ${{ env.PROJECT_ID }}
-          workload_identity_provider: projects/625656057654/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-          service_account: github-actions-ci@project-aaa2b18d-7173-407a-993.iam.gserviceaccount.com
+          role-to-assume: arn:aws:iam::072146869341:role/github-actions-careeratlas
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Set up gcloud
-        uses: google-github-actions/setup-gcloud@v2
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Deploy from source
+      - name: Build, tag, and push image
         run: |
-          gcloud run deploy "$SERVICE" \
-            --source backend \
-            --region "$REGION" \
-            --quiet
+          # --provenance=false: Lambda rejects OCI attestation manifest lists
+          docker build --provenance=false --sbom=false -t "$ECR_REGISTRY/$ECR_REPOSITORY:latest" backend
+          docker tag "$ECR_REGISTRY/$ECR_REPOSITORY:latest" "$ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
+
+      - name: Point Lambda at the new image
+        run: |
+          aws lambda update-function-code \
+            --function-name "$FUNCTION_NAME" \
+            --image-uri "$ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}" \
+            --region "$AWS_REGION"
+          aws lambda wait function-updated-v2 \
+            --function-name "$FUNCTION_NAME" \
+            --region "$AWS_REGION"
