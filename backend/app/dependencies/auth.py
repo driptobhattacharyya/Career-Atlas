@@ -8,7 +8,7 @@ JWKS is cached in memory and refetched once on a key-rotation miss.
 import logging
 
 import httpx
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 
@@ -79,4 +79,6 @@ def get_current_user_id(user_id: str = Depends(verify_token)) -> str:
     # Dev convenience: run routes without a token when explicitly enabled.
     if settings.dev_bypass_auth and settings.dev_user_id:
         return settings.dev_user_id
-    return user_id
+    # Reject unauthenticated requests here so a route that forgets its own
+    # `if not user_id` guard can never run with an anonymous identity.
+    raise HTTPException(status_code=401, detail="Not authenticated")

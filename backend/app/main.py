@@ -21,19 +21,22 @@ if settings.sentry_dsn:
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
         environment=settings.environment,
-        send_default_pii=True,
+        send_default_pii=False,
         traces_sample_rate=0.2,
     )
 
 app = FastAPI(title="CareerAtlas API", version="1.0.0")
 
 # ── CORS ─────────────────────────────────────────────────────────────────────
+# Allowed origins come exclusively from CORS_ORIGINS (comma-separated). The
+# regex only permits localhost/127.0.0.1 on any port for local dev — it must
+# never match a public wildcard: with allow_credentials=True a reflected
+# wildcard origin lets any attacker-controlled site make credentialed requests.
 origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    # localhost (any port) for dev + any *.vercel.app (covers preview deploys).
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://[a-z0-9-]+\.vercel\.app$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -99,5 +102,11 @@ def health_check():
 
 @app.get("/sentry-debug")
 def sentry_debug():
-    """Intentionally errors — used to verify Sentry capture end-to-end."""
+    """Intentionally errors — used to verify Sentry capture end-to-end.
+
+    Disabled outside development so it can't be used to trigger errors or probe
+    the deployment in production.
+    """
+    if settings.environment.lower() not in ("development", "dev", "local"):
+        raise StarletteHTTPException(status_code=404, detail="Not Found")
     raise RuntimeError("Sentry backend verification — intentional test error.")
