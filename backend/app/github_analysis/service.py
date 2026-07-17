@@ -195,11 +195,11 @@ def _filter_evidence(skills: List[SkillEvidence], fetched_paths: List[str], lang
     """CATRK-13: any skill whose evidence doesn't quote a fetched path or a real
     language gets its confidence capped to low — overconfident guesses can't survive."""
     path_blob = " ".join(fetched_paths).lower()
-    lang_names = {l.lower() for l in languages}
+    lang_names = {lang.lower() for lang in languages}
     out = []
     for s in skills:
         ev = (s.evidence or "").lower()
-        backed = any(p and p in ev for p in path_blob.split()) or any(l in ev or l in s.skill.lower() for l in lang_names)
+        backed = any(p and p in ev for p in path_blob.split()) or any(lang in ev or lang in s.skill.lower() for lang in lang_names)
         out.append(s if backed else SkillEvidence(skill=s.skill, evidence=s.evidence, confidence="low"))
     return out
 
@@ -235,7 +235,7 @@ async def analyze_repository(repo: GitHubRepoInfo, login: str, access_token: str
                 content = content[:5000] + "\n...(truncated)"
             file_contents += f"\n\n--- FILE: {file_path} ---\n{content}\n"
 
-    lang_str = ", ".join(f"{l} {p}%" for l, p in sorted(languages.items(), key=lambda x: -x[1])) or "unknown"
+    lang_str = ", ".join(f"{lang} {p}%" for lang, p in sorted(languages.items(), key=lambda x: -x[1])) or "unknown"
 
     model = get_groq_model(temperature=0.1)
     structured_llm = model.with_structured_output(RepoAnalysisResult)
