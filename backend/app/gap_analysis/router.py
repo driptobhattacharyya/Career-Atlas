@@ -8,6 +8,7 @@ POST /api/analyze-gaps/
   - Stores results in DB
   - Returns ranked gaps
 """
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from app.dependencies.auth import get_current_user_id
 from app.dependencies.database import db_client
@@ -29,22 +30,26 @@ async def get_saved_gaps(
 
     try:
         # Resolve latest resume for this user — strictly scoped to user_id.
-        resume_resp = db_client.table("resumes")\
-            .select("id")\
-            .eq("user_id", user_id)\
-            .order("created_at", desc=True)\
-            .limit(1)\
+        resume_resp = await asyncio.to_thread(
+            lambda: db_client.table("resumes")
+            .select("id")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .limit(1)
             .execute()
+        )
 
         if not resume_resp.data:
             return {"success": True, "gaps": [], "target_role": None}
 
         resume_id = resume_resp.data[0]["id"]
 
-        gaps_resp = db_client.table("skill_gaps")\
-            .select("*")\
-            .eq("resume_id", resume_id)\
+        gaps_resp = await asyncio.to_thread(
+            lambda: db_client.table("skill_gaps")
+            .select("*")
+            .eq("resume_id", resume_id)
             .execute()
+        )
 
         gaps = gaps_resp.data or []
         target_role = gaps[0]["target_role"] if gaps else None
@@ -75,35 +80,44 @@ async def analyze_gaps(
         resume_id = None
         try:
             # Strictly scoped to user_id — never a global resume lookup.
-            resume_resp = db_client.table("resumes")\
-                .select("*")\
-                .eq("user_id", user_id)\
-                .order("created_at", desc=True)\
-                .limit(1)\
+            resume_resp = await asyncio.to_thread(
+                lambda: db_client.table("resumes")
+                .select("*")
+                .eq("user_id", user_id)
+                .order("created_at", desc=True)
+                .limit(1)
                 .execute()
+            )
 
             if resume_resp.data:
                 resume = resume_resp.data[0]
                 resume_id = resume["id"]
                 user_headline = resume.get("headline", "")
 
-                # Fetch skills scoped to this resume only.
-                skills_resp = db_client.table("skills").select("skill").eq("resume_id", resume_id).execute()
-                user_skills.extend([s["skill"] for s in skills_resp.data if s.get("skill")])
-
-                # Fetch programming languages from 'programming_languages' table
-                langs_resp = db_client.table("programming_languages").select("language").eq("resume_id", resume_id).execute()
-                user_skills.extend([l["language"] for l in langs_resp.data if l.get("language")])
+                # ⚡ Bolt Optimization: Parallelize independent DB queries to avoid sequential latency
+                # and use asyncio.to_thread to prevent blocking the FastAPI event loop.
+                skills_task = asyncio.to_thread(lambda: db_client.table("skills").select("skill").eq("resume_id", resume_id).execute())
+                langs_task = asyncio.to_thread(lambda: db_client.table("programming_languages").select("language").eq("resume_id", resume_id).execute())
 
                 # CATRK-14: only CONFIRMED GitHub skills count toward the profile —
                 # quarantined guesses must never feed gap analysis. We only ADD skills
                 # here, so a skill absent from GitHub can never widen a gap.
-                confirmed_resp = db_client.table("github_skill_evidence")\
+                confirmed_task = asyncio.to_thread(
+                    lambda: db_client.table("github_skill_evidence")
                     .select("skill").eq("user_id", user_id).eq("confirmed", True).execute()
-                user_skills.extend([e["skill"] for e in (confirmed_resp.data or []) if e.get("skill")])
+                )
 
                 # GitHub prose stays as context only (never a counted skill).
-                github_resp = db_client.table("github_profiles").select("analysis_summary,coding_behavior").eq("user_id", user_id).execute()
+                github_task = asyncio.to_thread(lambda: db_client.table("github_profiles").select("analysis_summary,coding_behavior").eq("user_id", user_id).execute())
+
+                skills_resp, langs_resp, confirmed_resp, github_resp = await asyncio.gather(
+                    skills_task, langs_task, confirmed_task, github_task
+                )
+
+                user_skills.extend([s["skill"] for s in skills_resp.data if s.get("skill")])
+                user_skills.extend([lang_rec["language"] for lang_rec in langs_resp.data if lang_rec.get("language")])
+                user_skills.extend([e["skill"] for e in (confirmed_resp.data or []) if e.get("skill")])
+
                 if github_resp.data:
                     github_summary = github_resp.data[0].get("analysis_summary", "")
                     github_behavior = github_resp.data[0].get("coding_behavior", "")
@@ -122,11 +136,13 @@ async def analyze_gaps(
         # If the resume changes (new ID), the cache automatically busts.
         if resume_id and not req.force:
             try:
-                existing_gaps_resp = db_client.table("skill_gaps")\
-                    .select("*")\
-                    .eq("resume_id", resume_id)\
-                    .eq("target_role", role_title)\
+                existing_gaps_resp = await asyncio.to_thread(
+                    lambda: db_client.table("skill_gaps")
+                    .select("*")
+                    .eq("resume_id", resume_id)
+                    .eq("target_role", role_title)
                     .execute()
+                )
                 
                 if existing_gaps_resp.data:
                     print(f"✅ [CACHE] Found valid gaps for Resume {resume_id}. Skipping AI run.")
@@ -153,10 +169,12 @@ async def analyze_gaps(
         if resume_id:
             try:
                 # Clear previous gaps for this specific resume and role
-                db_client.table("skill_gaps").delete()\
-                    .eq("resume_id", resume_id)\
-                    .eq("target_role", role_title)\
+                await asyncio.to_thread(
+                    lambda: db_client.table("skill_gaps").delete()
+                    .eq("resume_id", resume_id)
+                    .eq("target_role", role_title)
                     .execute()
+                )
                 
                 gap_data = [
                     {
@@ -173,7 +191,7 @@ async def analyze_gaps(
                     for gap in identified_gaps
                 ]
                 if gap_data:
-                    db_client.table("skill_gaps").insert(gap_data).execute()
+                    await asyncio.to_thread(lambda: db_client.table("skill_gaps").insert(gap_data).execute())
             except Exception as e:
                 print(f"⚠️ Could not save gaps to DB: {e}")
                 pass
