@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Any
 
@@ -8,6 +9,8 @@ from app.dependencies.auth import get_current_user_id
 from app.dependencies.database import db_client
 from app.job_hunter.agent import job_finder_agent
 from app.job_hunter.schemas import JobExplanation, JobResult, JobSearchResponse, ScoreBreakdown
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/research-jobs", tags=["Jobs"])
 
@@ -64,7 +67,7 @@ def _resolve_profile_context(user_id: str) -> tuple[str, str]:
             role = _safe_first(role_resp.data or [])
             query_role = role.get("title") or query_role
     except Exception:
-        pass
+        logger.warning("profile/role context lookup failed for user %s", user_id, exc_info=True)
 
     if location == "Remote":
         try:
@@ -94,7 +97,7 @@ def _resolve_profile_context(user_id: str) -> tuple[str, str]:
                     or location
                 )
         except Exception:
-            pass
+            logger.warning("contact-location lookup failed for user %s", user_id, exc_info=True)
 
     return query_role, location or "Remote"
 
@@ -105,7 +108,8 @@ def _is_effectively_empty_score(score_payload: dict[str, Any]) -> bool:
     keys = ("semantic", "skill_overlap", "experience", "education", "final")
     try:
         return all(float(score_payload.get(key) or 0) == 0 for key in keys)
-    except Exception:
+    except (TypeError, ValueError):
+        logger.debug("non-numeric score payload treated as empty: %r", score_payload)
         return True
 
 
@@ -173,6 +177,10 @@ def _insert_job_match(row: dict[str, Any]) -> None:
         db_client.table("job_matches").insert(row).execute()
         return
     except Exception:
+        logger.warning(
+            "job_matches insert failed with structured columns; retrying legacy shape",
+            exc_info=True,
+        )
         legacy_row = {
             key: value
             for key, value in row.items()
@@ -217,9 +225,13 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(get_cur
                 .execute()
             )
         except Exception:
+            # Keep the lookup scoped to this user even on the retry path — a
+            # global fallback could hand one user another user's resume.
+            logger.warning("resume lookup failed for user %s; retrying scoped", user_id, exc_info=True)
             resume_resp = (
                 db_client.table("resumes")
                 .select("id")
+                .eq("user_id", user_id)
                 .order("created_at", desc=True)
                 .limit(1)
                 .execute()
@@ -251,7 +263,7 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(get_cur
             if profile_resp.data and profile_resp.data[0].get("location"):
                 location = profile_resp.data[0]["location"]
         except Exception:
-            pass
+            logger.warning("profile location lookup failed for user %s", user_id, exc_info=True)
 
         if location == "Remote":
             try:
@@ -271,7 +283,7 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(get_cur
                         or "Remote"
                     )
             except Exception:
-                pass
+                logger.warning("contact location lookup failed for resume %s", resume_id, exc_info=True)
 
         skills_resp = (
             db_client.table("skills")
@@ -301,7 +313,8 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(get_cur
             )
             user_skills.extend([r["skill"] for r in (gh_resp.data or []) if r.get("skill")])
         except Exception:
-            pass  # github optional — never block a job search on it
+            # github optional — never block a job search on it, but log it.
+            logger.warning("github skill lookup failed for user %s", user_id, exc_info=True)
 
         # Dedupe (resume ∪ GitHub can overlap) while preserving order.
         user_skills = list(dict.fromkeys(user_skills))
@@ -398,7 +411,8 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(get_cur
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("research_jobs failed for user %s", user_id)
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/", response_model=JobSearchResponse)
@@ -415,7 +429,8 @@ def list_job_matches(user_id: str = Depends(get_current_user_id)):
             .execute()
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lookup failed: {e}")
+        logger.exception("job_matches lookup failed for user %s", user_id)
+        raise HTTPException(status_code=500, detail=f"Lookup failed: {e}") from e
 
     rows = resp.data or []
     query_role, location = _resolve_profile_context(user_id)

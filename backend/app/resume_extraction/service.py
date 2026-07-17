@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import tempfile
 import time
@@ -14,6 +15,8 @@ from phonenumbers import PhoneNumberFormat
 
 from app.resume_extraction.schemas import ResumeExtraction
 from app.utils.llm_factory import invoke_gemini
+
+logger = logging.getLogger(__name__)
 
 URL_TRAILING_PUNCT = ".,;:!?)]}>'\""
 KNOWN_RESUME_TLDS = {
@@ -54,6 +57,7 @@ def normalize_phone(raw_phone: str | None, default_region: str = "IN") -> dict[s
             "e164_phone": phonenumbers.format_number(parsed, PhoneNumberFormat.E164),
         }
     except Exception:
+        logger.debug("phone normalization failed for %r", raw_phone, exc_info=True)
         return {
             "phone_raw": raw_phone,
             "country_code": None,
@@ -175,6 +179,7 @@ def extract_pdf_text(pdf_path: str) -> str:
         text = pymupdf4llm.to_markdown(pdf_path, header=False, footer=False)
         text = normalize_text(text) if text and text.strip() else ""
     except Exception:
+        logger.warning("pymupdf4llm markdown extraction failed; falling back to fitz", exc_info=True)
         text = ""
 
     if not text:
@@ -524,7 +529,7 @@ def extract_structured_resume_data(md_text: str) -> ResumeExtraction:
             return parsed
         except (ValidationError, json.JSONDecodeError) as exc:
             if attempt == 0:
-                print(f"⚠️ Resume Extraction LLM failed schema validation. Retrying (1/1)... Error: {type(exc).__name__}")
+                logger.warning("resume extraction failed schema validation; retrying (1/1): %s", type(exc).__name__)
                 repair_prompt = build_repair_prompt(md_text, draft_json, str(exc))
                 draft_json = llm_generate_resume_json(repair_prompt)
             else:

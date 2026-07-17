@@ -74,9 +74,11 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     # it — report it explicitly, and flush before Cloud Run throttles CPU.
     sentry_sdk.capture_exception(exc)
     sentry_sdk.flush(timeout=2.0)
+    # Always log the failure — even rate-limit cases that return a friendly 503 —
+    # so nothing is swallowed without a server-side trace.
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
     if _is_rate_limit(str(exc)):
         return JSONResponse(status_code=503, content={"detail": _BUSY_MESSAGE})
-    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
     return JSONResponse(status_code=500, content={"detail": "Internal server error."})
 
 

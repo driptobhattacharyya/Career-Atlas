@@ -5,11 +5,14 @@ Wraps `tavily.TavilyClient` directly to avoid Langchain integration issues
 and always returns a normalized list of result dicts. Supports recency filtering via
 `time_range` so agents can avoid stale / expired content.
 """
+import logging
 from typing import List, Dict, Optional
 
 from tavily import TavilyClient
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def tavily_search(
@@ -38,8 +41,8 @@ def tavily_search(
             kwargs["time_range"] = time_range
 
         raw = client.search(query, **kwargs)
-    except Exception as e:
-        print(f"Tavily search failed: {e}")
+    except Exception:
+        logger.warning("Tavily search failed for query %r", query, exc_info=True)
         return []
 
     if isinstance(raw, dict):

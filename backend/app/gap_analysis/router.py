@@ -8,6 +8,8 @@ POST /api/analyze-gaps/
   - Stores results in DB
   - Returns ranked gaps
 """
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from app.config import settings
@@ -17,6 +19,8 @@ from app.gap_analysis.service import generate_gaps_for_user
 from app.gap_analysis.hybrid_retrieval import resolve_role_slug
 
 from app.gap_analysis.schemas import AnalyzeGapsRequest, GapAnalysisResult
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/analyze-gaps", tags=["Gaps"])
 
@@ -57,8 +61,8 @@ async def get_saved_gaps(
             "gaps": gaps,
             "retrieval_source": "database",
         }
-    except Exception as e:
-        print(f"❌ ERROR in get_saved_gaps: {str(e)}")
+    except Exception:
+        logger.exception("get_saved_gaps failed for user %s", user_id)
         return {"success": True, "gaps": [], "target_role": None}
 
 
@@ -111,9 +115,10 @@ async def analyze_gaps(
                     github_behavior = github_resp.data[0].get("coding_behavior", "")
                     if github_summary or github_behavior:
                         user_headline += f"\n\nGitHub Profile Context:\nSummary: {github_summary}\nCoding Behavior: {github_behavior}"
-        except Exception as e:
-            # Silently fallback to empty if DB schema mismatch occurs
-            pass
+        except Exception:
+            # Fall back to empty skills/headline if the DB read fails, but never
+            # silently — a schema mismatch here quietly degrades gap analysis.
+            logger.warning("gap analysis skill/profile fetch failed for user %s", user_id, exc_info=True)
 
         # 2. Use target role title directly (Dynamic Mode)
         role_title = req.target_role_title
@@ -131,7 +136,7 @@ async def analyze_gaps(
                     .execute()
                 
                 if existing_gaps_resp.data:
-                    print(f"✅ [CACHE] Found valid gaps for Resume {resume_id}. Skipping AI run.")
+                    logger.info("[CACHE] Found valid gaps for resume %s; skipping AI run.", resume_id)
                     return {
                         "success": True,
                         "target_role": role_title,
@@ -146,7 +151,7 @@ async def analyze_gaps(
                         },
                     }
             except Exception:
-                pass
+                logger.warning("cached gap lookup failed for resume %s", resume_id, exc_info=True)
 
         # 3. Run gap analysis pipeline (Only if cache miss)
         identified_gaps, explainability = await generate_gaps_for_user(user_skills, role_title, user_headline)
@@ -176,9 +181,8 @@ async def analyze_gaps(
                 ]
                 if gap_data:
                     db_client.table("skill_gaps").insert(gap_data).execute()
-            except Exception as e:
-                print(f"⚠️ Could not save gaps to DB: {e}")
-                pass
+            except Exception:
+                logger.warning("could not persist gaps to DB for resume %s", resume_id, exc_info=True)
 
         return {
             "success": True,
@@ -192,7 +196,5 @@ async def analyze_gaps(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ ERROR in analyze_gaps: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Gap Analysis Error: {str(e)}")
+        logger.exception("analyze_gaps failed for user %s", user_id)
+        raise HTTPException(status_code=500, detail=f"Gap Analysis Error: {str(e)}") from e

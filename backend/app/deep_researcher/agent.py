@@ -166,7 +166,6 @@ def judge_route(state: ResearcherState) -> str:
         logger.info("deep_researcher judge: retry budget exhausted, accepting")
         return "done"
     logger.info("deep_researcher judge: failed, retrying structure")
-    print("⚠️ Deep Researcher judge failed validation. Retrying structure pass...")
     return "retry"
 
 
