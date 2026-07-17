@@ -10,10 +10,11 @@ POST /api/analyze-gaps/
 """
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException
-from app.dependencies.auth import get_current_user_id
+from app.dependencies.auth import require_user_id
 from app.dependencies.database import db_client
 from app.gap_analysis.service import generate_gaps_for_user
 from app.gap_analysis.hybrid_retrieval import resolve_role_slug
+from app.utils.resumes import latest_resume_id
 
 from app.gap_analysis.schemas import AnalyzeGapsRequest
 
@@ -22,25 +23,14 @@ router = APIRouter(prefix="/api/analyze-gaps", tags=["Gaps"])
 
 @router.get("/")
 async def get_saved_gaps(
-    user_id: str = Depends(get_current_user_id, use_cache=True),
+    user_id: str = Depends(require_user_id, use_cache=True),
 ):
     """Return the user's latest stored skill gaps so results reload on re-sign-in."""
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     try:
         # Resolve latest resume for this user — strictly scoped to user_id.
-        resume_resp = await asyncio.to_thread(db_client.table("resumes")\
-            .select("id")\
-            .eq("user_id", user_id)\
-            .order("created_at", desc=True)\
-            .limit(1)\
-            .execute)
-
-        if not resume_resp.data:
+        resume_id = await asyncio.to_thread(latest_resume_id, user_id)
+        if not resume_id:
             return {"success": True, "gaps": [], "target_role": None}
-
-        resume_id = resume_resp.data[0]["id"]
 
         gaps_resp = await asyncio.to_thread(db_client.table("skill_gaps")\
             .select("*")\
@@ -64,11 +54,8 @@ async def get_saved_gaps(
 @router.post("/")
 async def analyze_gaps(
     req: AnalyzeGapsRequest,
-    user_id: str = Depends(get_current_user_id, use_cache=True),
+    user_id: str = Depends(require_user_id, use_cache=True),
 ):
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     try:
         # 1. Fetch user data from DB (using schema from Resume_Extraction_Agent.ipynb)
         user_skills = []

@@ -11,7 +11,7 @@ extended with a `recency` criterion.
 """
 import logging
 
-from app.utils.llm_factory import get_groq_model
+from app.utils.llm_factory import build_groq_structured_chain
 from app.deep_researcher.prompts import JUDGE_PROMPT
 from app.deep_researcher.schemas import JudgeVerdict, Pathway, ValidationResult
 
@@ -46,8 +46,7 @@ def evaluate_pathway(
     current_year: int,
 ) -> JudgeVerdict:
     """Run the rubric judge over a pathway. Returns a structured verdict."""
-    model = get_groq_model(temperature=0.0)
-    judge = JUDGE_PROMPT | model.with_structured_output(JudgeVerdict)
+    judge = build_groq_structured_chain(JUDGE_PROMPT, JudgeVerdict, temperature=0.0)
 
     notes_joined = "\n".join(notes or [])[:NOTES_CHAR_CAP] or "(no notes)"
 

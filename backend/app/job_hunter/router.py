@@ -4,10 +4,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.dependencies.auth import get_current_user_id
+from app.dependencies.auth import require_user_id
 from app.dependencies.database import db_client
 from app.job_hunter.agent import job_finder_agent
 from app.job_hunter.schemas import JobExplanation, JobResult, JobSearchResponse, ScoreBreakdown
+from app.utils.resumes import latest_resume_id
 
 router = APIRouter(prefix="/api/research-jobs", tags=["Jobs"])
 
@@ -68,16 +69,7 @@ def _resolve_profile_context(user_id: str) -> tuple[str, str]:
 
     if location == "Remote":
         try:
-            resume_resp = (
-                db_client.table("resumes")
-                .select("id")
-                .eq("user_id", user_id)
-                .order("created_at", desc=True)
-                .limit(1)
-                .execute()
-            )
-            resume = _safe_first(resume_resp.data or [])
-            resume_id = resume.get("id")
+            resume_id = latest_resume_id(user_id)
             if resume_id:
                 contact_resp = (
                     db_client.table("contacts")
@@ -189,11 +181,8 @@ def _insert_job_match(row: dict[str, Any]) -> None:
 
 
 @router.post("/", response_model=JobSearchResponse)
-async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(get_current_user_id)):
+async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require_user_id)):
     try:
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Not authenticated")
-
         # 1) Resolve target role from Supabase.
         role_resp = (
             db_client.table("target_roles")
@@ -207,27 +196,9 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(get_cur
         role_info = role_resp.data[0]
 
         # 2) Get latest resume for user.
-        try:
-            resume_resp = (
-                db_client.table("resumes")
-                .select("id")
-                .eq("user_id", user_id)
-                .order("created_at", desc=True)
-                .limit(1)
-                .execute()
-            )
-        except Exception:
-            resume_resp = (
-                db_client.table("resumes")
-                .select("id")
-                .order("created_at", desc=True)
-                .limit(1)
-                .execute()
-            )
-        if not resume_resp.data:
+        resume_id = latest_resume_id(user_id)
+        if not resume_id:
             raise HTTPException(status_code=400, detail="Run resume extraction first")
-
-        resume_id = resume_resp.data[0]["id"]
 
         # 3) Pull profile/location and resume context from normalized schema.
         resume_row_resp = (
@@ -402,10 +373,8 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(get_cur
 
 
 @router.get("/", response_model=JobSearchResponse)
-def list_job_matches(user_id: str = Depends(get_current_user_id)):
+def list_job_matches(user_id: str = Depends(require_user_id)):
     """Return the current user's persisted job matches (latest search)."""
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         resp = (
             db_client.table("job_matches")
