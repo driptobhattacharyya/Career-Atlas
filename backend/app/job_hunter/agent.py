@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from typing import Any
 
@@ -13,6 +14,8 @@ from app.job_hunter.schemas import (
     ScoreBreakdown,
 )
 from app.utils.llm_factory import invoke_gemini
+
+logger = logging.getLogger(__name__)
 
 INDIA_CITY_ALIASES = {
     "pune": {"pune", "poona"},
@@ -49,7 +52,8 @@ def safe_json_parse(text: str):
             return json.loads(parsed)
         if isinstance(parsed, dict):
             return [parsed]
-    except Exception:
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.debug("safe_json_parse could not decode LLM output: %s", e)
         return []
     return []
 
@@ -153,6 +157,7 @@ def _fetch_jobs_with_fallback(query_role: str, user_location_pref: str, results:
         try:
             jobs = fetch_jobs(variant, where, results=results)
         except Exception:
+            logger.warning("Adzuna fetch failed for variant %r", variant, exc_info=True)
             jobs = []
         if not jobs:
             continue
@@ -240,6 +245,7 @@ def score_jobs(resume: dict[str, Any], jobs: list[dict[str, Any]]):
         r_emb = embeds[0]
         j_embs = embeds[1:]
     except Exception:
+        logger.warning("Jina embedding failed; falling back to heuristic scoring", exc_info=True)
         r_emb = None
         j_embs = None
     results = []
@@ -451,6 +457,7 @@ def job_finder_agent(
             if isinstance(e, dict) and e.get("job_id")
         }
     except Exception:
+        logger.warning("LLM job explanations failed; using heuristic fallback", exc_info=True)
         explanations = {}
     if not explanations:
         explanations = _fallback_explanations(resume, scored)

@@ -111,8 +111,8 @@ def _normalize_learning_pathway_row(row: dict) -> dict:
     if description:
         try:
             debug_info = json.loads(description)
-        except Exception:
-            pass
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.debug("learning pathway description not JSON: %s", e)
 
     return {
         "success": True,

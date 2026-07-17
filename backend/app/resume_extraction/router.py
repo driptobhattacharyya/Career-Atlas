@@ -65,7 +65,7 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
     try:
         db_client.table("contacts").insert({"resume_id": resume_id, **contact}).execute()
     except Exception:
-        pass
+        logger.warning("contacts insert failed for resume %s", resume_id, exc_info=True)
 
     for s in skill_values:
         db_client.table("skills").insert({"resume_id": resume_id, "skill": s}).execute()
@@ -74,19 +74,19 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         try:
             db_client.table("programming_languages").insert({"resume_id": resume_id, "language": s}).execute()
         except Exception:
-            pass
+            logger.warning("programming_languages insert failed for resume %s", resume_id, exc_info=True)
 
     for s in data.get("spoken_languages", []) or []:
         try:
             db_client.table("spoken_languages").insert({"resume_id": resume_id, "language": s}).execute()
         except Exception:
-            pass
+            logger.warning("spoken_languages insert failed for resume %s", resume_id, exc_info=True)
 
     for k in data.get("keywords", []) or []:
         try:
             db_client.table("keywords").insert({"resume_id": resume_id, "keyword": k}).execute()
         except Exception:
-            pass
+            logger.warning("keywords insert failed for resume %s", resume_id, exc_info=True)
 
     for exp in data.get("experience", []) or []:
         exp_res = db_client.table("experiences").insert(
@@ -152,7 +152,7 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
                 }
             ).execute()
         except Exception:
-            pass
+            logger.warning("certifications insert failed for resume %s", resume_id, exc_info=True)
 
     # Optional sync for older UI paths that read profiles.
     try:
@@ -171,7 +171,7 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
             on_conflict="user_id",
         ).execute()
     except Exception:
-        pass
+        logger.warning("profiles sync upsert failed for resume %s", resume_id, exc_info=True)
 
     return resume_id
 
@@ -189,7 +189,7 @@ def _delete_other_resumes(user_id: str, keep_resume_id: str) -> None:
             .neq("id", keep_resume_id)\
             .execute()
     except Exception:
-        pass
+        logger.warning("failed to prune old resumes for user %s", user_id, exc_info=True)
 
 
 async def fetch_full_resume(resume_id: str) -> dict[str, Any]:
@@ -205,6 +205,7 @@ async def fetch_full_resume(resume_id: str) -> dict[str, Any]:
         try:
             return await asyncio.to_thread(lambda: db_client.table("certifications").select("*").eq("resume_id", resume_id).execute().data)
         except Exception:
+            logger.warning("certifications fetch failed for resume %s", resume_id, exc_info=True)
             return []
 
     async def empty_list():
@@ -340,8 +341,9 @@ async def parse_resume(
         elif resume_key:
             try:
                 pdf_bytes = download_resume_file(resume_key)
-            except Exception:
-                raise HTTPException(status_code=404, detail="Stored resume not found.")
+            except Exception as exc:
+                logger.warning("stored resume download failed for key %s", resume_key, exc_info=True)
+                raise HTTPException(status_code=404, detail="Stored resume not found.") from exc
             resolved_resume_key = resume_key
         else:
             raise HTTPException(status_code=400, detail="Provide either file upload or resume_key.")
@@ -354,9 +356,9 @@ async def parse_resume(
         return {"success": True, "message": "Resume parsed and stored successfully.", "resume_id": resume_id}
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("parse_resume failed")
-        raise HTTPException(status_code=500, detail="Failed to parse resume.")
+        raise HTTPException(status_code=500, detail="Failed to parse resume.") from exc
 
 
 @router.post("/manual")
@@ -374,9 +376,9 @@ async def submit_manual_resume(
         return {"success": True, "message": "Manual profile saved successfully.", "resume_id": resume_id}
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("submit_manual_resume failed")
-        raise HTTPException(status_code=500, detail="Failed to save manual profile.")
+        raise HTTPException(status_code=500, detail="Failed to save manual profile.") from exc
 
 
 @router.get("/latest")
@@ -441,7 +443,8 @@ async def update_profile(body: ProfileUpdate, user_id: str = Depends(require_use
             on_conflict="user_id",
         ).execute()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Profile update failed: {e}")
+        logger.exception("profile update failed for user %s", user_id)
+        raise HTTPException(status_code=500, detail=f"Profile update failed: {e}") from e
     return {"success": True, "target_role_id": body.target_role_id}
 
 
