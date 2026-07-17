@@ -79,15 +79,11 @@ def get_current_user_id(user_id: str = Depends(verify_token)) -> str:
     # Dev convenience: run routes without a token when explicitly enabled.
     if settings.dev_bypass_auth and settings.dev_user_id:
         return settings.dev_user_id
-    return user_id
+    # Reject unauthenticated requests here so a route that forgets its own
+    # `if not user_id` guard can never run with an anonymous identity.
+    raise HTTPException(status_code=401, detail="Not authenticated")
 
 
-def require_user_id(user_id: str = Depends(get_current_user_id)) -> str:
-    """Like `get_current_user_id`, but rejects unauthenticated requests.
-
-    Routes that require a signed-in user should depend on this instead of
-    repeating a `if not user_id: raise HTTPException(401, ...)` guard.
-    """
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return user_id
+# Alias kept for routers that depend on the explicit name; get_current_user_id
+# already raises 401, so this adds nothing beyond readability.
+require_user_id = get_current_user_id

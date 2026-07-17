@@ -87,9 +87,11 @@ async def get_github_repos(user_id: str = Depends(require_user_id)):
         repos = await fetch_top_repositories(access_token)
 
         return {"success": True, "repos": repos}
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Failed to fetch github repos")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch repositories: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch repositories.")
 
 @router.post("/analyze", response_model=dict)
 async def analyze_github_repos(
@@ -158,9 +160,11 @@ async def analyze_github_repos(
             "skills": profile["skills"],
         }
 
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         logger.exception("Failed to analyze github repos")
-        raise HTTPException(status_code=500, detail=f"Failed to analyze repositories: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze repositories.")
 
 @router.get("/profile")
 async def get_github_insights(user_id: str = Depends(require_user_id)):

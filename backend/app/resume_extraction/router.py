@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 from datetime import datetime, timezone
 from typing import Any
@@ -16,6 +17,8 @@ from app.resume_extraction.service import (
 )
 from app.utils.resumes import latest_resume_id, user_resume_ids
 from app.utils.storage import upload_resume_file, download_resume_file
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/parse-resume", tags=["Resume"])
 
@@ -349,10 +352,11 @@ async def parse_resume(
         resume_id = insert_full_resume(extracted_dict, user_id, resolved_resume_key or "")
 
         return {"success": True, "message": "Resume parsed and stored successfully.", "resume_id": resume_id}
-    except Exception as exc:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("parse_resume failed")
+        raise HTTPException(status_code=500, detail="Failed to parse resume.")
 
 
 @router.post("/manual")
@@ -368,10 +372,11 @@ async def submit_manual_resume(
         resume_id = insert_full_resume(extracted_dict, user_id, resume_key)
 
         return {"success": True, "message": "Manual profile saved successfully.", "resume_id": resume_id}
-    except Exception as exc:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("submit_manual_resume failed")
+        raise HTTPException(status_code=500, detail="Failed to save manual profile.")
 
 
 @router.get("/latest")
