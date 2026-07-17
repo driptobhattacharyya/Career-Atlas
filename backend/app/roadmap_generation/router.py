@@ -13,7 +13,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.dependencies.auth import get_current_user_id
+from app.dependencies.auth import require_user_id
 from app.dependencies.database import db_client
 from app.roadmap_generation.schemas import (
     MilestoneRowOut,
@@ -26,10 +26,8 @@ router = APIRouter(prefix="/api/generate-roadmap", tags=["Roadmap"])
 @router.get("/")
 async def list_milestones(
     target_role_id: Optional[str] = None,
-    user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(require_user_id),
 ):
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
     q = (
         db_client.table("milestones")
         .select("*")
@@ -47,11 +45,8 @@ async def list_milestones(
 async def update_milestone_status(
     milestone_id: str,
     body: MilestoneStatusUpdate,
-    user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(require_user_id),
 ):
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     cur = (
         db_client.table("milestones")
         .select("id,user_id")

@@ -10,7 +10,7 @@ from app.github_analysis.github_api import (
     fetch_commit_stats,
     fetch_authenticated_login,
 )
-from app.utils.llm_factory import get_groq_model
+from app.utils.llm_factory import build_groq_structured_chain
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
 
@@ -237,9 +237,7 @@ async def analyze_repository(repo: GitHubRepoInfo, login: str, access_token: str
 
     lang_str = ", ".join(f"{l} {p}%" for l, p in sorted(languages.items(), key=lambda x: -x[1])) or "unknown"
 
-    model = get_groq_model(temperature=0.1)
-    structured_llm = model.with_structured_output(RepoAnalysisResult)
-    chain = REPO_ANALYSIS_PROMPT | structured_llm
+    chain = build_groq_structured_chain(REPO_ANALYSIS_PROMPT, RepoAnalysisResult, temperature=0.1)
 
     base = {
         "summary": "Analysis failed",
@@ -284,9 +282,7 @@ async def analyze_selected_repositories(user_id: str, repos: List[str], access_t
         repo_analyses_text += f"Coding Behavior: {analysis['coding_behavior']}\n"
         repo_analyses_text += f"Skills: {skill_names}\n"
 
-    model = get_groq_model(temperature=0.1)
-    structured_llm = model.with_structured_output(ProfileAnalysisResult)
-    chain = PROFILE_ANALYSIS_PROMPT | structured_llm
+    chain = build_groq_structured_chain(PROFILE_ANALYSIS_PROMPT, ProfileAnalysisResult, temperature=0.1)
 
     overall_result: ProfileAnalysisResult = await chain.ainvoke({
         "repo_analyses": repo_analyses_text

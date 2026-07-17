@@ -80,6 +80,15 @@ def get_groq_model(model_name: str | None = None, temperature: float = 0.2):
     )
 
 
+def build_groq_structured_chain(prompt: Any, schema: Any, temperature: float = 0.2, model_name: str | None = None):
+    """Compose a `prompt | groq.with_structured_output(schema)` chain.
+
+    Wraps the recurring pattern of grabbing a Groq model, binding a structured
+    output schema, and piping a prompt template into it.
+    """
+    return prompt | get_groq_model(model_name, temperature).with_structured_output(schema)
+
+
 @lru_cache()
 def get_huggingface_model(repo_id: str = "mistralai/Mistral-7B-Instruct-v0.2"):
     """

@@ -18,7 +18,7 @@ from datetime import datetime
 
 from langgraph.graph import StateGraph, START, END
 
-from app.utils.llm_factory import get_groq_model
+from app.utils.llm_factory import build_groq_structured_chain
 from app.deep_researcher.tools import search_web
 from app.deep_researcher.judge import evaluate_pathway
 from app.deep_researcher.validation import validate_pathway
@@ -60,8 +60,7 @@ def _notes_brief(notes, char_cap: int = 300) -> str:
 # ── Nodes ────────────────────────────────────────────────────────────────────
 
 def node_plan(state: ResearcherState) -> dict:
-    model = get_groq_model(temperature=0.2)
-    planner = PLAN_PROMPT | model.with_structured_output(NextQuery)
+    planner = build_groq_structured_chain(PLAN_PROMPT, NextQuery, temperature=0.2)
     nxt: NextQuery = planner.invoke({
         "target_role": state["target_role"],
         "current_year": CURRENT_YEAR,
@@ -96,8 +95,7 @@ def critic_route(state: ResearcherState) -> str:
     if state.get("iteration", 0) >= state.get("max_iter", 3):
         logger.info("deep_researcher max_iter reached, forcing structure")
         return "structure"
-    model = get_groq_model(temperature=0.2)
-    critic = CRITIC_PROMPT | model.with_structured_output(CriticOut)
+    critic = build_groq_structured_chain(CRITIC_PROMPT, CriticOut, temperature=0.2)
     out: CriticOut = critic.invoke({
         "target_role": state["target_role"],
         "gaps": "\n".join(f"- {g.skill}" for g in state["gaps"]),
@@ -124,8 +122,7 @@ def node_structure(state: ResearcherState) -> dict:
     else:
         feedback = "(none — first attempt)"
 
-    model = get_groq_model(temperature=0.2)
-    structurer = STRUCTURE_PROMPT | model.with_structured_output(Pathway)
+    structurer = build_groq_structured_chain(STRUCTURE_PROMPT, Pathway, temperature=0.2)
     pathway: Pathway = structurer.invoke({
         "target_role": state["target_role"],
         "current_year": CURRENT_YEAR,

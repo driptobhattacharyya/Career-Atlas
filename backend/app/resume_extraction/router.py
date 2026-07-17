@@ -5,13 +5,14 @@ from typing import Any
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from app.dependencies.auth import get_current_user_id
+from app.dependencies.auth import require_user_id
 from app.dependencies.database import db_client
 from app.resume_extraction.schemas import ResumeExtraction
 from app.resume_extraction.service import (
     extract_structured_resume_data,
     pdf_bytes_to_markdown,
 )
+from app.utils.resumes import latest_resume_id, user_resume_ids
 from app.utils.storage import upload_resume_file, download_resume_file
 
 router = APIRouter(prefix="/api/parse-resume", tags=["Resume"])
@@ -186,25 +187,6 @@ def _delete_other_resumes(user_id: str, keep_resume_id: str) -> None:
         pass
 
 
-def _latest_resume_id(user_id: str) -> str | None:
-    """The user's most recent resume id, or None if they have none.
-
-    Strictly scoped to user_id — never falls back to a global lookup, which
-    would hand one user another user's resume.
-    """
-    resp = (
-        db_client.table("resumes")
-        .select("id")
-        .eq("user_id", user_id)
-        .order("created_at", desc=True)
-        .limit(1)
-        .execute()
-    )
-    if resp.data:
-        return resp.data[0]["id"]
-    return None
-
-
 def fetch_full_resume(resume_id: str) -> dict[str, Any]:
     resume = db_client.table("resumes").select("*").eq("id", resume_id).execute().data[0]
 
@@ -268,12 +250,9 @@ def fetch_full_resume(resume_id: str) -> dict[str, Any]:
 async def parse_resume(
     file: UploadFile | None = File(default=None),
     resume_key: str | None = Form(default=None),
-    user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(require_user_id),
 ):
     try:
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Not authenticated")
-
         resolved_resume_key = resume_key
         pdf_bytes: bytes
         if file is not None:
@@ -309,12 +288,9 @@ async def parse_resume(
 @router.post("/manual")
 async def submit_manual_resume(
     payload: ResumeExtraction,
-    user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(require_user_id),
 ):
     try:
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Not authenticated")
-
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         resume_key = f"manual_{user_id}_{timestamp}"
         
@@ -329,20 +305,15 @@ async def submit_manual_resume(
 
 
 @router.get("/latest")
-async def get_latest_resume(user_id: str = Depends(get_current_user_id)):
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    resume_id = _latest_resume_id(user_id)
+async def get_latest_resume(user_id: str = Depends(require_user_id)):
+    resume_id = latest_resume_id(user_id)
     if not resume_id:
         return {"success": True, "resume": None}
     return {"success": True, "resume": fetch_full_resume(resume_id)}
 
 
 @router.get("/all")
-async def get_all_resumes(user_id: str = Depends(get_current_user_id)):
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
+async def get_all_resumes(user_id: str = Depends(require_user_id)):
     resp = db_client.table("resumes")\
         .select("id, created_at, full_name, headline, summary, resume_key")\
         .eq("user_id", user_id)\
@@ -353,10 +324,7 @@ async def get_all_resumes(user_id: str = Depends(get_current_user_id)):
 
 
 @router.post("/select/{resume_id}")
-async def select_resume(resume_id: str, user_id: str = Depends(get_current_user_id)):
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-        
+async def select_resume(resume_id: str, user_id: str = Depends(require_user_id)):
     # Verify ownership
     resp = db_client.table("resumes").select("id").eq("user_id", user_id).eq("id", resume_id).execute()
     if not resp.data:
@@ -389,19 +357,9 @@ class ExperienceUpdate(BaseModel):
     end_date: str | None = None
 
 
-def _user_resume_ids(user_id: str) -> list[str]:
-    try:
-        resp = db_client.table("resumes").select("id").eq("user_id", user_id).execute()
-        return [r["id"] for r in (resp.data or []) if r.get("id")]
-    except Exception:
-        return []
-
-
 @router.patch("/profile")
-async def update_profile(body: ProfileUpdate, user_id: str = Depends(get_current_user_id)):
+async def update_profile(body: ProfileUpdate, user_id: str = Depends(require_user_id)):
     """Change the user's target role (persisted in the `profiles` table)."""
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         db_client.table("profiles").upsert(
             {"user_id": user_id, "target_role_id": body.target_role_id},
@@ -413,14 +371,12 @@ async def update_profile(body: ProfileUpdate, user_id: str = Depends(get_current
 
 
 @router.post("/skills")
-async def add_skill(body: SkillIn, user_id: str = Depends(get_current_user_id)):
+async def add_skill(body: SkillIn, user_id: str = Depends(require_user_id)):
     """Add a skill to the user's latest resume."""
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
     skill = (body.skill or "").strip()
     if not skill:
         raise HTTPException(status_code=400, detail="Skill cannot be empty")
-    resume_id = _latest_resume_id(user_id)
+    resume_id = latest_resume_id(user_id)
     if not resume_id:
         raise HTTPException(status_code=400, detail="No resume found")
     existing = (
@@ -433,14 +389,12 @@ async def add_skill(body: SkillIn, user_id: str = Depends(get_current_user_id)):
 
 
 @router.delete("/skills")
-async def delete_skill(skill: str, user_id: str = Depends(get_current_user_id)):
+async def delete_skill(skill: str, user_id: str = Depends(require_user_id)):
     """Remove a skill (by name) from the user's latest resume."""
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
     skill = (skill or "").strip()
     if not skill:
         raise HTTPException(status_code=400, detail="Skill cannot be empty")
-    resume_id = _latest_resume_id(user_id)
+    resume_id = latest_resume_id(user_id)
     if not resume_id:
         raise HTTPException(status_code=400, detail="No resume found")
     db_client.table("skills").delete().eq("resume_id", resume_id).eq("skill", skill).execute()
@@ -453,11 +407,9 @@ async def delete_skill(skill: str, user_id: str = Depends(get_current_user_id)):
 async def update_experience(
     experience_id: str,
     body: ExperienceUpdate,
-    user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(require_user_id),
 ):
     """Edit an experience entry's title / company / dates."""
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
     exp = (
         db_client.table("experiences")
         .select("id,resume_id")
@@ -467,7 +419,7 @@ async def update_experience(
     )
     if not exp.data:
         raise HTTPException(status_code=404, detail="Experience not found")
-    if exp.data[0]["resume_id"] not in _user_resume_ids(user_id):
+    if exp.data[0]["resume_id"] not in user_resume_ids(user_id):
         raise HTTPException(status_code=404, detail="Experience not found")
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
     if updates:

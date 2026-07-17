@@ -1,7 +1,7 @@
 import logging
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Body
-from app.dependencies.auth import get_current_user_id
+from app.dependencies.auth import require_user_id
 from app.dependencies.database import db_client
 from app.config import settings
 from app.github_analysis.schemas import GitHubOAuthCallback, RepoSelection, GitHubReposResponse, SkillAction
@@ -14,11 +14,8 @@ router = APIRouter(prefix="/api/github", tags=["GitHub Analysis"])
 @router.post("/oauth/callback")
 async def github_oauth_callback(
     req: GitHubOAuthCallback,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(require_user_id)
 ):
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     if not settings.github_client_id or not settings.github_client_secret:
         raise HTTPException(status_code=500, detail="GitHub OAuth is not configured on the server")
 
@@ -79,10 +76,7 @@ async def github_oauth_callback(
         return {"success": True, "github_username": github_username}
 
 @router.get("/repos", response_model=GitHubReposResponse)
-async def get_github_repos(user_id: str = Depends(get_current_user_id)):
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
+async def get_github_repos(user_id: str = Depends(require_user_id)):
     try:
         token_resp = db_client.table("github_tokens").select("access_token").eq("user_id", user_id).execute()
         if not token_resp.data:
@@ -99,11 +93,8 @@ async def get_github_repos(user_id: str = Depends(get_current_user_id)):
 @router.post("/analyze", response_model=dict)
 async def analyze_github_repos(
     req: RepoSelection,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(require_user_id)
 ):
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     try:
         token_resp = db_client.table("github_tokens").select("access_token").eq("user_id", user_id).execute()
         if not token_resp.data:
@@ -171,12 +162,9 @@ async def analyze_github_repos(
         raise HTTPException(status_code=500, detail=f"Failed to analyze repositories: {e}")
 
 @router.get("/profile")
-async def get_github_insights(user_id: str = Depends(get_current_user_id)):
+async def get_github_insights(user_id: str = Depends(require_user_id)):
     """Powers the insights panel: stored profile + per-repo facts + quarantined
     skill suggestions (with evidence/confidence/confirmed)."""
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     profile_resp = db_client.table("github_profiles").select("*").eq("user_id", user_id).execute()
     repos_resp = db_client.table("github_repositories").select("*").eq("user_id", user_id).execute()
     evidence_resp = db_client.table("github_skill_evidence").select("*").eq("user_id", user_id)\
@@ -191,11 +179,9 @@ async def get_github_insights(user_id: str = Depends(get_current_user_id)):
 
 
 @router.post("/skills/confirm")
-async def confirm_github_skills(req: SkillAction, user_id: str = Depends(get_current_user_id)):
+async def confirm_github_skills(req: SkillAction, user_id: str = Depends(require_user_id)):
     """Promote suggested skills into the verified profile (confirmed=true). Gap
     analysis only counts confirmed GitHub skills."""
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
     if not req.evidence_ids:
         return {"success": True, "updated": 0}
 
@@ -205,11 +191,9 @@ async def confirm_github_skills(req: SkillAction, user_id: str = Depends(get_cur
 
 
 @router.post("/skills/reject")
-async def reject_github_skills(req: SkillAction, user_id: str = Depends(get_current_user_id)):
+async def reject_github_skills(req: SkillAction, user_id: str = Depends(require_user_id)):
     """Discard suggested skills. ponytail: reject = delete the row; re-analyze
     re-suggests it if the evidence is still there."""
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
     if not req.evidence_ids:
         return {"success": True, "deleted": 0}
 
@@ -219,10 +203,7 @@ async def reject_github_skills(req: SkillAction, user_id: str = Depends(get_curr
 
 
 @router.get("/status")
-async def get_github_status(user_id: str = Depends(get_current_user_id)):
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
+async def get_github_status(user_id: str = Depends(require_user_id)):
     try:
         resp = db_client.table("github_tokens").select("github_username").eq("user_id", user_id).execute()
         if resp.data:
