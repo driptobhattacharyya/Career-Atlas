@@ -1,5 +1,5 @@
 # CareerAtlas backend — FastAPI on AWS Lambda (container image + Function URL).
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Lambda Web Adapter: lets this ordinary web-server image run on Lambda.
 # Inert outside Lambda, so local `docker run` still works unchanged.
