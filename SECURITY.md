@@ -78,7 +78,7 @@ Out of scope:
 
 ### API Security
 - CORS restricted to known origins (`CORS_ORIGINS`)
-- Rate limiting via Cloud Run / Cloudflare
+- Rate limiting via Cloudflare (WAF/Rules) and/or an AWS gateway layer in front of Lambda
 - Input validation via Pydantic / Zod
 - SQL injection prevention via Supabase client / parameterized queries
 
