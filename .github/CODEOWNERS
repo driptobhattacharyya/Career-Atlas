@@ -1,0 +1,37 @@
+# CODEOWNERS
+# These users/teams will be automatically requested for review on PRs
+# matching the patterns below.
+#
+# Syntax: <pattern>  <owner>
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global - all PRs require review from maintainers
+*  @DriptoBhattacharyya
+
+# Backend - Python/FastAPI/LangChain
+/backend/  @DriptoBhattacharyya
+
+# Frontend - React/TanStack/Tailwind
+/frontend/  @DriptoBhattacharyya
+
+# Infrastructure - CI/CD, deploy, configs
+/.github/workflows/  @DriptoBhattacharyya
+/.github/  @DriptoBhattacharyya
+/docker/  @DriptoBhattacharyya
+/*.yml  @DriptoBhattacharyya
+/*.yaml  @DriptoBhattacharyya
+/Dockerfile*  @DriptoBhattacharyya
+/*.toml  @DriptoBhattacharyya
+/*.json  @DriptoBhattacharyya
+
+# Documentation
+/*.md  @DriptoBhattacharyya
+/docs/  @DriptoBhattacharyya
+/Documentation/  @DriptoBhattacharyya
+
+# Database migrations
+/backend/sql/  @DriptoBhattacharyya
+
+# Security-sensitive files
+/.env*  @DriptoBhattacharyya
+/*.secret  @DriptoBhattacharyya
