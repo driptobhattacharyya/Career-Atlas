@@ -21,7 +21,7 @@ langchain-google-genai>=0.0.5
 langchain-groq>=0.0.1
 langchain-huggingface>=0.0.1
 langchain-openai>=0.1.0
-langgraph>=0.0.10
+langgraph>=1.2.9
 
 # Search & Retrieval
 tavily-python>=0.3.0
