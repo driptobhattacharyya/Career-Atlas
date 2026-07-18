@@ -9,6 +9,11 @@ Pipeline: **profile extraction & switching → gap analysis → learning roadmap
 CareerAtlas is designed as a senior career advisor for early-career developers. Instead of generic, one-size-fits-all roadmaps, CareerAtlas connects to your actual professional history.
 Through a multi-agent system, the app identifies exactly what skill gaps exist between your current profile and your target career role, retrieves online tutorials/courses to bridge those gaps, and ranks real job postings by skill compatibility.
 
+### Links
+[Working Web App](https://careeratlas.driptoagain2.workers.dev)
+
+[Deep Wiki documentation](https://deepwiki.com/driptobhattacharyya/Career-Atlas)
+
 ## Key Features
 
 - **Multi-Resume Support & Profile Selector:** The onboarding process queries all your previously extracted profiles in Supabase, allowing you to select and switch your active profile dynamically or choose to upload/type a new one.
