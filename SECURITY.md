@@ -47,7 +47,7 @@ This policy covers:
 
 - **Backend API** (`backend/`) - FastAPI, authentication, data handling
 - **Frontend** (`frontend/`) - React, Supabase client, user data
-- **Infrastructure** - GitHub Actions, Cloud Run, Cloudflare Workers, Supabase
+- **Infrastructure** - GitHub Actions, AWS Lambda, Cloudflare Workers, Supabase
 - **Dependencies** - Python (pip/uv), Node.js (npm/bun), Docker base images
 
 Out of scope:
