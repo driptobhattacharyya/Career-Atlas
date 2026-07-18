@@ -68,7 +68,7 @@ Out of scope:
 - Backend verifies Supabase JWT on every request
 - Row Level Security (RLS) enforced in Supabase
 - `DEV_BYPASS_AUTH` only for local development
-- GitHub OAuth: `repo` scope (minimal for OAuth App)
+- GitHub OAuth: `repo` scope (required to read private repos with an OAuth App; use a GitHub App for fine-grained read-only scopes)
 
 ### Data Protection
 - Resumes stored in Supabase Storage (private bucket `resumes`)
