@@ -61,7 +61,7 @@ Out of scope:
 ### Secrets Management
 - **Never commit secrets** (API keys, tokens, passwords)
 - Use `.env.example` as template; real values in `.env` (gitignored)
-- Production: GCP Secret Manager / Cloudflare Workers secrets / Supabase Vault
+- Production: AWS Secrets Manager / Cloudflare Workers secrets / Supabase Vault
 - Rotate keys immediately if exposed
 
 ### Authentication & Authorization
