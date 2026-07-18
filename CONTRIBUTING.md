@@ -159,9 +159,9 @@ Push your branch and open a Pull Request against `main`.
 1. **Base branch**: `main` (not `prod`)
 2. **Title**: Clear, descriptive (e.g., "feat: add GitHub OAuth token refresh")
 3. **Description**: Use the PR template - explain what, why, and how
-3. **Reviewers**: At least 1 maintainer approval required
-4. **Checks**: All CI checks must pass
-5. **Commits**: Squash on merge (maintains clean history)
+4. **Reviewers**: At least 1 maintainer approval required
+5. **Checks**: All CI checks must pass
+6. **Commits**: Squash on merge (maintains clean history)
 
 ### Review Process
 
