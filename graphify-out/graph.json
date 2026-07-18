@@ -158,9 +158,9 @@
       "file_type": "rationale",
       "source_file": "backend\\app\\main.py",
       "source_location": "L106",
-      "id": "main_rationale_106",
       "community": 16,
-      "norm_label": "intentionally errors \u2014 used to verify sentry capture end-to-end.      disabled"
+      "norm_label": "intentionally errors \u2014 used to verify sentry capture end-to-end.      disabled",
+      "id": "main_rationale_106"
     },
     {
       "label": "agent.py",
@@ -986,9 +986,9 @@
       "file_type": "rationale",
       "source_file": "backend\\app\\gap_analysis\\router.py",
       "source_location": "L32",
-      "id": "router_rationale_32",
       "community": 4,
-      "norm_label": "return the user's latest stored skill gaps so results reload on re-sign-in."
+      "norm_label": "return the user's latest stored skill gaps so results reload on re-sign-in.",
+      "id": "router_rationale_32"
     },
     {
       "label": "schemas.py",
@@ -1823,18 +1823,18 @@
       "file_type": "rationale",
       "source_file": "backend\\app\\job_hunter\\router.py",
       "source_location": "L24",
-      "id": "router_rationale_24",
       "community": 10,
-      "norm_label": "coerce the llm's free-text 'posted' value into a day count for the int column."
+      "norm_label": "coerce the llm's free-text 'posted' value into a day count for the int column.",
+      "id": "router_rationale_24"
     },
     {
       "label": "Return the current user's persisted job matches (latest search).",
       "file_type": "rationale",
       "source_file": "backend\\app\\job_hunter\\router.py",
       "source_location": "L387",
-      "id": "router_rationale_387",
       "community": 10,
-      "norm_label": "return the current user's persisted job matches (latest search)."
+      "norm_label": "return the current user's persisted job matches (latest search).",
+      "id": "router_rationale_387"
     },
     {
       "label": "schemas.py",
@@ -2093,36 +2093,36 @@
       "file_type": "rationale",
       "source_file": "backend\\app\\resume_extraction\\router.py",
       "source_location": "L439",
-      "id": "router_rationale_439",
       "community": 2,
-      "norm_label": "change the user's target role (persisted in the `profiles` table)."
+      "norm_label": "change the user's target role (persisted in the `profiles` table).",
+      "id": "router_rationale_439"
     },
     {
       "label": "Add a skill to the user's latest resume.",
       "file_type": "rationale",
       "source_file": "backend\\app\\resume_extraction\\router.py",
       "source_location": "L453",
-      "id": "router_rationale_453",
       "community": 2,
-      "norm_label": "add a skill to the user's latest resume."
+      "norm_label": "add a skill to the user's latest resume.",
+      "id": "router_rationale_453"
     },
     {
       "label": "Remove a skill (by name) from the user's latest resume.",
       "file_type": "rationale",
       "source_file": "backend\\app\\resume_extraction\\router.py",
       "source_location": "L471",
-      "id": "router_rationale_471",
       "community": 2,
-      "norm_label": "remove a skill (by name) from the user's latest resume."
+      "norm_label": "remove a skill (by name) from the user's latest resume.",
+      "id": "router_rationale_471"
     },
     {
       "label": "Edit an experience entry's title / company / dates.",
       "file_type": "rationale",
       "source_file": "backend\\app\\resume_extraction\\router.py",
       "source_location": "L490",
-      "id": "router_rationale_490",
       "community": 2,
-      "norm_label": "edit an experience entry's title / company / dates."
+      "norm_label": "edit an experience entry's title / company / dates.",
+      "id": "router_rationale_490"
     },
     {
       "label": "schemas.py",
@@ -2804,9 +2804,9 @@
       "file_type": "rationale",
       "source_file": "backend\\app\\utils\\tavily.py",
       "source_location": "L26",
-      "id": "tavily_rationale_26",
       "community": 13,
-      "norm_label": "run a tavily search and return a normalized list:         [{url, title, content"
+      "norm_label": "run a tavily search and return a normalized list:         [{url, title, content",
+      "id": "tavily_rationale_26"
     },
     {
       "label": "ingest_taxonomy.py",
@@ -10880,9 +10880,9 @@
       "weight": 0.8,
       "_src": "router_rationale_32",
       "_tgt": "schemas_analyzegapsrequest",
+      "confidence_score": 0.5,
       "source": "router_rationale_32",
-      "target": "schemas_analyzegapsrequest",
-      "confidence_score": 0.5
+      "target": "schemas_analyzegapsrequest"
     },
     {
       "relation": "contains",
@@ -11130,8 +11130,8 @@
       "source_file": "backend\\app\\gap_analysis\\router.py",
       "source_location": "L19",
       "weight": 0.8,
-      "_src": "router_rationale_28",
-      "_tgt": "schemas_analyzegapsrequest",
+      "_src": "schemas_analyzegapsrequest",
+      "_tgt": "router_rationale_28",
       "confidence_score": 0.5,
       "source": "schemas_analyzegapsrequest",
       "target": "router_rationale_28"
@@ -11166,8 +11166,8 @@
       "source_file": "backend\\app\\gap_analysis\\router.py",
       "source_location": "L19",
       "weight": 0.8,
-      "_src": "router_rationale_28",
-      "_tgt": "schemas_gapanalysisresult",
+      "_src": "schemas_gapanalysisresult",
+      "_tgt": "router_rationale_28",
       "confidence_score": 0.5,
       "source": "schemas_gapanalysisresult",
       "target": "router_rationale_28"
@@ -13952,9 +13952,9 @@
       "weight": 0.8,
       "_src": "router_rationale_24",
       "_tgt": "schemas_jobexplanation",
+      "confidence_score": 0.5,
       "source": "router_rationale_24",
-      "target": "schemas_jobexplanation",
-      "confidence_score": 0.5
+      "target": "schemas_jobexplanation"
     },
     {
       "relation": "uses",
@@ -13964,9 +13964,9 @@
       "weight": 0.8,
       "_src": "router_rationale_24",
       "_tgt": "schemas_jobresult",
+      "confidence_score": 0.5,
       "source": "router_rationale_24",
-      "target": "schemas_jobresult",
-      "confidence_score": 0.5
+      "target": "schemas_jobresult"
     },
     {
       "relation": "uses",
@@ -13976,9 +13976,9 @@
       "weight": 0.8,
       "_src": "router_rationale_24",
       "_tgt": "schemas_jobsearchresponse",
+      "confidence_score": 0.5,
       "source": "router_rationale_24",
-      "target": "schemas_jobsearchresponse",
-      "confidence_score": 0.5
+      "target": "schemas_jobsearchresponse"
     },
     {
       "relation": "uses",
@@ -13988,9 +13988,9 @@
       "weight": 0.8,
       "_src": "router_rationale_24",
       "_tgt": "schemas_scorebreakdown",
+      "confidence_score": 0.5,
       "source": "router_rationale_24",
-      "target": "schemas_scorebreakdown",
-      "confidence_score": 0.5
+      "target": "schemas_scorebreakdown"
     },
     {
       "relation": "uses",
@@ -14000,9 +14000,9 @@
       "weight": 0.8,
       "_src": "router_rationale_387",
       "_tgt": "schemas_jobexplanation",
+      "confidence_score": 0.5,
       "source": "router_rationale_387",
-      "target": "schemas_jobexplanation",
-      "confidence_score": 0.5
+      "target": "schemas_jobexplanation"
     },
     {
       "relation": "uses",
@@ -14012,9 +14012,9 @@
       "weight": 0.8,
       "_src": "router_rationale_387",
       "_tgt": "schemas_jobresult",
+      "confidence_score": 0.5,
       "source": "router_rationale_387",
-      "target": "schemas_jobresult",
-      "confidence_score": 0.5
+      "target": "schemas_jobresult"
     },
     {
       "relation": "uses",
@@ -14024,9 +14024,9 @@
       "weight": 0.8,
       "_src": "router_rationale_387",
       "_tgt": "schemas_jobsearchresponse",
+      "confidence_score": 0.5,
       "source": "router_rationale_387",
-      "target": "schemas_jobsearchresponse",
-      "confidence_score": 0.5
+      "target": "schemas_jobsearchresponse"
     },
     {
       "relation": "uses",
@@ -14036,9 +14036,9 @@
       "weight": 0.8,
       "_src": "router_rationale_387",
       "_tgt": "schemas_scorebreakdown",
+      "confidence_score": 0.5,
       "source": "router_rationale_387",
-      "target": "schemas_scorebreakdown",
-      "confidence_score": 0.5
+      "target": "schemas_scorebreakdown"
     },
     {
       "relation": "contains",
@@ -14190,8 +14190,8 @@
       "source_file": "backend\\app\\job_hunter\\router.py",
       "source_location": "L10",
       "weight": 0.8,
-      "_src": "router_rationale_21",
-      "_tgt": "schemas_scorebreakdown",
+      "_src": "schemas_scorebreakdown",
+      "_tgt": "router_rationale_21",
       "confidence_score": 0.5,
       "source": "schemas_scorebreakdown",
       "target": "router_rationale_21"
@@ -14202,8 +14202,8 @@
       "source_file": "backend\\app\\job_hunter\\router.py",
       "source_location": "L10",
       "weight": 0.8,
-      "_src": "router_rationale_377",
-      "_tgt": "schemas_scorebreakdown",
+      "_src": "schemas_scorebreakdown",
+      "_tgt": "router_rationale_377",
       "confidence_score": 0.5,
       "source": "schemas_scorebreakdown",
       "target": "router_rationale_377"
@@ -14250,8 +14250,8 @@
       "source_file": "backend\\app\\job_hunter\\router.py",
       "source_location": "L10",
       "weight": 0.8,
-      "_src": "router_rationale_21",
-      "_tgt": "schemas_jobexplanation",
+      "_src": "schemas_jobexplanation",
+      "_tgt": "router_rationale_21",
       "confidence_score": 0.5,
       "source": "schemas_jobexplanation",
       "target": "router_rationale_21"
@@ -14262,8 +14262,8 @@
       "source_file": "backend\\app\\job_hunter\\router.py",
       "source_location": "L10",
       "weight": 0.8,
-      "_src": "router_rationale_377",
-      "_tgt": "schemas_jobexplanation",
+      "_src": "schemas_jobexplanation",
+      "_tgt": "router_rationale_377",
       "confidence_score": 0.5,
       "source": "schemas_jobexplanation",
       "target": "router_rationale_377"
@@ -14334,8 +14334,8 @@
       "source_file": "backend\\app\\job_hunter\\router.py",
       "source_location": "L10",
       "weight": 0.8,
-      "_src": "router_rationale_21",
-      "_tgt": "schemas_jobresult",
+      "_src": "schemas_jobresult",
+      "_tgt": "router_rationale_21",
       "confidence_score": 0.5,
       "source": "schemas_jobresult",
       "target": "router_rationale_21"
@@ -14346,8 +14346,8 @@
       "source_file": "backend\\app\\job_hunter\\router.py",
       "source_location": "L10",
       "weight": 0.8,
-      "_src": "router_rationale_377",
-      "_tgt": "schemas_jobresult",
+      "_src": "schemas_jobresult",
+      "_tgt": "router_rationale_377",
       "confidence_score": 0.5,
       "source": "schemas_jobresult",
       "target": "router_rationale_377"
@@ -14394,8 +14394,8 @@
       "source_file": "backend\\app\\job_hunter\\router.py",
       "source_location": "L10",
       "weight": 0.8,
-      "_src": "router_rationale_21",
-      "_tgt": "schemas_jobsearchresponse",
+      "_src": "schemas_jobsearchresponse",
+      "_tgt": "router_rationale_21",
       "confidence_score": 0.5,
       "source": "schemas_jobsearchresponse",
       "target": "router_rationale_21"
@@ -14406,8 +14406,8 @@
       "source_file": "backend\\app\\job_hunter\\router.py",
       "source_location": "L10",
       "weight": 0.8,
-      "_src": "router_rationale_377",
-      "_tgt": "schemas_jobsearchresponse",
+      "_src": "schemas_jobsearchresponse",
+      "_tgt": "router_rationale_377",
       "confidence_score": 0.5,
       "source": "schemas_jobsearchresponse",
       "target": "router_rationale_377"
@@ -14924,9 +14924,9 @@
       "weight": 0.8,
       "_src": "router_rationale_439",
       "_tgt": "schemas_resumeextraction",
+      "confidence_score": 0.5,
       "source": "router_rationale_439",
-      "target": "schemas_resumeextraction",
-      "confidence_score": 0.5
+      "target": "schemas_resumeextraction"
     },
     {
       "relation": "uses",
@@ -14936,9 +14936,9 @@
       "weight": 0.8,
       "_src": "router_rationale_453",
       "_tgt": "schemas_resumeextraction",
+      "confidence_score": 0.5,
       "source": "router_rationale_453",
-      "target": "schemas_resumeextraction",
-      "confidence_score": 0.5
+      "target": "schemas_resumeextraction"
     },
     {
       "relation": "uses",
@@ -14948,9 +14948,9 @@
       "weight": 0.8,
       "_src": "router_rationale_471",
       "_tgt": "schemas_resumeextraction",
+      "confidence_score": 0.5,
       "source": "router_rationale_471",
-      "target": "schemas_resumeextraction",
-      "confidence_score": 0.5
+      "target": "schemas_resumeextraction"
     },
     {
       "relation": "uses",
@@ -14960,9 +14960,9 @@
       "weight": 0.8,
       "_src": "router_rationale_490",
       "_tgt": "schemas_resumeextraction",
+      "confidence_score": 0.5,
       "source": "router_rationale_490",
-      "target": "schemas_resumeextraction",
-      "confidence_score": 0.5
+      "target": "schemas_resumeextraction"
     },
     {
       "relation": "contains",
@@ -15054,8 +15054,8 @@
       "source_file": "backend\\app\\resume_extraction\\router.py",
       "source_location": "L10",
       "weight": 0.8,
-      "_src": "router_rationale_437",
-      "_tgt": "schemas_resumeextraction",
+      "_src": "schemas_resumeextraction",
+      "_tgt": "router_rationale_437",
       "confidence_score": 0.5,
       "source": "schemas_resumeextraction",
       "target": "router_rationale_437"
@@ -15066,8 +15066,8 @@
       "source_file": "backend\\app\\resume_extraction\\router.py",
       "source_location": "L13",
       "weight": 0.8,
-      "_src": "router_rationale_450",
-      "_tgt": "schemas_resumeextraction",
+      "_src": "schemas_resumeextraction",
+      "_tgt": "router_rationale_450",
       "confidence_score": 0.5,
       "source": "schemas_resumeextraction",
       "target": "router_rationale_450"
@@ -15078,8 +15078,8 @@
       "source_file": "backend\\app\\resume_extraction\\router.py",
       "source_location": "L13",
       "weight": 0.8,
-      "_src": "router_rationale_468",
-      "_tgt": "schemas_resumeextraction",
+      "_src": "schemas_resumeextraction",
+      "_tgt": "router_rationale_468",
       "confidence_score": 0.5,
       "source": "schemas_resumeextraction",
       "target": "router_rationale_468"
@@ -15090,8 +15090,8 @@
       "source_file": "backend\\app\\resume_extraction\\router.py",
       "source_location": "L12",
       "weight": 0.8,
-      "_src": "router_rationale_487",
-      "_tgt": "schemas_resumeextraction",
+      "_src": "schemas_resumeextraction",
+      "_tgt": "router_rationale_487",
       "confidence_score": 0.5,
       "source": "schemas_resumeextraction",
       "target": "router_rationale_487"

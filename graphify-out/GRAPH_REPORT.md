@@ -1,7 +1,7 @@
-# Graph Report - Career-Atlas  (2026-07-17)
+# Graph Report - Career-Atlas  (2026-07-18)
 
 ## Corpus Check
-- 151 files · ~200,836 words
+- 151 files · ~202,819 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary

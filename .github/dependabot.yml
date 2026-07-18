@@ -1,0 +1,121 @@
+# Dependabot Configuration
+# Automated dependency updates for security and maintenance
+
+version: 2
+updates:
+  # Backend - Python (uv)
+  - package-ecosystem: "uv"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    labels:
+      - "dependencies"
+      - "backend"
+      - "python"
+    commit-message:
+      prefix: "chore(deps):"
+      prefix-development: "chore(deps-dev):"
+    groups:
+      # Group related packages for fewer PRs
+      langchain:
+        patterns:
+          - "langchain*"
+      google-ai:
+        patterns:
+          - "google*"
+          - "vertex*"
+      data-science:
+        patterns:
+          - "numpy"
+          - "pandas"
+          - "scikit-learn"
+      testing:
+        patterns:
+          - "pytest*"
+          - "hypothesis"
+    # Security updates get immediate PRs
+    open-pull-requests-limit: 10
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+
+  # Frontend - npm/bun
+  - package-ecosystem: "bun"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    labels:
+      - "dependencies"
+      - "frontend"
+      - "npm"
+    commit-message:
+      prefix: "chore(deps):"
+      prefix-development: "chore(deps-dev):"
+    groups:
+      react:
+        patterns:
+          - "react*"
+          - "@types/react*"
+      tanstack:
+        patterns:
+          - "@tanstack*"
+      radix:
+        patterns:
+          - "@radix-ui*"
+      tailwind:
+        patterns:
+          - "tailwind*"
+          - "@tailwindcss*"
+      testing:
+        patterns:
+          - "vitest"
+          - "@testing-library*"
+          - "eslint*"
+          - "prettier*"
+      sentry:
+        patterns:
+          - "@sentry*"
+    open-pull-requests-limit: 15
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(deps):"
+    open-pull-requests-limit: 5
+
+  # Docker (for backend Dockerfile base images)
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "monthly"
+      time: "09:00"
+      timezone: "UTC"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps):"
+
+# Ignore specific versions that break things
+# Add to ignore list as needed:
+# ignore:
+#   - dependency-name: "package-name"
+#     versions: ["1.2.3", ">=2.0.0 <2.1.0"]
