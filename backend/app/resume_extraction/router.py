@@ -67,24 +67,31 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
     except Exception:
         logger.warning("contacts insert failed for resume %s", resume_id, exc_info=True)
 
-    for s in skill_values:
-        db_client.table("skills").insert({"resume_id": resume_id, "skill": s}).execute()
+    # ⚡ Bolt Optimization: Fix N+1 inserts by batching
+    # What: Replaced individual `.insert().execute()` loop calls with list accumulations and a single bulk `.insert(records).execute()`.
+    # Why: The Supabase Python client is synchronous and blocks the FastAPI event loop. Doing one insert per array item caused N+1 latency.
+    # Impact: Reduces DB round-trips for skills, languages, keywords, bullets, and technologies from O(N) to O(1).
+    if skill_values:
+        db_client.table("skills").insert([{"resume_id": resume_id, "skill": s} for s in skill_values]).execute()
 
-    for s in data.get("programming_languages", []) or []:
+    prog_langs = [{"resume_id": resume_id, "language": s} for s in data.get("programming_languages", []) or [] if isinstance(s, str) and s.strip()]
+    if prog_langs:
         try:
-            db_client.table("programming_languages").insert({"resume_id": resume_id, "language": s}).execute()
+            db_client.table("programming_languages").insert(prog_langs).execute()
         except Exception:
             logger.warning("programming_languages insert failed for resume %s", resume_id, exc_info=True)
 
-    for s in data.get("spoken_languages", []) or []:
+    spoken_langs = [{"resume_id": resume_id, "language": s} for s in data.get("spoken_languages", []) or [] if isinstance(s, str) and s.strip()]
+    if spoken_langs:
         try:
-            db_client.table("spoken_languages").insert({"resume_id": resume_id, "language": s}).execute()
+            db_client.table("spoken_languages").insert(spoken_langs).execute()
         except Exception:
             logger.warning("spoken_languages insert failed for resume %s", resume_id, exc_info=True)
 
-    for k in data.get("keywords", []) or []:
+    keywords = [{"resume_id": resume_id, "keyword": k} for k in data.get("keywords", []) or [] if isinstance(k, str) and k.strip()]
+    if keywords:
         try:
-            db_client.table("keywords").insert({"resume_id": resume_id, "keyword": k}).execute()
+            db_client.table("keywords").insert(keywords).execute()
         except Exception:
             logger.warning("keywords insert failed for resume %s", resume_id, exc_info=True)
 
@@ -102,10 +109,12 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         ).execute()
 
         exp_id = exp_res.data[0]["id"]
-        for b in exp.get("description_bullets", []) or []:
-            db_client.table("experience_bullets").insert({"experience_id": exp_id, "bullet": b}).execute()
-        for t in exp.get("technologies", []) or []:
-            db_client.table("experience_technologies").insert({"experience_id": exp_id, "tech": t}).execute()
+        exp_bullets = [{"experience_id": exp_id, "bullet": b} for b in exp.get("description_bullets", []) or [] if isinstance(b, str) and b.strip()]
+        if exp_bullets:
+            db_client.table("experience_bullets").insert(exp_bullets).execute()
+        exp_techs = [{"experience_id": exp_id, "tech": t} for t in exp.get("technologies", []) or [] if isinstance(t, str) and t.strip()]
+        if exp_techs:
+            db_client.table("experience_technologies").insert(exp_techs).execute()
 
     for edu in data.get("education", []) or []:
         edu_res = db_client.table("education").insert(
@@ -121,8 +130,9 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         ).execute()
 
         edu_id = edu_res.data[0]["id"]
-        for n in edu.get("notes", []) or []:
-            db_client.table("education_notes").insert({"education_id": edu_id, "note": n}).execute()
+        edu_notes = [{"education_id": edu_id, "note": n} for n in edu.get("notes", []) or [] if isinstance(n, str) and n.strip()]
+        if edu_notes:
+            db_client.table("education_notes").insert(edu_notes).execute()
 
     for proj in data.get("projects", []) or []:
         proj_res = db_client.table("projects").insert(
@@ -135,22 +145,25 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         ).execute()
 
         proj_id = proj_res.data[0]["id"]
-        for t in proj.get("technologies", []) or []:
-            db_client.table("project_technologies").insert({"project_id": proj_id, "tech": t}).execute()
+        proj_techs = [{"project_id": proj_id, "tech": t} for t in proj.get("technologies", []) or [] if isinstance(t, str) and t.strip()]
+        if proj_techs:
+            db_client.table("project_technologies").insert(proj_techs).execute()
 
-    for cert in data.get("certifications", []) or []:
+    certs_to_insert = [
+        {
+            "resume_id": resume_id,
+            "name": cert.get("name"),
+            "issuer": cert.get("issuer"),
+            "issue_date": cert.get("date"),
+            "expiry_date": None,
+            "credential_id": cert.get("credential_id"),
+            "credential_url": cert.get("link"),
+        }
+        for cert in data.get("certifications", []) or [] if isinstance(cert, dict)
+    ]
+    if certs_to_insert:
         try:
-            db_client.table("certifications").insert(
-                {
-                    "resume_id": resume_id,
-                    "name": cert.get("name"),
-                    "issuer": cert.get("issuer"),
-                    "issue_date": cert.get("date"),
-                    "expiry_date": None,
-                    "credential_id": cert.get("credential_id"),
-                    "credential_url": cert.get("link"),
-                }
-            ).execute()
+            db_client.table("certifications").insert(certs_to_insert).execute()
         except Exception:
             logger.warning("certifications insert failed for resume %s", resume_id, exc_info=True)
 
