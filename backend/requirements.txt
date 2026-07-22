@@ -11,7 +11,7 @@ sentry-sdk[fastapi]>=2.66.0
 
 # Resume Parsing
 PyMuPDF>=1.23.0
-pymupdf4llm>=0.0.17
+pymupdf4llm>=1.28.0
 phonenumbers>=9.0.34
 
 # Generative AI & Langchain
