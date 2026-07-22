@@ -42,7 +42,7 @@ dependencies = [
     "langchain-openai>=0.1.0",
     "pydantic>=2.13.4",
     "requests>=2.31.0",
-    "numpy>=1.26.0",
+    "numpy>=2.5.1",
     "sentry-sdk>=2.60.0",
     "nest-asyncio>=1.6.0",
 ]
