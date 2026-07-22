@@ -67,29 +67,37 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
     except Exception:
         logger.warning("contacts insert failed for resume %s", resume_id, exc_info=True)
 
-    for s in skill_values:
-        db_client.table("skills").insert({"resume_id": resume_id, "skill": s}).execute()
+    if skill_values:
+        skill_records = [{"resume_id": resume_id, "skill": s} for s in skill_values]
+        db_client.table("skills").insert(skill_records).execute()
 
-    for s in data.get("programming_languages", []) or []:
+    prog_langs = data.get("programming_languages", []) or []
+    if prog_langs:
+        prog_lang_records = [{"resume_id": resume_id, "language": s} for s in prog_langs]
         try:
-            db_client.table("programming_languages").insert({"resume_id": resume_id, "language": s}).execute()
+            db_client.table("programming_languages").insert(prog_lang_records).execute()
         except Exception:
-            logger.warning("programming_languages insert failed for resume %s", resume_id, exc_info=True)
+            logger.warning("programming_languages bulk insert failed for resume %s", resume_id, exc_info=True)
 
-    for s in data.get("spoken_languages", []) or []:
+    spoken_langs = data.get("spoken_languages", []) or []
+    if spoken_langs:
+        spoken_lang_records = [{"resume_id": resume_id, "language": s} for s in spoken_langs]
         try:
-            db_client.table("spoken_languages").insert({"resume_id": resume_id, "language": s}).execute()
+            db_client.table("spoken_languages").insert(spoken_lang_records).execute()
         except Exception:
-            logger.warning("spoken_languages insert failed for resume %s", resume_id, exc_info=True)
+            logger.warning("spoken_languages bulk insert failed for resume %s", resume_id, exc_info=True)
 
-    for k in data.get("keywords", []) or []:
+    keywords = data.get("keywords", []) or []
+    if keywords:
+        keyword_records = [{"resume_id": resume_id, "keyword": k} for k in keywords]
         try:
-            db_client.table("keywords").insert({"resume_id": resume_id, "keyword": k}).execute()
+            db_client.table("keywords").insert(keyword_records).execute()
         except Exception:
-            logger.warning("keywords insert failed for resume %s", resume_id, exc_info=True)
+            logger.warning("keywords bulk insert failed for resume %s", resume_id, exc_info=True)
 
-    for exp in data.get("experience", []) or []:
-        exp_res = db_client.table("experiences").insert(
+    experiences = data.get("experience", []) or []
+    if experiences:
+        exp_records = [
             {
                 "resume_id": resume_id,
                 "company": exp.get("company"),
@@ -99,16 +107,28 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
                 "end_date": exp.get("end_date"),
                 "is_current": exp.get("is_current"),
             }
-        ).execute()
+            for exp in experiences
+        ]
+        exp_res = db_client.table("experiences").insert(exp_records).execute()
 
-        exp_id = exp_res.data[0]["id"]
-        for b in exp.get("description_bullets", []) or []:
-            db_client.table("experience_bullets").insert({"experience_id": exp_id, "bullet": b}).execute()
-        for t in exp.get("technologies", []) or []:
-            db_client.table("experience_technologies").insert({"experience_id": exp_id, "tech": t}).execute()
+        all_bullets = []
+        all_exp_techs = []
+        for i, exp in enumerate(experiences):
+            exp_id = exp_res.data[i]["id"]
+            bullets = exp.get("description_bullets", []) or []
+            all_bullets.extend([{"experience_id": exp_id, "bullet": b} for b in bullets])
 
-    for edu in data.get("education", []) or []:
-        edu_res = db_client.table("education").insert(
+            techs = exp.get("technologies", []) or []
+            all_exp_techs.extend([{"experience_id": exp_id, "tech": t} for t in techs])
+
+        if all_bullets:
+            db_client.table("experience_bullets").insert(all_bullets).execute()
+        if all_exp_techs:
+            db_client.table("experience_technologies").insert(all_exp_techs).execute()
+
+    educations = data.get("education", []) or []
+    if educations:
+        edu_records = [
             {
                 "resume_id": resume_id,
                 "institution": edu.get("institution"),
@@ -118,41 +138,59 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
                 "end_date": edu.get("end_date"),
                 "grade": edu.get("grade"),
             }
-        ).execute()
+            for edu in educations
+        ]
+        edu_res = db_client.table("education").insert(edu_records).execute()
 
-        edu_id = edu_res.data[0]["id"]
-        for n in edu.get("notes", []) or []:
-            db_client.table("education_notes").insert({"education_id": edu_id, "note": n}).execute()
+        all_notes = []
+        for i, edu in enumerate(educations):
+            edu_id = edu_res.data[i]["id"]
+            notes = edu.get("notes", []) or []
+            all_notes.extend([{"education_id": edu_id, "note": n} for n in notes])
 
-    for proj in data.get("projects", []) or []:
-        proj_res = db_client.table("projects").insert(
+        if all_notes:
+            db_client.table("education_notes").insert(all_notes).execute()
+
+    projects = data.get("projects", []) or []
+    if projects:
+        proj_records = [
             {
                 "resume_id": resume_id,
                 "name": proj.get("name"),
                 "description": proj.get("description"),
                 "link": proj.get("link"),
             }
-        ).execute()
+            for proj in projects
+        ]
+        proj_res = db_client.table("projects").insert(proj_records).execute()
 
-        proj_id = proj_res.data[0]["id"]
-        for t in proj.get("technologies", []) or []:
-            db_client.table("project_technologies").insert({"project_id": proj_id, "tech": t}).execute()
+        all_proj_techs = []
+        for i, proj in enumerate(projects):
+            proj_id = proj_res.data[i]["id"]
+            techs = proj.get("technologies", []) or []
+            all_proj_techs.extend([{"project_id": proj_id, "tech": t} for t in techs])
 
-    for cert in data.get("certifications", []) or []:
+        if all_proj_techs:
+            db_client.table("project_technologies").insert(all_proj_techs).execute()
+
+    certifications = data.get("certifications", []) or []
+    if certifications:
+        cert_records = [
+            {
+                "resume_id": resume_id,
+                "name": cert.get("name"),
+                "issuer": cert.get("issuer"),
+                "issue_date": cert.get("date"),
+                "expiry_date": None,
+                "credential_id": cert.get("credential_id"),
+                "credential_url": cert.get("link"),
+            }
+            for cert in certifications
+        ]
         try:
-            db_client.table("certifications").insert(
-                {
-                    "resume_id": resume_id,
-                    "name": cert.get("name"),
-                    "issuer": cert.get("issuer"),
-                    "issue_date": cert.get("date"),
-                    "expiry_date": None,
-                    "credential_id": cert.get("credential_id"),
-                    "credential_url": cert.get("link"),
-                }
-            ).execute()
+            db_client.table("certifications").insert(cert_records).execute()
         except Exception:
-            logger.warning("certifications insert failed for resume %s", resume_id, exc_info=True)
+            logger.warning("certifications bulk insert failed for resume %s", resume_id, exc_info=True)
 
     # Optional sync for older UI paths that read profiles.
     try:
