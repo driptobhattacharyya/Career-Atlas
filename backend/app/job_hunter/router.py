@@ -1,6 +1,7 @@
 import logging
 import re
 from typing import Any
+from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -296,21 +297,34 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
             .execute()
         )
         exp_rows = exp_resp.data or []
-        exp_items = []
-        for e in exp_rows:
+
+        # ⚡ Bolt Optimization: Fix N+1 query performance bottleneck
+        # What: Replaced sequential Supabase queries for experience bullets with a single batched .in_() query
+        # Why: Iterating over exp_rows and firing a network request for each blocked the event loop and caused N+1 latency
+        # Impact: Reduces DB queries from O(N) to O(1), cutting resume processing latency
+        exp_ids = [e["id"] for e in exp_rows if e.get("id")]
+        exp_bullets_map = defaultdict(list)
+
+        if exp_ids:
             bullets_resp = (
                 db_client.table("experience_bullets")
-                .select("bullet")
-                .eq("experience_id", e["id"])
+                .select("experience_id,bullet")
+                .in_("experience_id", exp_ids)
                 .execute()
             )
+            for b in (bullets_resp.data or []):
+                if b.get("bullet") and b.get("experience_id"):
+                    exp_bullets_map[b["experience_id"]].append(b["bullet"])
+
+        exp_items = []
+        for e in exp_rows:
             exp_items.append(
                 {
                     "title": e.get("title"),
                     "company": e.get("company"),
                     "start_date": e.get("start_date"),
                     "end_date": e.get("end_date"),
-                    "description_bullets": [b.get("bullet") for b in (bullets_resp.data or []) if b.get("bullet")],
+                    "description_bullets": exp_bullets_map.get(e.get("id"), []),
                 }
             )
 
@@ -349,9 +363,11 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
 
         # 5) Persist jobs using the legacy flat columns plus the structured payload.
         db_client.table("job_matches").delete().eq("user_id", user_id).execute()
+
+        insert_rows = []
         for job in parsed.jobs:
             payload = job.model_dump()
-            insert_row = {
+            insert_rows.append({
                 "user_id": user_id,
                 "job_id": payload.get("job_id"),
                 "query_role": parsed.query_role,
@@ -370,8 +386,37 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
                 "external_url": payload.get("external_url"),
                 "score_json": payload.get("score"),
                 "explanation_json": payload.get("explanation"),
-            }
-            _insert_job_match(insert_row)
+            })
+
+        if insert_rows:
+            # ⚡ Bolt Optimization: Fix N+1 query performance bottleneck
+            # What: Replaced sequential database inserts with a single bulk insert operation
+            # Why: Inserting rows one by one blocks the event loop per insertion, which adds significant latency
+            # Impact: Reduces DB queries from O(N) to O(1), improving job match persistence time
+            try:
+                db_client.table("job_matches").insert(insert_rows).execute()
+            except Exception:
+                logger.warning(
+                    "job_matches bulk insert failed with structured columns; retrying legacy shape one by one",
+                    exc_info=True,
+                )
+                for row in insert_rows:
+                    legacy_row = {
+                        key: value
+                        for key, value in row.items()
+                        if key
+                        not in {
+                            "job_id",
+                            "query_role",
+                            "user_location_preference",
+                            "score_json",
+                            "explanation_json",
+                        }
+                    }
+                    try:
+                        db_client.table("job_matches").insert(legacy_row).execute()
+                    except Exception:
+                        pass
 
         return parsed
 
