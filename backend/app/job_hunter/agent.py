@@ -172,20 +172,18 @@ def _fetch_jobs_with_fallback(query_role: str, user_location_pref: str, results:
 
 
 def embed_batch(texts: list[str]) -> np.ndarray:
-    if not settings.jina_api_key:
-        raise RuntimeError("JINA_API_KEY is required for job ranking embeddings.")
-    url = "https://api.jina.ai/v1/embeddings"
-    headers = {
-        "Authorization": f"Bearer {settings.jina_api_key}",
-        "Content-Type": "application/json",
-    }
+    # Uses the same local embed sidecar as gap analysis. Job ranking only needs
+    # resume/job vectors from one consistent model for cosine similarity, so the
+    # embedding dimension is irrelevant here.
+    url = f"{settings.embeddings_base_url.rstrip('/')}/v1/embeddings"
     payload = {
-        "model": "jina-embeddings-v2-base-en",
+        "model": settings.embeddings_model,
         "input": texts,
+        "input_type": "document",
     }
-    r = requests.post(url, headers=headers, json=payload, timeout=30)
+    r = requests.post(url, json=payload, timeout=120)
     r.raise_for_status()
-    data = r.json()["data"]
+    data = sorted(r.json()["data"], key=lambda d: d["index"])
     return np.array([d["embedding"] for d in data], dtype=np.float32)
 
 

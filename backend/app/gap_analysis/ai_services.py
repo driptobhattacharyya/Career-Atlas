@@ -1,64 +1,60 @@
 import httpx
 from typing import List, Dict
 from app.config import settings
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-TASK_PREFIXES = {
-    "retrieval_query":    "Represent this query for searching relevant passages: ",
-    "retrieval_document": "Represent this document for retrieval: ",
-    "semantic_similarity": "Represent this sentence for semantic similarity: ",
+# Gemini used task_type + hand-written instruction prefixes. The sidecar's
+# embedder (Nemotron) applies its own query:/passage: prefixes internally based
+# on input_type, so we only translate the task_type here — no manual prefixing.
+_TASK_TO_INPUT_TYPE = {
+    "retrieval_query": "query",
+    "retrieval_document": "document",
+    "semantic_similarity": "query",
 }
 
+
 class AIService:
+    """Embeddings + reranking via a local OpenAI-compatible sidecar (BYO).
+
+    Both endpoints are configured by URL, so any compatible server works. The
+    reranker response is Jina-shaped ({"results": [{index, relevance_score}]}),
+    so callers are identical to the old hosted-Jina path.
+    """
+
     def __init__(self):
-        self.jina_api_key = settings.jina_api_key
-        self.google_api_key = settings.google_api_key or (settings.google_api_keys[0] if settings.google_api_keys else None)
-        self.jina_base_url = "https://api.jina.ai/v1"
+        self.embeddings_url = settings.embeddings_base_url.rstrip("/")
+        self.embeddings_model = settings.embeddings_model
+        self.reranker_url = settings.reranker_base_url.rstrip("/")
+        self.reranker_model = settings.reranker_model
 
     async def get_embeddings(self, texts: List[str], task_type: str = "retrieval_query") -> List[List[float]]:
-        """
-        Retrieves embeddings using Google Gemini Embedding 2 (text-embedding-004).
-        Prepends task-specific instructions for better semantic accuracy.
-        """
-        if not self.google_api_key:
-            raise ValueError("GOOGLE_API_KEY not configured")
-        
-        prefix = TASK_PREFIXES.get(task_type, "")
-        prefixed_texts = [prefix + t for t in texts]
-        
-        embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/gemini-embedding-2-preview",
-            google_api_key=self.google_api_key,
-            task_type=task_type
-        )
-        return await embeddings.aembed_documents(prefixed_texts)
+        """Embed texts via {EMBEDDINGS_BASE_URL}/v1/embeddings."""
+        input_type = _TASK_TO_INPUT_TYPE.get(task_type, "document")
+        payload = {"input": texts, "model": self.embeddings_model, "input_type": input_type}
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(f"{self.embeddings_url}/v1/embeddings", json=payload)
+            response.raise_for_status()
+            data = response.json()["data"]
+
+        # Preserve request order regardless of how the server returns them.
+        return [d["embedding"] for d in sorted(data, key=lambda d: d["index"])]
 
     async def rerank(self, query: str, documents: List[str], top_n: int = 5) -> List[Dict]:
-        """
-        Reranks documents using Jina Reranker v3 (higher accuracy).
-        """
+        """Rerank via {RERANKER_BASE_URL}/rerank (Jina-compatible contract)."""
         if not documents:
             return []
 
-        if not self.jina_api_key:
-            raise ValueError("JINA_API_KEY not configured (required for reranking)")
-
-        url = f"{self.jina_base_url}/rerank"
         payload = {
-            "model": "jina-reranker-v3",
+            "model": self.reranker_model,
             "query": query,
             "documents": documents,
-            "top_n": top_n
+            "top_n": top_n,
         }
-        
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.jina_api_key}"
-        }
-        
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, headers=headers, json=payload)
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(f"{self.reranker_url}/rerank", json=payload)
             response.raise_for_status()
             return response.json()["results"]
+
 
 ai_service = AIService()

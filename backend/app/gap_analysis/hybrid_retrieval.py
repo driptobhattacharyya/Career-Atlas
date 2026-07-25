@@ -15,7 +15,7 @@ from functools import lru_cache
 
 from rank_bm25 import BM25Okapi
 
-from app.dependencies.pinecone import get_pinecone_index
+from app.dependencies import qdrant
 from app.gap_analysis.ai_services import ai_service
 
 
@@ -62,36 +62,14 @@ def resolve_role_slug(title: str) -> str:
 @lru_cache(maxsize=16)
 def _build_bm25_corpus(role_slug: str) -> Tuple:
     """
-    Builds a BM25 index from Pinecone taxonomy metadata for a specific role.
+    Builds a BM25 index from Qdrant taxonomy rows for a specific role.
 
-    ⚠️ WARNING: Uses @lru_cache. If the Pinecone taxonomy is updated, the
+    ⚠️ WARNING: Uses @lru_cache. If the Qdrant taxonomy is updated, the
     server must be restarted to pick up the changes, or the cache cleared.
-
-    ⚠️ LIMITATION: Zero-vector fetch is a 'hack' for small corpora (<10k vectors).
-    Pinecone ordering for a zero-vector is undefined and results are not guaranteed 
-    to be exhaustive in larger serverless indexes. For production scale, 
-    use index.list() or fetch() by ID instead.
     """
-    index = get_pinecone_index()
-    dim = 3072  # Gemini Embedding 2 dimension
+    metadata_list = qdrant.scroll_all(role_slug)
 
-    # Fetch all taxonomy nodes for this role using a zero vector
-    zero_vec = [0.0] * dim
-    results = index.query(
-        vector=zero_vec,
-        top_k=10000,
-        namespace="taxonomy",
-        filter={"role": {"$eq": role_slug}},
-        include_metadata=True,
-    )
-
-    corpus_texts = []
-    metadata_list = []
-    for match in results["matches"]:
-        m = match["metadata"]
-        text = f"{m['skill_name']}. {m['description']}"
-        corpus_texts.append(text)
-        metadata_list.append(m)
+    corpus_texts = [f"{m['skill_name']}. {m['description']}" for m in metadata_list]
 
     # Tokenize for BM25
     tokenized = [doc.lower().split() for doc in corpus_texts]
@@ -121,7 +99,6 @@ async def hybrid_retrieve(
     Returns the top reranked skill metadata dicts.
     """
     role_slug = resolve_role_slug(target_role_title)
-    index = get_pinecone_index()
 
     # ── 1. Semantic search ────────────────────────────────────────────
     # Embedded query refinement: Include user context if available
@@ -134,14 +111,9 @@ async def hybrid_retrieve(
         await ai_service.get_embeddings([query_text], task_type="retrieval_query")
     )[0]
 
-    # Offload synchronous Pinecone query to a thread to avoid blocking the event loop
-    sem_results = await asyncio.to_thread(
-        index.query,
-        vector=query_vec,
-        top_k=semantic_top_k,
-        namespace="taxonomy",
-        filter={"role": {"$eq": role_slug}},
-        include_metadata=True,
+    # Offload the synchronous Qdrant query to a thread to avoid blocking the loop.
+    sem_metas = await asyncio.to_thread(
+        qdrant.query, query_vec, role_slug, semantic_top_k
     )
 
     # ── 2. BM25 keyword search ────────────────────────────────────────
@@ -163,10 +135,10 @@ async def hybrid_retrieve(
     skill_meta: Dict[str, Dict] = {}
 
     # Semantic ranks
-    for rank, match in enumerate(sem_results["matches"]):
-        name = match["metadata"]["skill_name"]
+    for rank, meta in enumerate(sem_metas):
+        name = meta["skill_name"]
         rrf_scores[name] = rrf_scores.get(name, 0) + 1.0 / (k + rank + 1)
-        skill_meta[name] = match["metadata"]
+        skill_meta[name] = meta
 
     # BM25 ranks
     if bm25_scores_map:

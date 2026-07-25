@@ -20,7 +20,7 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from app.dependencies.pinecone import get_pinecone_index
+from app.dependencies import qdrant
 from app.gap_analysis.ai_services import ai_service
 from app.gap_analysis.hybrid_retrieval import resolve_role_slug, ROLE_SLUG_MAP
 from app.utils.llm_factory import get_groq_model
@@ -28,7 +28,6 @@ from app.utils.llm_factory import get_groq_model
 logger = logging.getLogger(__name__)
 
 NAMESPACE = "taxonomy"
-EMBED_DIM = 3072  # gemini-embedding-2 dimension, matches the curated rows
 
 # The 8 hand-curated slugs — skip probe/generation for these (they always exist).
 CURATED_SLUGS = set(ROLE_SLUG_MAP.values())
@@ -92,18 +91,9 @@ async def ensure_role_taxonomy(role_title: str) -> str:
     if role_slug in CURATED_SLUGS:
         return "curated"
 
-    index = get_pinecone_index()
-
-    # Already generated on a prior run? (zero-vector probe — same hack the BM25
-    # corpus builder uses; fine for this small namespace.)
+    # Already generated on a prior run? Count rows for this role in Qdrant.
     try:
-        # Offload synchronous Pinecone query to a thread to avoid blocking the event loop
-        probe = await asyncio.to_thread(
-            index.query,
-            vector=[0.0] * EMBED_DIM, top_k=1, namespace=NAMESPACE,
-            filter={"role": {"$eq": role_slug}}, include_metadata=False,
-        )
-        if probe.get("matches"):
+        if await asyncio.to_thread(qdrant.count, role_slug) > 0:
             return "curated"  # rows exist → treat as ready
     except Exception as e:
         logger.warning("taxonomy probe failed for %s: %s", role_slug, e)
@@ -138,7 +128,7 @@ async def ensure_role_taxonomy(role_title: str) -> str:
     if not records:
         return "unavailable"
 
-    # Offload synchronous Pinecone upsert to a thread to avoid blocking the event loop
-    await asyncio.to_thread(index.upsert, vectors=records, namespace=NAMESPACE)
+    # Offload the synchronous Qdrant upsert to a thread to avoid blocking the loop.
+    await asyncio.to_thread(qdrant.upsert, records)
     logger.info("generated %d taxonomy rows for role '%s' (%s)", len(records), role_title, role_slug)
     return "generated"
