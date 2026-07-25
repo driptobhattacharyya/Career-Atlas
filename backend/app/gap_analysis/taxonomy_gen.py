@@ -2,7 +2,7 @@
 On-the-fly role taxonomy generation (council "one thing": remove the role ceiling).
 
 The gap-analysis retrieval pipeline is already role-agnostic — it just needs
-taxonomy rows for the role in Pinecone. We curated 8 tech roles by hand; for any
+taxonomy rows for the role in Qdrant. We curated 8 tech roles by hand; for any
 OTHER role (unlisted tech, or non-tech) we lazily LLM-generate ~20 skill rows in
 the exact same schema, embed + upsert them tagged source="llm", and cache them
 forever. This makes gap analysis work for ANY role the user types, without a

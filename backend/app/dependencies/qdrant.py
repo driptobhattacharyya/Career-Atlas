@@ -1,10 +1,10 @@
 """
 Qdrant client + taxonomy helpers — shared dependency.
 
-Replaces the old Pinecone dependency. One collection holds the whole taxonomy
-(the former Pinecone "taxonomy" namespace); rows are filtered by the `role`
-payload field. Vector size is settings.embeddings_dim, distance is cosine
-(matches the Nemotron embedder). Swapping the embedder = new dim = re-ingest.
+Replaces the legacy Pinecone integration. One collection holds the whole
+taxonomy; rows are filtered by the `role` payload field. Vector size is
+settings.embeddings_dim, distance is cosine (matches the Nemotron embedder).
+Swapping the embedder = new dim = re-ingest.
 
 Used by the Gap Analysis Agent (hybrid_retrieval, taxonomy_gen) and the
 scripts/ingest_taxonomy.py bootstrap.
@@ -81,7 +81,7 @@ def query(vector: List[float], role_slug: str, top_k: int) -> List[Dict[str, Any
 
 def scroll_all(role_slug: str, limit: int = 10000) -> List[Dict[str, Any]]:
     """Fetch every taxonomy row for a role (for the BM25 corpus). Uses Qdrant
-    scroll — a proper full scan, replacing the old Pinecone zero-vector hack."""
+    scroll — a proper full scan."""
     client = get_qdrant_client()
     points, _ = client.scroll(
         settings.qdrant_collection,
@@ -100,8 +100,8 @@ def count(role_slug: str) -> int:
 
 
 def upsert(records: List[Dict[str, Any]]) -> None:
-    """Upsert rows shaped like the old Pinecone records:
-        {"id": str, "values": [float], "metadata": {...}}
+    """Upsert rows into Qdrant.
+    Input shape: {"id": str, "values": [float], "metadata": {...}}
     The original string id is kept in the payload as `row_id` for traceability."""
     client = get_qdrant_client()
     points = [

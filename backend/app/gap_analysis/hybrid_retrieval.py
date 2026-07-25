@@ -2,7 +2,7 @@
 Hybrid Retrieval Module for Gap Analysis Agent.
 
 Implements the "Hybrid Retrieval" block from the architecture diagram:
-  1. Semantic search via Pinecone (Jina embeddings)
+   1. Semantic search via Qdrant (Nemotron embeddings)
   2. BM25 keyword search from cached taxonomy corpus
   3. Reciprocal Rank Fusion to merge both result sets
   4. Jina cross-encoder reranking on the fused candidates
@@ -20,7 +20,7 @@ from app.gap_analysis.ai_services import ai_service
 
 
 # ── Role slug mapping ────────────────────────────────────────────────────
-# Pinecone metadata stores slugs, but the DB stores display titles.
+# Qdrant payload stores slugs, but the DB stores display titles.
 # This mapping bridges the two. Must match the `role` values in
 # app/gap_analysis/taxonomy.json (the source for scripts/ingest_taxonomy.py).
 ROLE_SLUG_MAP: Dict[str, str] = {
@@ -47,7 +47,7 @@ ROLE_SLUG_MAP: Dict[str, str] = {
 def resolve_role_slug(title: str) -> str:
     """
     Converts a display title like "Machine Learning Engineer"
-    into its Pinecone slug like "ml_engineer".
+    into its Qdrant slug like "ml_engineer".
     Falls back to a slugified version if not in the map.
     """
     normalized = title.strip().lower()
@@ -91,7 +91,7 @@ async def hybrid_retrieve(
 ) -> List[Dict]:
     """
     Full hybrid retrieval pipeline:
-      1. Semantic search in Pinecone with role filter
+      1. Semantic search in Qdrant with role filter
       2. BM25 keyword search on cached corpus
       3. Reciprocal Rank Fusion
       4. Jina cross-encoder reranking
@@ -117,7 +117,7 @@ async def hybrid_retrieve(
     )
 
     # ── 2. BM25 keyword search ────────────────────────────────────────
-    # Offload synchronous BM25 corpus building (which includes a Pinecone query) to a thread
+    # Offload synchronous BM25 corpus building (which includes a Qdrant query) to a thread
     bm25, corpus_texts, metadata_list = await asyncio.to_thread(_build_bm25_corpus, role_slug)
     meta_lookup = {m["skill_name"]: m for m in metadata_list}
 
