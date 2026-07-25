@@ -67,8 +67,9 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
     except Exception:
         logger.warning("contacts insert failed for resume %s", resume_id, exc_info=True)
 
-    for s in skill_values:
-        db_client.table("skills").insert({"resume_id": resume_id, "skill": s}).execute()
+    # ⚡ Bolt Optimization: Batch insert skills to prevent N+1 queries
+    if skill_values:
+        db_client.table("skills").insert([{"resume_id": resume_id, "skill": s} for s in skill_values]).execute()
 
     for s in data.get("programming_languages", []) or []:
         try:
@@ -88,6 +89,8 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         except Exception:
             logger.warning("keywords insert failed for resume %s", resume_id, exc_info=True)
 
+    exp_bullets_records = []
+    exp_tech_records = []
     for exp in data.get("experience", []) or []:
         exp_res = db_client.table("experiences").insert(
             {
@@ -103,10 +106,16 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
 
         exp_id = exp_res.data[0]["id"]
         for b in exp.get("description_bullets", []) or []:
-            db_client.table("experience_bullets").insert({"experience_id": exp_id, "bullet": b}).execute()
+            exp_bullets_records.append({"experience_id": exp_id, "bullet": b})
         for t in exp.get("technologies", []) or []:
-            db_client.table("experience_technologies").insert({"experience_id": exp_id, "tech": t}).execute()
+            exp_tech_records.append({"experience_id": exp_id, "tech": t})
 
+    if exp_bullets_records:
+        db_client.table("experience_bullets").insert(exp_bullets_records).execute()
+    if exp_tech_records:
+        db_client.table("experience_technologies").insert(exp_tech_records).execute()
+
+    edu_notes_records = []
     for edu in data.get("education", []) or []:
         edu_res = db_client.table("education").insert(
             {
@@ -122,8 +131,12 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
 
         edu_id = edu_res.data[0]["id"]
         for n in edu.get("notes", []) or []:
-            db_client.table("education_notes").insert({"education_id": edu_id, "note": n}).execute()
+            edu_notes_records.append({"education_id": edu_id, "note": n})
 
+    if edu_notes_records:
+        db_client.table("education_notes").insert(edu_notes_records).execute()
+
+    proj_tech_records = []
     for proj in data.get("projects", []) or []:
         proj_res = db_client.table("projects").insert(
             {
@@ -136,7 +149,10 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
 
         proj_id = proj_res.data[0]["id"]
         for t in proj.get("technologies", []) or []:
-            db_client.table("project_technologies").insert({"project_id": proj_id, "tech": t}).execute()
+            proj_tech_records.append({"project_id": proj_id, "tech": t})
+
+    if proj_tech_records:
+        db_client.table("project_technologies").insert(proj_tech_records).execute()
 
     for cert in data.get("certifications", []) or []:
         try:
