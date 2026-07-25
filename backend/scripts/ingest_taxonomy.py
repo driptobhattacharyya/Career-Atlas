@@ -1,17 +1,20 @@
 """
-Pinecone taxonomy ingestion for Gap Analysis RAG.
+Qdrant taxonomy ingestion for Gap Analysis RAG.
 
 Source of truth: backend/app/gap_analysis/taxonomy.json
-Embeds each skill row and upserts into the `careeratlas` index, namespace
-`taxonomy`. Idempotent — deterministic ids mean re-runs update in place.
+Embeds each skill row (via the local embed sidecar) and upserts into the
+Qdrant collection (settings.qdrant_collection). Idempotent — deterministic
+ids mean re-runs update in place.
+
+Prereqs: Qdrant + the embed sidecar running (`docker compose up`).
 
 Usage:
     cd backend
     uv run python scripts/ingest_taxonomy.py            # upsert (keeps stale rows)
-    uv run python scripts/ingest_taxonomy.py --wipe     # clear namespace first
+    uv run python scripts/ingest_taxonomy.py --wipe     # recreate collection first
 
-The `--wipe` rebuild is the canonical path: it removes the legacy ad-hoc
-records (random ids) so only deterministic-id rows remain.
+The `--wipe` rebuild is the canonical path: it recreates the collection at the
+configured EMBEDDINGS_DIM, so it's also how you re-ingest after swapping embedder.
 """
 import argparse
 import asyncio
@@ -24,7 +27,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app.dependencies.pinecone import get_pinecone_index  # noqa: E402
+from app.config import settings  # noqa: E402
+from app.dependencies import qdrant  # noqa: E402
 from app.gap_analysis.ai_services import ai_service  # noqa: E402
 
 TAXONOMY_PATH = ROOT / "app" / "gap_analysis" / "taxonomy.json"
@@ -70,9 +74,8 @@ def load_taxonomy() -> list[dict]:
 
 
 async def embed_all(texts: list[str]) -> list[list[float]]:
-    # gemini-embedding-2-preview returns a single vector per request regardless
-    # of input list length, so embed one text at a time. The backend query path
-    # always passes a single text, so this matches it exactly.
+    # Embed one text at a time — matches the backend query path (which always
+    # passes a single text) exactly, so ingest and query stay consistent.
     vectors: list[list[float]] = []
     for i, text in enumerate(texts, 1):
         vec = (await ai_service.get_embeddings([text], task_type="retrieval_document"))[0]
@@ -94,10 +97,13 @@ def main() -> int:
         print(f"  {role}: {n}")
 
     texts = [f"{r['skill_name']}: {r['description']}" for r in rows]
-    print("embedding (retrieval_document, gemini 3072-dim)...")
+    print(f"embedding (retrieval_document, {settings.embeddings_dim}-dim)...")
     vectors = asyncio.run(embed_all(texts))
-    if len(vectors) != len(rows) or any(len(v) != 3072 for v in vectors):
-        raise SystemExit("embedding failed: count or dimension mismatch")
+    if len(vectors) != len(rows) or any(len(v) != settings.embeddings_dim for v in vectors):
+        raise SystemExit(
+            f"embedding failed: count or dimension mismatch "
+            f"(expected {settings.embeddings_dim}-dim)"
+        )
 
     records = []
     for r, vec in zip(rows, vectors):
@@ -116,23 +122,20 @@ def main() -> int:
             },
         })
 
-    index = get_pinecone_index()
     if args.wipe:
-        print(f"wiping namespace '{NAMESPACE}'...")
-        try:
-            index.delete(delete_all=True, namespace=NAMESPACE)
-        except Exception as e:
-            print(f"  wipe skipped (namespace may be empty): {e}")
+        print(f"recreating collection '{settings.qdrant_collection}' @ {settings.embeddings_dim}-dim...")
+        qdrant.recreate_collection()
+    else:
+        qdrant.ensure_collection()
 
     print(f"upserting {len(records)} records...")
     for start in range(0, len(records), UPSERT_BATCH):
         batch = records[start:start + UPSERT_BATCH]
-        index.upsert(vectors=batch, namespace=NAMESPACE)
+        qdrant.upsert(batch)
         print(f"  upserted {min(start + UPSERT_BATCH, len(records))}/{len(records)}")
 
-    stats = index.describe_index_stats()
-    ns = stats.get("namespaces", {}).get(NAMESPACE, {})
-    print(f"done. namespace '{NAMESPACE}' record count: {ns.get('vector_count', '?')}")
+    total = qdrant.get_qdrant_client().count(settings.qdrant_collection).count
+    print(f"done. collection '{settings.qdrant_collection}' record count: {total}")
     return 0
 
 

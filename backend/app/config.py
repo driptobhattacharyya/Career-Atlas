@@ -44,6 +44,14 @@ class Settings(BaseSettings):
     # OpenRouter
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
 
+    # Self-hosted / self-deployed LLM (e.g. llama.cpp, Ollama, vLLM — any
+    # OpenAI-compatible server). When on, the generation path uses this instead
+    # of Groq. Embeddings still use Gemini.
+    use_self_hosted_llm: bool = os.getenv("USE_SELF_HOSTED_LLM", "false").lower() == "true"
+    self_hosted_llm_base_url: str = os.getenv("SELF_HOSTED_LLM_BASE_URL", "http://localhost:8080/v1")
+    self_hosted_llm_model: str = os.getenv("SELF_HOSTED_LLM_MODEL", "local-model")
+    self_hosted_llm_api_key: str = os.getenv("SELF_HOSTED_LLM_API_KEY", "sk-no-key-required")
+
     # Tools
     tavily_api_key: str = os.getenv("TAVILY_API_KEY", "")
 
@@ -52,12 +60,19 @@ class Settings(BaseSettings):
     adzuna_app_id: str = os.getenv("ADZUNA_APP_ID", "")
     adzuna_app_key: str = os.getenv("ADZUNA_APP_KEY", "")
 
-    # Jina & Pinecone (Gap Analysis)
-    jina_api_key: str = os.getenv("JINA_API_KEY", "")
-    pinecone_api_key: str = os.getenv("PINECONE_API_KEY", "")
-    pinecone_index_name: str = os.getenv("PINECONE_INDEX_NAME", "careeratlas")
-    pinecone_region: str = os.getenv("PINECONE_REGION", "us-east-1")
-    pinecone_host: str = os.getenv("PINECONE_HOST", "")
+    # Vector DB — Qdrant (local Docker, or Qdrant Cloud free tier for prod).
+    qdrant_url: str = os.getenv("QDRANT_URL", "http://localhost:6333")
+    qdrant_api_key: str = os.getenv("QDRANT_API_KEY", "")
+    qdrant_collection: str = os.getenv("QDRANT_COLLECTION", "careeratlas_taxonomy")
+
+    # Embeddings + reranker — BYO, any OpenAI-compatible server. Defaults point
+    # at the bundled embed-rerank sidecar (Nemotron embed 2048-dim + Jina rerank).
+    # EMBEDDINGS_DIM must match your embedder; swapping it means re-ingesting.
+    embeddings_base_url: str = os.getenv("EMBEDDINGS_BASE_URL", "http://localhost:7997")
+    embeddings_model: str = os.getenv("EMBEDDINGS_MODEL", "nemotron-embed")
+    embeddings_dim: int = int(os.getenv("EMBEDDINGS_DIM", "2048"))
+    reranker_base_url: str = os.getenv("RERANKER_BASE_URL", "http://localhost:7997")
+    reranker_model: str = os.getenv("RERANKER_MODEL", "jina-reranker-v3")
 
     # Dev convenience: allows backend routes to run without bearer token.
     dev_bypass_auth: bool = os.getenv("DEV_BYPASS_AUTH", "false").lower() == "true"
