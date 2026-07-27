@@ -225,7 +225,7 @@ requires-dist = [
     { name = "pymupdf", specifier = ">=1.23.0" },
     { name = "pymupdf4llm", specifier = ">=1.28.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "python-jose", extras = ["cryptography"], specifier = ">=3.3.0" },
+    { name = "python-jose", extras = ["cryptography"], specifier = ">=3.5.0" },
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "rank-bm25", specifier = ">=0.2.2" },
     { name = "requests", specifier = ">=2.31.0" },
