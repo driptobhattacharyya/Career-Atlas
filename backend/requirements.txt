@@ -6,7 +6,7 @@ requests>=2.31.0
 numpy>=2.5.1
 python-jose[cryptography]>=3.3.0
 python-multipart>=0.0.9
-supabase>=2.30.0
+supabase>=2.31.0
 sentry-sdk[fastapi]>=2.66.0
 
 # Resume Parsing
