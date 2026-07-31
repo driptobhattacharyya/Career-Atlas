@@ -67,31 +67,38 @@ def _build_bm25_corpus(role_slug: str) -> Tuple:
     ⚠️ WARNING: Uses @lru_cache. If the Pinecone taxonomy is updated, the
     server must be restarted to pick up the changes, or the cache cleared.
 
-    ⚠️ LIMITATION: Zero-vector fetch is a 'hack' for small corpora (<10k vectors).
-    Pinecone ordering for a zero-vector is undefined and results are not guaranteed 
-    to be exhaustive in larger serverless indexes. For production scale, 
-    use index.list() or fetch() by ID instead.
     """
     index = get_pinecone_index()
-    dim = 3072  # Gemini Embedding 2 dimension
 
-    # Fetch all taxonomy nodes for this role using a zero vector
-    zero_vec = [0.0] * dim
-    results = index.query(
-        vector=zero_vec,
-        top_k=10000,
-        namespace="taxonomy",
-        filter={"role": {"$eq": role_slug}},
-        include_metadata=True,
-    )
+    # 1. List all IDs for this role using prefix matching
+    prefix = f"tax_{role_slug}_"
+    all_ids = []
+    for page in index.list(prefix=prefix, namespace="taxonomy"):
+        # Depending on the Pinecone SDK version, `page` could be a list of string IDs
+        # or a ListResponse object containing a `vectors` attribute with `id` properties.
+        if hasattr(page, 'vectors'):
+            all_ids.extend([v.id if hasattr(v, 'id') else v['id'] for v in page.vectors])
+        else:
+            # Handle SDK versions where the generator yields lists of string IDs directly
+            all_ids.extend(page)
 
     corpus_texts = []
     metadata_list = []
-    for match in results["matches"]:
-        m = match["metadata"]
-        text = f"{m['skill_name']}. {m['description']}"
-        corpus_texts.append(text)
-        metadata_list.append(m)
+
+    # 2. Fetch vectors in chunks (Pinecone fetch limit is typically 1000)
+    batch_size = 1000
+    if all_ids:
+        for i in range(0, len(all_ids), batch_size):
+            batch = all_ids[i:i + batch_size]
+            fetch_response = index.fetch(ids=batch, namespace="taxonomy")
+
+            for vec_id, vec_data in fetch_response.vectors.items():
+                m = vec_data.metadata
+                if not m:
+                    continue
+                text = f"{m['skill_name']}. {m['description']}"
+                corpus_texts.append(text)
+                metadata_list.append(m)
 
     # Tokenize for BM25
     tokenized = [doc.lower().split() for doc in corpus_texts]

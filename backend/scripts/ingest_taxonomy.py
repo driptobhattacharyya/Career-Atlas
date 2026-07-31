@@ -46,7 +46,7 @@ REQUIRED_KEYS = {"role", "skill_name", "description", "category", "level_require
 
 def _row_id(role: str, skill_name: str) -> str:
     h = hashlib.sha1(f"{role}|{skill_name}".encode("utf-8")).hexdigest()[:16]
-    return f"tax_{h}"
+    return f"tax_{role}_{h}"
 
 
 def load_taxonomy() -> list[dict]:

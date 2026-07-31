@@ -38,7 +38,7 @@ def _row_id(role_slug: str, skill_name: str) -> str:
     # Same scheme as scripts/ingest_taxonomy.py so generated rows are addressable
     # and idempotent (re-generating a role updates in place, no duplicates).
     h = hashlib.sha1(f"{role_slug}|{skill_name}".encode("utf-8")).hexdigest()[:16]
-    return f"tax_{h}"
+    return f"tax_{role_slug}_{h}"
 
 
 class _GenSkill(BaseModel):
@@ -94,17 +94,18 @@ async def ensure_role_taxonomy(role_title: str) -> str:
 
     index = get_pinecone_index()
 
-    # Already generated on a prior run? (zero-vector probe — same hack the BM25
-    # corpus builder uses; fine for this small namespace.)
+    # Already generated on a prior run? Check if any IDs for this role exist.
     try:
-        # Offload synchronous Pinecone query to a thread to avoid blocking the event loop
-        probe = await asyncio.to_thread(
-            index.query,
-            vector=[0.0] * EMBED_DIM, top_k=1, namespace=NAMESPACE,
-            filter={"role": {"$eq": role_slug}}, include_metadata=False,
+        # Offload synchronous Pinecone list to a thread to avoid blocking the event loop
+        probe_page = await asyncio.to_thread(
+            lambda: next(index.list(prefix=f"tax_{role_slug}_", namespace=NAMESPACE), None)
         )
-        if probe.get("matches"):
-            return "curated"  # rows exist → treat as ready
+        # probe_page might be a ListResponse with a .vectors attribute, or a plain list of strings
+        if probe_page:
+            if hasattr(probe_page, "vectors") and probe_page.vectors:
+                return "curated"
+            elif isinstance(probe_page, list) and probe_page:
+                return "curated"
     except Exception as e:
         logger.warning("taxonomy probe failed for %s: %s", role_slug, e)
 
