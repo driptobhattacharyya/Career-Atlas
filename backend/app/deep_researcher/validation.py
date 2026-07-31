@@ -40,7 +40,7 @@ async def _probe(client: httpx.AsyncClient, url: str) -> Tuple[str, bool]:
         if r.status_code in _RETRY_GET_STATUSES:
             r = await client.get(url, follow_redirects=True, timeout=8.0)
         return url, r.status_code >= 400
-    except Exception:
+    except httpx.RequestError:
         # DNS failure, timeout, TLS error, bot block — unknown, don't drop.
         return url, False
 
