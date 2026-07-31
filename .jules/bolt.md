@@ -1,0 +1,1 @@
+## 2024-05-19 - Bulk Inserts with Fallback\n**Learning:** Supabase Python client fails entire bulk insert on a single error. \n**Action:** Use a hybrid approach where we attempt bulk insert and fallback to individual try-except inserts to preserve original error handling.
