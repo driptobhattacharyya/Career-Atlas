@@ -9,60 +9,35 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as GithubCallbackRouteImport } from './routes/github.callback'
-import { Route as AppRoadmapRouteImport } from './routes/_app.roadmap'
-import { Route as AppProfileRouteImport } from './routes/_app.profile'
-import { Route as AppJobsRouteImport } from './routes/_app.jobs'
-import { Route as AppGithubInsightsRouteImport } from './routes/_app.github-insights'
-import { Route as AppGithubRouteImport } from './routes/_app.github'
-import { Route as AppGapsRouteImport } from './routes/_app.gaps'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppGapsRouteImport } from './routes/_app.gaps'
+import { Route as AppGithubRouteImport } from './routes/_app.github'
+import { Route as AppGithubInsightsRouteImport } from './routes/_app.github-insights'
+import { Route as AppJobsRouteImport } from './routes/_app.jobs'
+import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppRoadmapRouteImport } from './routes/_app.roadmap'
+import { Route as GithubCallbackRouteImport } from './routes/github.callback'
 
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
-const GithubCallbackRoute = GithubCallbackRouteImport.update({
-  id: '/github/callback',
-  path: '/github/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppRoadmapRoute = AppRoadmapRouteImport.update({
-  id: '/roadmap',
-  path: '/roadmap',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProfileRoute = AppProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppJobsRoute = AppJobsRouteImport.update({
-  id: '/jobs',
-  path: '/jobs',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGithubInsightsRoute = AppGithubInsightsRouteImport.update({
-  id: '/github-insights',
-  path: '/github-insights',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGithubRoute = AppGithubRouteImport.update({
-  id: '/github',
-  path: '/github',
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGapsRoute = AppGapsRouteImport.update({
@@ -70,10 +45,35 @@ const AppGapsRoute = AppGapsRouteImport.update({
   path: '/gaps',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AppGithubRoute = AppGithubRouteImport.update({
+  id: '/github',
+  path: '/github',
   getParentRoute: () => AppRoute,
+} as any)
+const AppGithubInsightsRoute = AppGithubInsightsRouteImport.update({
+  id: '/github-insights',
+  path: '/github-insights',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppJobsRoute = AppJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRoadmapRoute = AppRoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
+  getParentRoute: () => AppRoute,
+} as any)
+const GithubCallbackRoute = GithubCallbackRouteImport.update({
+  id: '/github/callback',
+  path: '/github/callback',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -163,11 +163,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -177,53 +177,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/github/callback': {
-      id: '/github/callback'
-      path: '/github/callback'
-      fullPath: '/github/callback'
-      preLoaderRoute: typeof GithubCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app/roadmap': {
-      id: '/_app/roadmap'
-      path: '/roadmap'
-      fullPath: '/roadmap'
-      preLoaderRoute: typeof AppRoadmapRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/profile': {
-      id: '/_app/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof AppProfileRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/jobs': {
-      id: '/_app/jobs'
-      path: '/jobs'
-      fullPath: '/jobs'
-      preLoaderRoute: typeof AppJobsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/github-insights': {
-      id: '/_app/github-insights'
-      path: '/github-insights'
-      fullPath: '/github-insights'
-      preLoaderRoute: typeof AppGithubInsightsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/github': {
-      id: '/_app/github'
-      path: '/github'
-      fullPath: '/github'
-      preLoaderRoute: typeof AppGithubRouteImport
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/gaps': {
@@ -233,12 +198,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGapsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
+    '/_app/github': {
+      id: '/_app/github'
+      path: '/github'
+      fullPath: '/github'
+      preLoaderRoute: typeof AppGithubRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/github-insights': {
+      id: '/_app/github-insights'
+      path: '/github-insights'
+      fullPath: '/github-insights'
+      preLoaderRoute: typeof AppGithubInsightsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/jobs': {
+      id: '/_app/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof AppJobsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/roadmap': {
+      id: '/_app/roadmap'
+      path: '/roadmap'
+      fullPath: '/roadmap'
+      preLoaderRoute: typeof AppRoadmapRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/github/callback': {
+      id: '/github/callback'
+      path: '/github/callback'
+      fullPath: '/github/callback'
+      preLoaderRoute: typeof GithubCallbackRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
