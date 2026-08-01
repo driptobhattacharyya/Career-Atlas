@@ -1,5 +1,6 @@
 import logging
 import re
+from collections import defaultdict
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -289,6 +290,11 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
         if not user_skills:
             raise HTTPException(status_code=400, detail="No skills found. Re-run resume extraction.")
 
+        # ⚡ Bolt Optimization: Fix N+1 query performance bottleneck
+        # What: Replaced sequential Supabase queries for experience bullets with a single batch fetch using .in_()
+        # Why: Supabase Python client is synchronous and blocks the event loop. Fetching bullets per experience
+        #      resulted in O(N) sequential queries.
+        # Impact: Reduces DB queries from N+1 to 2, significantly decreasing latency for resumes with many experiences.
         exp_resp = (
             db_client.table("experiences")
             .select("id,title,company,start_date,end_date")
@@ -297,22 +303,31 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
         )
         exp_rows = exp_resp.data or []
         exp_items = []
-        for e in exp_rows:
+
+        if exp_rows:
+            exp_ids = [e["id"] for e in exp_rows]
             bullets_resp = (
                 db_client.table("experience_bullets")
-                .select("bullet")
-                .eq("experience_id", e["id"])
+                .select("experience_id,bullet")
+                .in_("experience_id", exp_ids)
                 .execute()
             )
-            exp_items.append(
-                {
-                    "title": e.get("title"),
-                    "company": e.get("company"),
-                    "start_date": e.get("start_date"),
-                    "end_date": e.get("end_date"),
-                    "description_bullets": [b.get("bullet") for b in (bullets_resp.data or []) if b.get("bullet")],
-                }
-            )
+
+            bullets_map = defaultdict(list)
+            for b in (bullets_resp.data or []):
+                if b.get("bullet"):
+                    bullets_map[b["experience_id"]].append(b["bullet"])
+
+            for e in exp_rows:
+                exp_items.append(
+                    {
+                        "title": e.get("title"),
+                        "company": e.get("company"),
+                        "start_date": e.get("start_date"),
+                        "end_date": e.get("end_date"),
+                        "description_bullets": bullets_map.get(e["id"], []),
+                    }
+                )
 
         proj_resp = (
             db_client.table("projects")
@@ -349,9 +364,15 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
 
         # 5) Persist jobs using the legacy flat columns plus the structured payload.
         db_client.table("job_matches").delete().eq("user_id", user_id).execute()
+
+        # ⚡ Bolt Optimization: Fix N+1 query performance bottleneck during inserts
+        # What: Accumulated job matches into a single list and performed a bulk `.insert().execute()`
+        # Why: Supabase python client executes synchronously. Inserting 8 jobs sequentially creates 8 round trips.
+        # Impact: Reduces DB insert queries from O(N) to O(1), improving job retrieval latency.
+        insert_rows = []
         for job in parsed.jobs:
             payload = job.model_dump()
-            insert_row = {
+            insert_rows.append({
                 "user_id": user_id,
                 "job_id": payload.get("job_id"),
                 "query_role": parsed.query_role,
@@ -370,8 +391,15 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
                 "external_url": payload.get("external_url"),
                 "score_json": payload.get("score"),
                 "explanation_json": payload.get("explanation"),
-            }
-            _insert_job_match(insert_row)
+            })
+
+        if insert_rows:
+            try:
+                db_client.table("job_matches").insert(insert_rows).execute()
+            except Exception:
+                logger.warning("bulk job_matches insert failed; falling back to sequential inserts", exc_info=True)
+                for row in insert_rows:
+                    _insert_job_match(row)
 
         return parsed
 

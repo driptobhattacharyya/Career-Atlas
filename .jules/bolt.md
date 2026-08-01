@@ -1,0 +1,3 @@
+## 2024-05-19 - Job Hunter Supabase N+1 bottlenecks
+**Learning:** The synchronous Supabase Python client causes O(N) blocking queries if loops fetch child items (e.g. `experience_bullets`) sequentially, and O(N) latency for sequential row insertions.
+**Action:** When querying child arrays inside loops, batch the parent IDs and execute a single `.in_()` query, then use `collections.defaultdict(list)` to attach records in memory. For insertions, accumulate rows into a list and execute a single bulk `.insert([rows])` block, using `try...except` to fall back to sequential insertion on failure (as Supabase bulk insert natively rejects the entire batch on a single failure).
