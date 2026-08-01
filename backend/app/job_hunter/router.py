@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 from typing import Any
@@ -6,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.dependencies.auth import require_user_id
-from app.dependencies.database import db_client
+from app.dependencies.database import db_client # type: ignore
 from app.job_hunter.agent import job_finder_agent
 from app.job_hunter.schemas import JobExplanation, JobResult, JobSearchResponse, ScoreBreakdown
 from app.utils.resumes import latest_resume_id
@@ -54,7 +55,7 @@ def _resolve_profile_context(user_id: str) -> tuple[str, str]:
             .limit(1)
             .execute()
         )
-        profile = _safe_first(profile_resp.data or [])
+        profile = _safe_first(profile_resp.data or []) # type: ignore
         location = profile.get("location") or location
         target_role_id = profile.get("target_role_id")
         if target_role_id:
@@ -65,7 +66,7 @@ def _resolve_profile_context(user_id: str) -> tuple[str, str]:
                 .limit(1)
                 .execute()
             )
-            role = _safe_first(role_resp.data or [])
+            role = _safe_first(role_resp.data or []) # type: ignore
             query_role = role.get("title") or query_role
     except Exception:
         logger.warning("profile/role context lookup failed for user %s", user_id, exc_info=True)
@@ -81,7 +82,7 @@ def _resolve_profile_context(user_id: str) -> tuple[str, str]:
                     .limit(1)
                     .execute()
                 )
-                contact = _safe_first(contact_resp.data or [])
+                contact = _safe_first(contact_resp.data or []) # type: ignore
                 location = (
                     contact.get("location")
                     or contact.get("city")
@@ -192,57 +193,86 @@ def _insert_job_match(row: dict[str, Any]) -> None:
 async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require_user_id)):
     try:
         # 1) Resolve target role from Supabase.
-        role_resp = (
-            db_client.table("target_roles")
+        role_resp = await asyncio.to_thread(
+            lambda: db_client.table("target_roles")
             .select("id,title")
             .eq("id", req.target_role_id)
             .limit(1)
             .execute()
         )
-        if not role_resp.data:
+        if not role_resp.data: # type: ignore
             raise HTTPException(status_code=404, detail="Target role not found")
-        role_info = role_resp.data[0]
+        role_info = role_resp.data[0] # type: ignore
 
         # 2) Get latest resume for user.
-        resume_id = latest_resume_id(user_id)
+        resume_id = await asyncio.to_thread(latest_resume_id, user_id)
         if not resume_id:
             raise HTTPException(status_code=400, detail="Run resume extraction first")
 
         # 3) Pull profile/location and resume context from normalized schema.
-        resume_row_resp = (
-            db_client.table("resumes")
-            .select("headline,summary")
-            .eq("id", resume_id)
-            .limit(1)
-            .execute()
+        def fetch_resume_row():
+            return db_client.table("resumes").select("headline,summary").eq("id", resume_id).limit(1).execute()
+
+        def fetch_profile_location():
+            return db_client.table("profiles").select("location").eq("user_id", user_id).limit(1).execute()
+
+        def fetch_skills():
+            return db_client.table("skills").select("skill").eq("resume_id", resume_id).execute()
+
+        def fetch_langs():
+            return db_client.table("programming_languages").select("language").eq("resume_id", resume_id).execute()
+
+        def fetch_gh_skills():
+            return db_client.table("github_skill_evidence").select("skill").eq("user_id", user_id).eq("confirmed", True).execute()
+
+        def fetch_exp():
+            return db_client.table("experiences").select("id,title,company,start_date,end_date").eq("resume_id", resume_id).execute()
+
+        def fetch_proj():
+            return db_client.table("projects").select("name,description").eq("resume_id", resume_id).execute()
+
+        def fetch_edu():
+            return db_client.table("education").select("degree,institution").eq("resume_id", resume_id).execute()
+
+        # Execute independent queries concurrently
+        results = await asyncio.gather(
+            asyncio.to_thread(fetch_resume_row),
+            asyncio.to_thread(fetch_skills),
+            asyncio.to_thread(fetch_langs),
+            asyncio.to_thread(fetch_exp),
+            asyncio.to_thread(fetch_proj),
+            asyncio.to_thread(fetch_edu),
+            return_exceptions=True
         )
-        resume_row = (resume_row_resp.data or [{}])[0]
+
+        for res in results:
+            if isinstance(res, Exception):
+                logger.error("Error in parallel query: %s", res)
+                raise res
+
+        resume_row_resp, skills_resp, langs_resp, exp_resp, proj_resp, edu_resp = results # type: ignore
+
+        resume_row = (resume_row_resp.data or [{}])[0] # type: ignore
 
         location = "Remote"
         try:
-            profile_resp = (
-                db_client.table("profiles")
-                .select("location")
-                .eq("user_id", user_id)
-                .limit(1)
-                .execute()
-            )
-            if profile_resp.data and profile_resp.data[0].get("location"):
-                location = profile_resp.data[0]["location"]
+            profile_resp = await asyncio.to_thread(fetch_profile_location)
+            if profile_resp.data and profile_resp.data[0].get("location"): # type: ignore
+                location = profile_resp.data[0]["location"] # type: ignore
         except Exception:
             logger.warning("profile location lookup failed for user %s", user_id, exc_info=True)
 
         if location == "Remote":
             try:
-                contact_resp = (
-                    db_client.table("contacts")
+                contact_resp = await asyncio.to_thread(
+                    lambda: db_client.table("contacts")
                     .select("location,city,country")
                     .eq("resume_id", resume_id)
                     .limit(1)
                     .execute()
                 )
-                if contact_resp.data:
-                    contact = contact_resp.data[0]
+                if contact_resp.data: # type: ignore
+                    contact = contact_resp.data[0] # type: ignore
                     location = (
                         contact.get("location")
                         or contact.get("city")
@@ -252,33 +282,14 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
             except Exception:
                 logger.warning("contact location lookup failed for resume %s", resume_id, exc_info=True)
 
-        skills_resp = (
-            db_client.table("skills")
-            .select("skill")
-            .eq("resume_id", resume_id)
-            .execute()
-        )
-        langs_resp = (
-            db_client.table("programming_languages")
-            .select("language")
-            .eq("resume_id", resume_id)
-            .execute()
-        )
-
-        user_skills = [row["skill"] for row in (skills_resp.data or []) if row.get("skill")]
-        user_skills.extend([row["language"] for row in (langs_resp.data or []) if row.get("language")])
+        user_skills = [row["skill"] for row in (skills_resp.data or []) if row.get("skill")] # type: ignore
+        user_skills.extend([row["language"] for row in (langs_resp.data or []) if row.get("language")]) # type: ignore
 
         # JOB-1: confirmed GitHub skills count toward job matching too (parity with
         # gap analysis). Only confirmed=true — quarantined guesses never inflate matches.
         try:
-            gh_resp = (
-                db_client.table("github_skill_evidence")
-                .select("skill")
-                .eq("user_id", user_id)
-                .eq("confirmed", True)
-                .execute()
-            )
-            user_skills.extend([r["skill"] for r in (gh_resp.data or []) if r.get("skill")])
+            gh_resp = await asyncio.to_thread(fetch_gh_skills)
+            user_skills.extend([r["skill"] for r in (gh_resp.data or []) if r.get("skill")]) # type: ignore
         except Exception:
             # github optional — never block a job search on it, but log it.
             logger.warning("github skill lookup failed for user %s", user_id, exc_info=True)
@@ -289,69 +300,56 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
         if not user_skills:
             raise HTTPException(status_code=400, detail="No skills found. Re-run resume extraction.")
 
-        exp_resp = (
-            db_client.table("experiences")
-            .select("id,title,company,start_date,end_date")
-            .eq("resume_id", resume_id)
-            .execute()
-        )
-        exp_rows = exp_resp.data or []
-        exp_items = []
-        for e in exp_rows:
-            bullets_resp = (
-                db_client.table("experience_bullets")
+        exp_rows = exp_resp.data or [] # type: ignore
+
+        async def fetch_bullets_for_exp(e):
+            bullets_resp = await asyncio.to_thread(
+                lambda: db_client.table("experience_bullets")
                 .select("bullet")
                 .eq("experience_id", e["id"])
                 .execute()
             )
-            exp_items.append(
-                {
-                    "title": e.get("title"),
-                    "company": e.get("company"),
-                    "start_date": e.get("start_date"),
-                    "end_date": e.get("end_date"),
-                    "description_bullets": [b.get("bullet") for b in (bullets_resp.data or []) if b.get("bullet")],
-                }
-            )
+            return {
+                "title": e.get("title"),
+                "company": e.get("company"),
+                "start_date": e.get("start_date"),
+                "end_date": e.get("end_date"),
+                "description_bullets": [b.get("bullet") for b in (bullets_resp.data or []) if b.get("bullet")], # type: ignore
+            }
 
-        proj_resp = (
-            db_client.table("projects")
-            .select("name,description")
-            .eq("resume_id", resume_id)
-            .execute()
-        )
-        projects = proj_resp.data or []
+        exp_items = await asyncio.gather(*[fetch_bullets_for_exp(e) for e in exp_rows])
 
-        edu_resp = (
-            db_client.table("education")
-            .select("degree,institution")
-            .eq("resume_id", resume_id)
-            .execute()
-        )
-        education = edu_resp.data or []
+        projects = proj_resp.data or [] # type: ignore
+        education = edu_resp.data or [] # type: ignore
 
         # 4) Run Adzuna + Jina + Gemini pipeline.
         resume_payload = {
             "skills": [s for s in user_skills if s],
-            "programming_languages": [row["language"] for row in (langs_resp.data or []) if row.get("language")],
+            "programming_languages": [row["language"] for row in (langs_resp.data or []) if row.get("language")], # type: ignore
             "headline": resume_row.get("headline") or "",
             "experience": exp_items,
             "education": education,
             "projects": projects,
             "summary": resume_row.get("summary") or "",
         }
-        parsed = job_finder_agent(
+
+        parsed = await asyncio.to_thread(
+            job_finder_agent,
             resume=resume_payload,
             target_role=role_info["title"],
             user_location_pref=location or "Remote",
-            top_k=8,
+            top_k=8
         )
 
         # 5) Persist jobs using the legacy flat columns plus the structured payload.
-        db_client.table("job_matches").delete().eq("user_id", user_id).execute()
+        await asyncio.to_thread(
+            lambda: db_client.table("job_matches").delete().eq("user_id", user_id).execute()
+        )
+
+        insert_rows = []
         for job in parsed.jobs:
             payload = job.model_dump()
-            insert_row = {
+            insert_rows.append({
                 "user_id": user_id,
                 "job_id": payload.get("job_id"),
                 "query_role": parsed.query_role,
@@ -370,8 +368,9 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
                 "external_url": payload.get("external_url"),
                 "score_json": payload.get("score"),
                 "explanation_json": payload.get("explanation"),
-            }
-            _insert_job_match(insert_row)
+            })
+
+        await asyncio.gather(*[asyncio.to_thread(_insert_job_match, row) for row in insert_rows])
 
         return parsed
 
@@ -397,7 +396,7 @@ def list_job_matches(user_id: str = Depends(require_user_id)):
         logger.exception("job_matches lookup failed for user %s", user_id)
         raise HTTPException(status_code=500, detail=f"Lookup failed: {e}") from e
 
-    rows = resp.data or []
+    rows = resp.data or [] # type: ignore
     query_role, location = _resolve_profile_context(user_id)
     if rows:
         query_role = rows[0].get("query_role") or query_role
