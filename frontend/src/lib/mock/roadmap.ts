@@ -8,7 +8,8 @@ export const mockRoadmap: Milestone[] = [
     skill: "Data Structures & Algorithms",
     status: "completed",
     estimatedWeeks: 3,
-    description: "Refresh core data structures and practice 60 problems across arrays, hashmaps, trees, and graphs.",
+    description:
+      "Refresh core data structures and practice 60 problems across arrays, hashmaps, trees, and graphs.",
     courses: [
       { title: "Grokking Algorithms", provider: "Manning", duration: "8h", url: "#" },
       { title: "NeetCode 150", provider: "NeetCode", duration: "Self-paced", url: "#" },
@@ -30,9 +31,15 @@ export const mockRoadmap: Milestone[] = [
     skill: "Docker",
     status: "in-progress",
     estimatedWeeks: 2,
-    description: "Get comfortable writing Dockerfiles, multi-stage builds, and docker-compose for a real app.",
+    description:
+      "Get comfortable writing Dockerfiles, multi-stage builds, and docker-compose for a real app.",
     courses: [
-      { title: "Docker for the Absolute Beginner", provider: "KodeKloud", duration: "5h", url: "#" },
+      {
+        title: "Docker for the Absolute Beginner",
+        provider: "KodeKloud",
+        duration: "5h",
+        url: "#",
+      },
       { title: "Play with Docker labs", provider: "Docker", duration: "Self-paced", url: "#" },
     ],
     project: {
@@ -52,9 +59,15 @@ export const mockRoadmap: Milestone[] = [
     skill: "PyTorch",
     status: "locked",
     estimatedWeeks: 6,
-    description: "Move from notebook tutorials to building, training, and evaluating real models from scratch.",
+    description:
+      "Move from notebook tutorials to building, training, and evaluating real models from scratch.",
     courses: [
-      { title: "Practical Deep Learning for Coders", provider: "fast.ai", duration: "40h", url: "#" },
+      {
+        title: "Practical Deep Learning for Coders",
+        provider: "fast.ai",
+        duration: "40h",
+        url: "#",
+      },
       { title: "PyTorch in 60 Minutes", provider: "PyTorch.org", duration: "1h", url: "#" },
     ],
     project: {
@@ -81,7 +94,8 @@ export const mockRoadmap: Milestone[] = [
     ],
     project: {
       title: "LeafID on AWS",
-      description: "Deploy LeafID behind API Gateway + Lambda + S3, with logging and basic monitoring.",
+      description:
+        "Deploy LeafID behind API Gateway + Lambda + S3, with logging and basic monitoring.",
     },
     checklist: [
       "Set up an IAM-secured S3 bucket",
@@ -96,14 +110,21 @@ export const mockRoadmap: Milestone[] = [
     skill: "MLOps",
     status: "locked",
     estimatedWeeks: 6,
-    description: "Build a reproducible training-to-serving pipeline with experiment tracking and drift monitoring.",
+    description:
+      "Build a reproducible training-to-serving pipeline with experiment tracking and drift monitoring.",
     courses: [
       { title: "Made With ML — MLOps", provider: "Made With ML", duration: "Self-paced", url: "#" },
-      { title: "MLflow + Weights & Biases tutorials", provider: "Various", duration: "10h", url: "#" },
+      {
+        title: "MLflow + Weights & Biases tutorials",
+        provider: "Various",
+        duration: "10h",
+        url: "#",
+      },
     ],
     project: {
       title: "End-to-end MLOps capstone",
-      description: "Take one model from data ingestion → training → deploy → monitor with a CI pipeline.",
+      description:
+        "Take one model from data ingestion → training → deploy → monitor with a CI pipeline.",
     },
     checklist: [
       "Track 10 experiments in W&B",
@@ -127,10 +148,6 @@ export const mockRoadmap: Milestone[] = [
       title: "Write 3 design docs",
       description: "Pick 3 products you use and write 1-page ML system design docs for them.",
     },
-    checklist: [
-      "Read 'Designing ML Systems'",
-      "Write 3 design docs",
-      "Do 2 mock interviews",
-    ],
+    checklist: ["Read 'Designing ML Systems'", "Write 3 design docs", "Do 2 mock interviews"],
   },
 ];

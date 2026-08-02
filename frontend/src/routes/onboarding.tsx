@@ -1,13 +1,30 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Compass, FileText, Sparkles, Upload, Github } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Compass,
+  FileText,
+  Sparkles,
+  Upload,
+  Github,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
-import { useTargetRoles, useUploadResume, useSubmitManualResume, useRunGapAnalysis, useLatestResume, useAllResumes, useSelectResume } from "@/hooks/queries";
+import {
+  useTargetRoles,
+  useUploadResume,
+  useSubmitManualResume,
+  useRunGapAnalysis,
+  useLatestResume,
+  useAllResumes,
+  useSelectResume,
+} from "@/hooks/queries";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeSelector } from "@/components/theme-selector";
 import { ManualResumeForm } from "@/components/manual-resume-form";
@@ -16,7 +33,10 @@ export const Route = createFileRoute("/onboarding")({
   head: () => ({
     meta: [
       { title: "Get started — CareerAtlas" },
-      { name: "description", content: "Upload your resume and pick a target role to build your personal career roadmap." },
+      {
+        name: "description",
+        content: "Upload your resume and pick a target role to build your personal career roadmap.",
+      },
     ],
   }),
   component: Onboarding,
@@ -30,7 +50,7 @@ const STEPS = disableAuth
 function Onboarding() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  
+
   // Start at step 1 if already authenticated, else step 0
   const [step, setStep] = useState(disableAuth ? 0 : 0);
   useEffect(() => {
@@ -40,7 +60,7 @@ function Onboarding() {
   const latestResume = useLatestResume();
   const uploadMutation = useUploadResume();
   const onboardCheckDone = useRef(false);
-  
+
   const { data: allResumes = [] } = useAllResumes();
   const selectMutation = useSelectResume();
   const selecting = selectMutation.isPending;
@@ -51,20 +71,22 @@ function Onboarding() {
   const [roleId, setRoleId] = useState<string>("ml-engineer");
   const [roleTitle, setRoleTitle] = useState<string>("ML Engineer");
   const [roleQuery, setRoleQuery] = useState("");
-  
+
   useEffect(() => {
     if (latestResume.data) {
       setHasResume(true);
     }
   }, [latestResume.data]);
-  
+
   const parsing = uploadMutation.isPending;
   const manualMutation = useSubmitManualResume();
   const manualSubmitting = manualMutation.isPending;
 
   const { data: roles = [] } = useTargetRoles();
   const filteredRoles = roles.filter(
-    (r: any) => r.title.toLowerCase().includes(roleQuery.toLowerCase()) || r.category.toLowerCase().includes(roleQuery.toLowerCase()),
+    (r: any) =>
+      r.title.toLowerCase().includes(roleQuery.toLowerCase()) ||
+      r.category.toLowerCase().includes(roleQuery.toLowerCase()),
   );
   useEffect(() => {
     if (!roles.length) return;
@@ -127,7 +149,10 @@ function Onboarding() {
   return (
     <div className="min-h-screen bg-gradient-hero">
       <header className="mx-auto flex max-w-3xl items-center justify-between px-4 py-5 sm:px-6">
-        <a href="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
+        <a
+          href="/"
+          className="flex items-center gap-2 font-display text-lg font-bold tracking-tight"
+        >
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-soft">
             <Compass className="h-5 w-5" />
           </span>
@@ -139,7 +164,12 @@ function Onboarding() {
             Step {step + 1} of {STEPS.length}
           </span>
           {user && step > 0 && (
-            <Button variant="ghost" size="sm" onClick={() => signOut()} className="h-8 text-xs text-muted-foreground hover:text-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => signOut()}
+              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+            >
               Sign out
             </Button>
           )}
@@ -157,8 +187,8 @@ function Onboarding() {
                   i < step
                     ? "bg-success text-success-foreground"
                     : i === step
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground",
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground",
                 )}
               >
                 {i < step || (i === 0 && user) ? <Check className="h-4 w-4" /> : i + 1}
@@ -179,10 +209,10 @@ function Onboarding() {
         <div className="rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-10">
           {!disableAuth && step === 0 && <StepAccount />}
           {step === (disableAuth ? 0 : 1) && (
-            <StepResume 
-              file={resumeFile} 
-              parsing={parsing} 
-              onFile={handleFileUpload} 
+            <StepResume
+              file={resumeFile}
+              parsing={parsing}
+              onFile={handleFileUpload}
               onManualSubmit={handleManualSubmit}
               manualSubmitting={manualSubmitting}
               allResumes={allResumes}
@@ -193,7 +223,7 @@ function Onboarding() {
               setUserWantsNew={setUserWantsNew}
             />
           )}
-      {step === (disableAuth ? 1 : 2) && (
+          {step === (disableAuth ? 1 : 2) && (
             <StepRole
               query={roleQuery}
               onQuery={setRoleQuery}
@@ -206,11 +236,7 @@ function Onboarding() {
             />
           )}
           {step === (disableAuth ? 2 : 3) && (
-            <StepAnalysis
-              roleId={roleId}
-              roleTitle={roleTitle}
-              onDone={next}
-            />
+            <StepAnalysis roleId={roleId} roleTitle={roleTitle} onDone={next} />
           )}
           {step === (disableAuth ? 3 : 4) && (
             <StepGithub onSkip={() => navigate({ to: "/roadmap" })} />
@@ -219,18 +245,24 @@ function Onboarding() {
 
         {step > (disableAuth ? -1 : 0) && step < (disableAuth ? 2 : 3) && (
           <div className="mt-6 flex items-center justify-between">
-            <Button variant="ghost" onClick={back} disabled={step === (disableAuth ? 0 : 1)} className="rounded-full">
+            <Button
+              variant="ghost"
+              onClick={back}
+              disabled={step === (disableAuth ? 0 : 1)}
+              className="rounded-full"
+            >
               <ArrowLeft className="mr-1 h-4 w-4" /> Back
             </Button>
             <Button
               onClick={next}
               disabled={
-                (step === (disableAuth ? 0 : 1) && (!hasResume)) ||
+                (step === (disableAuth ? 0 : 1) && !hasResume) ||
                 (step === (disableAuth ? 1 : 2) && !roleId)
               }
               className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm"
             >
-              {step === (disableAuth ? 1 : 2) ? "Analyze my profile" : "Continue"} <ArrowRight className="ml-1 h-4 w-4" />
+              {step === (disableAuth ? 1 : 2) ? "Analyze my profile" : "Continue"}{" "}
+              <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         )}
@@ -247,21 +279,47 @@ function StepAccount() {
       <p className="mt-2 text-sm text-muted-foreground">
         Sign in to save your career atlas progress and personalized jobs.
       </p>
-      <Button onClick={signInWithGoogle} className="mt-8 rounded-full border border-border px-8" variant="outline">
-        <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path></svg>
+      <Button
+        onClick={signInWithGoogle}
+        className="mt-8 rounded-full border border-border px-8"
+        variant="outline"
+      >
+        <svg
+          className="mr-2 h-4 w-4"
+          aria-hidden="true"
+          focusable="false"
+          data-prefix="fab"
+          data-icon="google"
+          role="img"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 488 512"
+        >
+          <path
+            fill="currentColor"
+            d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
+          ></path>
+        </svg>
         Sign in with Google
       </Button>
     </div>
   );
 }
 
-function StepResume({ 
-  file, parsing, onFile, onManualSubmit, manualSubmitting,
-  allResumes, onSelectExisting, selecting,
-  latestResumeId, userWantsNew, setUserWantsNew
-}: { 
-  file: File | null; 
-  parsing: boolean; 
+function StepResume({
+  file,
+  parsing,
+  onFile,
+  onManualSubmit,
+  manualSubmitting,
+  allResumes,
+  onSelectExisting,
+  selecting,
+  latestResumeId,
+  userWantsNew,
+  setUserWantsNew,
+}: {
+  file: File | null;
+  parsing: boolean;
   onFile: (f: File) => void;
   onManualSubmit: (data: any) => void;
   manualSubmitting: boolean;
@@ -281,9 +339,9 @@ function StepResume({
         <p className="mt-2 text-sm text-muted-foreground mb-6">
           Choose an existing profile or create a new one.
         </p>
-        
+
         <div className="grid gap-4 mb-6">
-          {allResumes.map(r => {
+          {allResumes.map((r) => {
             const isSelected = r.id === latestResumeId;
             return (
               <button
@@ -294,25 +352,35 @@ function StepResume({
                   "rounded-2xl border-2 p-5 text-left transition-all relative flex flex-col justify-between",
                   isSelected
                     ? "border-coral bg-coral/5 shadow-warm"
-                    : "border-border bg-card hover:border-primary-soft hover:bg-muted/40"
+                    : "border-border bg-card hover:border-primary-soft hover:bg-muted/40",
                 )}
               >
                 <div className="flex w-full items-start justify-between">
-                  <h3 className="font-display text-base font-semibold">{r.headline || r.full_name || "Untitled Profile"}</h3>
+                  <h3 className="font-display text-base font-semibold">
+                    {r.headline || r.full_name || "Untitled Profile"}
+                  </h3>
                   {isSelected && (
                     <span className="flex items-center gap-1 rounded-full bg-coral/20 px-2 py-0.5 text-[10px] font-semibold text-coral uppercase tracking-wider">
                       <Check className="h-3 w-3" /> Selected
                     </span>
                   )}
                 </div>
-                {r.summary && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{r.summary}</p>}
-                <p className="mt-2 text-xs text-muted-foreground">Created on {new Date(r.created_at).toLocaleDateString()}</p>
+                {r.summary && (
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{r.summary}</p>
+                )}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Created on {new Date(r.created_at).toLocaleDateString()}
+                </p>
               </button>
             );
           })}
         </div>
-        
-        <Button variant="outline" className="w-full rounded-full" onClick={() => setUserWantsNew(true)}>
+
+        <Button
+          variant="outline"
+          className="w-full rounded-full"
+          onClick={() => setUserWantsNew(true)}
+        >
           Create New Profile
         </Button>
       </div>
@@ -340,11 +408,11 @@ function StepResume({
           <TabsTrigger value="manual">Fill Manually</TabsTrigger>
           <TabsTrigger value="upload">Upload PDF</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="manual">
           <ManualResumeForm onSubmit={onManualSubmit} isSubmitting={manualSubmitting} />
         </TabsContent>
-        
+
         <TabsContent value="upload">
           <label
             onDragOver={(e) => {
@@ -487,14 +555,24 @@ function StepRole({
           )}
 
         {roles.length === 0 && !query.trim() && (
-          <p className="col-span-full py-6 text-center text-sm text-muted-foreground">Loading specific target roles...</p>
+          <p className="col-span-full py-6 text-center text-sm text-muted-foreground">
+            Loading specific target roles...
+          </p>
         )}
       </div>
     </div>
   );
 }
 
-function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle: string; onDone: () => void }) {
+function StepAnalysis({
+  roleId,
+  roleTitle,
+  onDone,
+}: {
+  roleId: string;
+  roleTitle: string;
+  onDone: () => void;
+}) {
   const [progress, setProgress] = useState(0);
   const [stageStr, setStageStr] = useState("Preparing engines...");
   const [error, setError] = useState<string | null>(null);
@@ -516,7 +594,9 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
         if (unmounted) return;
         setProgress(100);
         setStageStr("All done!");
-        setTimeout(() => { if (!unmounted) onDone(); }, 1000);
+        setTimeout(() => {
+          if (!unmounted) onDone();
+        }, 1000);
       } catch (err: any) {
         if (!unmounted) setError(err.message || "Failed to complete AI processing.");
       }
@@ -524,7 +604,9 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
 
     runAnalysis();
 
-    return () => { unmounted = true; };
+    return () => {
+      unmounted = true;
+    };
   }, [roleId, roleTitle]);
 
   return (
@@ -534,7 +616,7 @@ function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle
       </span>
       <h2 className="mt-5 font-display text-2xl font-bold sm:text-3xl">Building your atlas</h2>
       <p className="mt-2 text-sm text-muted-foreground">{error || stageStr}</p>
-      
+
       {!error && (
         <>
           <Progress value={progress} className="mx-auto mt-6 max-w-md" />
@@ -562,11 +644,13 @@ function StepGithub({ onSkip }: { onSkip: () => void }) {
       <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-primary-soft text-primary">
         <Github className="h-7 w-7" />
       </span>
-      <h2 className="mt-5 font-display text-2xl font-bold sm:text-3xl">Add skills proven by your code</h2>
+      <h2 className="mt-5 font-display text-2xl font-bold sm:text-3xl">
+        Add skills proven by your code
+      </h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
         Connect GitHub and we'll read your repositories to find skills, projects, and how you build.
-        Strong matches are added to your profile — you review the rest. Optional, and you can do this
-        anytime from the GitHub tab.
+        Strong matches are added to your profile — you review the rest. Optional, and you can do
+        this anytime from the GitHub tab.
       </p>
       <div className="mt-8 flex flex-col items-center gap-3">
         <Button

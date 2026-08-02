@@ -18,7 +18,11 @@ export const Route = createFileRoute("/_app/jobs")({
   head: () => ({
     meta: [
       { title: "Jobs - CareerAtlas" },
-      { name: "description", content: "Real job matches ranked by fit, with the skills you have and the ones you're missing." },
+      {
+        name: "description",
+        content:
+          "Real job matches ranked by fit, with the skills you have and the ones you're missing.",
+      },
     ],
   }),
   component: Jobs,
@@ -48,14 +52,18 @@ function Jobs() {
     onSuccess: async (data) => {
       cacheJobSearchResponse(data);
       await queryClient.invalidateQueries({ queryKey: ["job-matches"] });
-      toast.success("Job matches refreshed", { description: "Fetched the latest jobs from the backend agent." });
+      toast.success("Job matches refreshed", {
+        description: "Fetched the latest jobs from the backend agent.",
+      });
     },
     onError: (err: any) => {
       toast.error("Failed to fetch jobs", { description: err?.message || "Job research failed." });
     },
   });
 
-  const localRoleTitle = isBrowser ? window.localStorage.getItem("careeratlas:selected_role_title") : null;
+  const localRoleTitle = isBrowser
+    ? window.localStorage.getItem("careeratlas:selected_role_title")
+    : null;
   const targetRole =
     roles.find((r: any) => r.id === profile?.target_role_id)?.title ||
     profile?.target_role_title ||
@@ -74,7 +82,9 @@ function Jobs() {
 
   const filtered = jobs
     .filter((j) =>
-      [j.title, j.company, j.location].some((f) => f && f.toLowerCase().includes(query.toLowerCase())),
+      [j.title, j.company, j.location].some(
+        (f) => f && f.toLowerCase().includes(query.toLowerCase()),
+      ),
     )
     .filter((j) => (remoteOnly ? Boolean(j.remote) : true))
     .filter((j) => (activeSeniority === "All" ? true : j.seniority === activeSeniority))
@@ -90,7 +100,9 @@ function Jobs() {
       >
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">Job search</p>
-          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Ranked job matches</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            Ranked job matches
+          </h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
             Results are scored across semantic fit, skill overlap, experience, and education for{" "}
             <span className="font-medium text-foreground">{targetRole}</span>.
@@ -98,11 +110,17 @@ function Jobs() {
         </div>
         <div className="flex flex-wrap gap-2">
           <StatPill label="Matches" value={String(jobs.length)} />
-          <StatPill label="Top score" value={topJob ? `${Math.round(topJob.score.final)}%` : "N/A"} />
+          <StatPill
+            label="Top score"
+            value={topJob ? `${Math.round(topJob.score.final)}%` : "N/A"}
+          />
         </div>
       </motion.div>
 
-      <motion.div variants={fadeUp} className="rounded-3xl border border-border bg-card p-4 shadow-soft">
+      <motion.div
+        variants={fadeUp}
+        className="rounded-3xl border border-border bg-card p-4 shadow-soft"
+      >
         <div className="mb-3 flex justify-end">
           <Button
             onClick={() => runJobResearch.mutate()}
@@ -230,7 +248,8 @@ function JobCard({ job, onOpen }: { job: JobResult; onOpen: () => void }) {
         <div className="min-w-0">
           <h3 className="font-display text-lg font-semibold">{job.title}</h3>
           <p className="text-sm text-muted-foreground">
-            {job.company} - <MapPin className="inline h-3 w-3" /> {job.location || "Location not listed"}
+            {job.company} - <MapPin className="inline h-3 w-3" />{" "}
+            {job.location || "Location not listed"}
             {job.remote && (
               <span className="ml-2 rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-medium text-success">
                 Remote
@@ -252,7 +271,10 @@ function JobCard({ job, onOpen }: { job: JobResult; onOpen: () => void }) {
           <div className="flex flex-wrap gap-1.5">
             {strengths.length > 0 ? (
               strengths.map((s) => (
-                <span key={s} className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs text-success">
+                <span
+                  key={s}
+                  className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs text-success"
+                >
                   <Check className="h-3 w-3" /> {s}
                 </span>
               ))
@@ -322,8 +344,16 @@ function JobDrawer({ job, onClose }: { job: JobResult; onClose: () => void }) {
           <span className="rounded-full bg-coral px-3 py-1 text-xs font-semibold text-coral-foreground">
             {pct(job.score.final)}% match
           </span>
-          {job.seniority && <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">{job.seniority}</span>}
-          {job.remote && <span className="rounded-full bg-success/15 px-3 py-1 text-xs font-medium text-success">Remote</span>}
+          {job.seniority && (
+            <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">
+              {job.seniority}
+            </span>
+          )}
+          {job.remote && (
+            <span className="rounded-full bg-success/15 px-3 py-1 text-xs font-medium text-success">
+              Remote
+            </span>
+          )}
         </div>
 
         <div className="mt-6 space-y-3 rounded-2xl border border-border/60 bg-background p-4">
@@ -341,7 +371,10 @@ function JobDrawer({ job, onClose }: { job: JobResult; onClose: () => void }) {
           <div className="flex flex-wrap gap-1.5">
             {job.explanation.strengths.length > 0 ? (
               job.explanation.strengths.map((s) => (
-                <span key={s} className="rounded-full bg-success/10 px-2.5 py-1 text-xs text-success">
+                <span
+                  key={s}
+                  className="rounded-full bg-success/10 px-2.5 py-1 text-xs text-success"
+                >
                   {s}
                 </span>
               ))
@@ -367,7 +400,9 @@ function JobDrawer({ job, onClose }: { job: JobResult; onClose: () => void }) {
         </div>
 
         <div className="mt-6 rounded-2xl border border-border/60 bg-background p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reasoning</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Reasoning
+          </p>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             {job.explanation.reasoning || "No reasoning text was generated for this role."}
           </p>
@@ -377,7 +412,11 @@ function JobDrawer({ job, onClose }: { job: JobResult; onClose: () => void }) {
 
         <div className="mt-8 flex flex-col gap-2">
           <Button asChild className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90">
-            <a href={job.apply_url || job.external_url || "#"} target="_blank" rel="noopener noreferrer">
+            <a
+              href={job.apply_url || job.external_url || "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Apply now <ArrowUpRight className="ml-2 h-4 w-4" />
             </a>
           </Button>

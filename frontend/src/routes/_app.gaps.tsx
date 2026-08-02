@@ -11,7 +11,11 @@ export const Route = createFileRoute("/_app/gaps")({
   head: () => ({
     meta: [
       { title: "Skill gaps - CareerAtlas" },
-      { name: "description", content: "Ranked skill gaps for your target role, with prerequisites and the why behind each." },
+      {
+        name: "description",
+        content:
+          "Ranked skill gaps for your target role, with prerequisites and the why behind each.",
+      },
     ],
   }),
   component: Gaps,
@@ -43,7 +47,9 @@ function Gaps() {
   })();
 
   const sorted = [...gaps].sort((a: any, b: any) => b.relevance - a.relevance);
-  const localRoleTitle = isBrowser ? window.localStorage.getItem("careeratlas:selected_role_title") : null;
+  const localRoleTitle = isBrowser
+    ? window.localStorage.getItem("careeratlas:selected_role_title")
+    : null;
   const targetRole =
     roles.find((r: any) => r.id === profile?.target_role_id)?.title ||
     profile?.target_role_title ||
@@ -56,13 +62,10 @@ function Gaps() {
       {
         onSuccess: (data: any) => {
           const n = Array.isArray(data?.gaps) ? data.gaps.length : 0;
-          toast.success(
-            n > 0 ? `Found ${n} skill gaps` : "Analysis complete — no gaps found",
-          );
+          toast.success(n > 0 ? `Found ${n} skill gaps` : "Analysis complete — no gaps found");
         },
-        onError: (err: any) =>
-          toast.error("Gap analysis failed", { description: err?.message }),
-      }
+        onError: (err: any) => toast.error("Gap analysis failed", { description: err?.message }),
+      },
     );
   };
 
@@ -78,9 +81,13 @@ function Gaps() {
     <motion.div className="space-y-8" variants={pageStagger} {...entrance}>
       <motion.div variants={fadeUp} className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Skill gap analysis</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            Skill gap analysis
+          </h1>
           <p className="mt-2 text-muted-foreground">
-            The skills standing between you and a typical <span className="font-medium text-foreground">{targetRole}</span> offer, ranked by impact.
+            The skills standing between you and a typical{" "}
+            <span className="font-medium text-foreground">{targetRole}</span> offer, ranked by
+            impact.
           </p>
         </div>
         <Button
@@ -94,7 +101,8 @@ function Gaps() {
             </>
           ) : (
             <>
-              <Sparkles className="mr-2 h-4 w-4" /> {gaps.length > 0 ? "Re-run analysis" : "Run gap analysis"}
+              <Sparkles className="mr-2 h-4 w-4" />{" "}
+              {gaps.length > 0 ? "Re-run analysis" : "Run gap analysis"}
             </>
           )}
         </Button>
@@ -117,7 +125,12 @@ function Gaps() {
                   <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     {g.category}
                   </span>
-                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", difficultyStyles[g.difficulty] || difficultyStyles.Medium)}>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                      difficultyStyles[g.difficulty] || difficultyStyles.Medium,
+                    )}
+                  >
                     {g.difficulty}
                   </span>
                 </div>
@@ -128,8 +141,12 @@ function Gaps() {
                     <span className="text-muted-foreground">Prereqs:</span>
                     {g.prerequisites.map((p: string, idx: number) => (
                       <span key={p} className="flex items-center gap-1">
-                        <span className="rounded-full border border-border px-2 py-0.5 text-foreground">{p}</span>
-                        {idx < g.prerequisites.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+                        <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
+                          {p}
+                        </span>
+                        {idx < g.prerequisites.length - 1 && (
+                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                        )}
                       </span>
                     ))}
                   </div>
@@ -153,8 +170,9 @@ function Gaps() {
           <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center">
             <Sparkles className="mx-auto h-8 w-8 text-coral" />
             <p className="mt-3 text-sm text-muted-foreground">
-              No gap analysis yet for <span className="font-medium text-foreground">{targetRole}</span>.
-              Run it to see your ranked skill gaps — needed before the roadmap's deep research.
+              No gap analysis yet for{" "}
+              <span className="font-medium text-foreground">{targetRole}</span>. Run it to see your
+              ranked skill gaps — needed before the roadmap's deep research.
             </p>
             <Button
               onClick={runAnalysis}
@@ -183,7 +201,9 @@ function Gaps() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="font-display text-xl font-semibold">Why these gaps?</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Backend explainability and retrieval trace from the gap analysis agent.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Backend explainability and retrieval trace from the gap analysis agent.
+              </p>
             </div>
             {typeof explainability.input_skill_count === "number" && (
               <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -196,11 +216,11 @@ function Gaps() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               {(gaps || []).map((gap: any, idx: number) => {
                 const req = (explainability.retrieved_requirements || []).find(
-                  (r: any) => r.skill_name.toLowerCase() === gap.skill.toLowerCase()
+                  (r: any) => r.skill_name.toLowerCase() === gap.skill.toLowerCase(),
                 );
 
                 const reason = Object.entries(explainability.justifications || {}).find(
-                  ([key]) => key.toLowerCase() === gap.skill.toLowerCase()
+                  ([key]) => key.toLowerCase() === gap.skill.toLowerCase(),
                 )?.[1];
 
                 const category = gap.category || req?.category || "unknown";
@@ -232,9 +252,7 @@ function Gaps() {
                       </span>
                     </div>
 
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {description}
-                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
 
                     {prerequisites.length > 0 && (
                       <div className="flex flex-wrap items-center gap-1 text-[10px] pt-1">
@@ -255,7 +273,8 @@ function Gaps() {
             </div>
           ) : (
             <p className="mt-4 text-xs text-muted-foreground">
-              Retrieval trace is unavailable for this cached run. Re-run analysis to see the full trace.
+              Retrieval trace is unavailable for this cached run. Re-run analysis to see the full
+              trace.
             </p>
           )}
         </motion.section>

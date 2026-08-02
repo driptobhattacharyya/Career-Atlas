@@ -6,19 +6,49 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 
 const DEFAULT_SKILLS = [
-  "JavaScript", "TypeScript", "Python", "React", "Node.js", "Java", "C++", 
-  "SQL", "PostgreSQL", "MongoDB", "AWS", "Docker", "Kubernetes", "Git",
-  "HTML", "CSS", "Tailwind CSS", "Next.js", "GraphQL", "Machine Learning",
-  "PyTorch", "TensorFlow", "Go", "Rust", "C#", ".NET", "Ruby", "Ruby on Rails",
-  "PHP", "Laravel", "Swift", "Kotlin", "React Native", "Flutter", "Spring Boot"
+  "JavaScript",
+  "TypeScript",
+  "Python",
+  "React",
+  "Node.js",
+  "Java",
+  "C++",
+  "SQL",
+  "PostgreSQL",
+  "MongoDB",
+  "AWS",
+  "Docker",
+  "Kubernetes",
+  "Git",
+  "HTML",
+  "CSS",
+  "Tailwind CSS",
+  "Next.js",
+  "GraphQL",
+  "Machine Learning",
+  "PyTorch",
+  "TensorFlow",
+  "Go",
+  "Rust",
+  "C#",
+  ".NET",
+  "Ruby",
+  "Ruby on Rails",
+  "PHP",
+  "Laravel",
+  "Swift",
+  "Kotlin",
+  "React Native",
+  "Flutter",
+  "Spring Boot",
 ];
 
-export function SkillMultiSelect({ 
-  selected, 
-  onChange 
-}: { 
-  selected: string[]; 
-  onChange: (selected: string[]) => void 
+export function SkillMultiSelect({
+  selected,
+  onChange,
+}: {
+  selected: string[];
+  onChange: (selected: string[]) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [inputValue, setInputValue] = React.useState("");
@@ -35,18 +65,23 @@ export function SkillMultiSelect({
   };
 
   // Predefined minus already selected
-  const availableOptions = DEFAULT_SKILLS.filter(s => !selected.includes(s));
+  const availableOptions = DEFAULT_SKILLS.filter((s) => !selected.includes(s));
   // If inputValue doesn't match any default strictly, we can show an "Add Custom" option
-  const showCustomOption = inputValue.trim().length > 0 && 
-    !DEFAULT_SKILLS.some(s => s.toLowerCase() === inputValue.trim().toLowerCase()) &&
-    !selected.some(s => s.toLowerCase() === inputValue.trim().toLowerCase());
+  const showCustomOption =
+    inputValue.trim().length > 0 &&
+    !DEFAULT_SKILLS.some((s) => s.toLowerCase() === inputValue.trim().toLowerCase()) &&
+    !selected.some((s) => s.toLowerCase() === inputValue.trim().toLowerCase());
 
   return (
     <div className="flex flex-col gap-3">
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-2 rounded-lg border border-border p-3 bg-card min-h-[50px] shadow-sm">
           {selected.map((skill) => (
-            <Badge key={skill} variant="secondary" className="px-2.5 py-1 text-sm flex items-center gap-1.5 shadow-sm border border-border/50">
+            <Badge
+              key={skill}
+              variant="secondary"
+              className="px-2.5 py-1 text-sm flex items-center gap-1.5 shadow-sm border border-border/50"
+            >
               {skill}
               <button
                 type="button"
@@ -66,10 +101,15 @@ export function SkillMultiSelect({
           ))}
         </div>
       )}
-      
+
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between text-muted-foreground shadow-sm h-11 bg-card">
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between text-muted-foreground shadow-sm h-11 bg-card"
+          >
             Select or type skills...
             <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -78,13 +118,13 @@ export function SkillMultiSelect({
           <Command shouldFilter={false}>
             <div className="flex items-center border-b px-3">
               <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-              <input 
-                className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50" 
+              <input
+                className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="Search or add a custom skill..."
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && showCustomOption) {
+                  if (e.key === "Enter" && showCustomOption) {
                     handleSelect(inputValue.trim());
                     e.preventDefault();
                   }
@@ -92,12 +132,16 @@ export function SkillMultiSelect({
               />
             </div>
             <CommandList>
-              {availableOptions.filter(s => s.toLowerCase().includes(inputValue.toLowerCase())).length === 0 && !showCustomOption && (
-                <div className="py-6 text-center text-sm">No skills found. Type to add a custom skill.</div>
-              )}
+              {availableOptions.filter((s) => s.toLowerCase().includes(inputValue.toLowerCase()))
+                .length === 0 &&
+                !showCustomOption && (
+                  <div className="py-6 text-center text-sm">
+                    No skills found. Type to add a custom skill.
+                  </div>
+                )}
               <CommandGroup>
                 {showCustomOption && (
-                  <CommandItem 
+                  <CommandItem
                     onSelect={() => handleSelect(inputValue.trim())}
                     className="cursor-pointer bg-primary/10 text-primary font-medium"
                   >
@@ -105,17 +149,17 @@ export function SkillMultiSelect({
                   </CommandItem>
                 )}
                 {availableOptions
-                  .filter(s => s.toLowerCase().includes(inputValue.toLowerCase()))
+                  .filter((s) => s.toLowerCase().includes(inputValue.toLowerCase()))
                   .slice(0, 15) // max 15 to keep it clean
-                  .map(skill => (
-                  <CommandItem
-                    key={skill}
-                    onSelect={() => handleSelect(skill)}
-                    className="cursor-pointer"
-                  >
-                    {skill}
-                  </CommandItem>
-                ))}
+                  .map((skill) => (
+                    <CommandItem
+                      key={skill}
+                      onSelect={() => handleSelect(skill)}
+                      className="cursor-pointer"
+                    >
+                      {skill}
+                    </CommandItem>
+                  ))}
               </CommandGroup>
             </CommandList>
           </Command>

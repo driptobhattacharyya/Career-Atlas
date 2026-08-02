@@ -220,8 +220,7 @@ function invalidateResumeViews(qc: ReturnType<typeof useQueryClient>) {
 export function useUpdateTargetRole() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ roleId }: { roleId: string; roleTitle: string }) =>
-      updateTargetRole(roleId),
+    mutationFn: ({ roleId }: { roleId: string; roleTitle: string }) => updateTargetRole(roleId),
     onSuccess: (_data, { roleId, roleTitle }) => {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("careeratlas:selected_role_id", roleId);
@@ -323,8 +322,7 @@ export function useRoadmap(targetRoleId?: string) {
   return useQuery<MilestoneRow[]>({
     queryKey: ["milestones", user?.id, targetRoleId ?? null],
     enabled,
-    retry: (count, err) =>
-      !(err instanceof ApiError && err.status === 404) && count < 1,
+    retry: (count, err) => !(err instanceof ApiError && err.status === 404) && count < 1,
     queryFn: async () => {
       try {
         const data = await listMilestones(targetRoleId);
@@ -383,8 +381,7 @@ export function useResearchJobs() {
 export function useLatestPathway(roleId?: string) {
   return useQuery({
     queryKey: ["pathway-latest", roleId ?? null],
-    retry: (count, err) =>
-      !(err instanceof ApiError && err.status === 404) && count < 1,
+    retry: (count, err) => !(err instanceof ApiError && err.status === 404) && count < 1,
     queryFn: async () => {
       try {
         return await getLatestPathway(roleId);
