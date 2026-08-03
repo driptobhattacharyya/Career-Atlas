@@ -71,3 +71,42 @@ async def test_ainvoke_gemini_retries_then_succeeds(monkeypatch):
 
     assert await llm_factory.ainvoke_gemini("prompt", max_retries=3) == "async-ok"
     assert calls["n"] == 2
+
+def test_build_groq_structured_chain(monkeypatch):
+    calls = []
+
+    class _MockStructuredModel:
+        def __init__(self, schema):
+            self.schema = schema
+
+    class _MockModel:
+        def __init__(self, model_name, temperature):
+            self.model_name = model_name
+            self.temperature = temperature
+
+        def with_structured_output(self, schema):
+            calls.append(("with_structured_output", schema))
+            return _MockStructuredModel(schema)
+
+    def _mock_get_groq_model(model_name, temperature):
+        calls.append(("get_groq_model", model_name, temperature))
+        return _MockModel(model_name, temperature)
+
+    monkeypatch.setattr(llm_factory, "get_groq_model", _mock_get_groq_model)
+
+    class _MockPrompt:
+        def __or__(self, other):
+            calls.append(("__or__", other))
+            return "chain"
+
+    prompt = _MockPrompt()
+    schema = {"type": "object"}
+
+    chain = llm_factory.build_groq_structured_chain(prompt, schema, temperature=0.5, model_name="test-model")
+
+    assert chain == "chain"
+    assert len(calls) == 3
+    assert calls[0] == ("get_groq_model", "test-model", 0.5)
+    assert calls[1] == ("with_structured_output", schema)
+    assert calls[2][0] == "__or__"
+    assert isinstance(calls[2][1], _MockStructuredModel)
