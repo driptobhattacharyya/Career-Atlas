@@ -8,7 +8,12 @@ from pydantic import BaseModel
 from app.dependencies.auth import require_user_id
 from app.dependencies.database import db_client
 from app.job_hunter.agent import job_finder_agent
-from app.job_hunter.schemas import JobExplanation, JobResult, JobSearchResponse, ScoreBreakdown
+from app.job_hunter.schemas import (
+    JobExplanation,
+    JobResult,
+    JobSearchResponse,
+    ScoreBreakdown,
+)
 from app.utils.resumes import latest_resume_id
 
 logger = logging.getLogger(__name__)
@@ -68,7 +73,9 @@ def _resolve_profile_context(user_id: str) -> tuple[str, str]:
             role = _safe_first(role_resp.data or [])
             query_role = role.get("title") or query_role
     except Exception:
-        logger.warning("profile/role context lookup failed for user %s", user_id, exc_info=True)
+        logger.warning(
+            "profile/role context lookup failed for user %s", user_id, exc_info=True
+        )
 
     if location == "Remote":
         try:
@@ -89,7 +96,9 @@ def _resolve_profile_context(user_id: str) -> tuple[str, str]:
                     or location
                 )
         except Exception:
-            logger.warning("contact-location lookup failed for user %s", user_id, exc_info=True)
+            logger.warning(
+                "contact-location lookup failed for user %s", user_id, exc_info=True
+            )
 
     return query_role, location or "Remote"
 
@@ -122,8 +131,12 @@ def _row_to_job_result(row: dict[str, Any]) -> JobResult:
         base = max(matched_count + missing_count, 1)
         semantic = min(100.0, final_pct * 0.9)
         skill_overlap = min(100.0, (matched_count / base) * 100 if base else final_pct)
-        experience = 70.0 if not any("experience" in str(m).lower() for m in missing) else 55.0
-        education = 75.0 if not any("education" in str(m).lower() for m in missing) else 60.0
+        experience = (
+            70.0 if not any("experience" in str(m).lower() for m in missing) else 55.0
+        )
+        education = (
+            75.0 if not any("education" in str(m).lower() for m in missing) else 60.0
+        )
         score_payload = {
             "semantic": semantic,
             "skill_overlap": skill_overlap,
@@ -164,32 +177,39 @@ def _row_to_job_result(row: dict[str, Any]) -> JobResult:
     )
 
 
-def _insert_job_match(row: dict[str, Any]) -> None:
+def _bulk_insert_job_matches(rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
     try:
-        db_client.table("job_matches").insert(row).execute()
+        db_client.table("job_matches").insert(rows).execute()
         return
     except Exception:
         logger.warning(
-            "job_matches insert failed with structured columns; retrying legacy shape",
+            "job_matches bulk insert failed with structured columns; retrying legacy shape",
             exc_info=True,
         )
-        legacy_row = {
-            key: value
-            for key, value in row.items()
-            if key
-            not in {
-                "job_id",
-                "query_role",
-                "user_location_preference",
-                "score_json",
-                "explanation_json",
+        legacy_rows = [
+            {
+                key: value
+                for key, value in row.items()
+                if key
+                not in {
+                    "job_id",
+                    "query_role",
+                    "user_location_preference",
+                    "score_json",
+                    "explanation_json",
+                }
             }
-        }
-        db_client.table("job_matches").insert(legacy_row).execute()
+            for row in rows
+        ]
+        db_client.table("job_matches").insert(legacy_rows).execute()
 
 
 @router.post("/", response_model=JobSearchResponse)
-async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require_user_id)):
+async def research_jobs(
+    req: ResearchJobsRequest, user_id: str = Depends(require_user_id)
+):
     try:
         # 1) Resolve target role from Supabase.
         role_resp = (
@@ -230,7 +250,9 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
             if profile_resp.data and profile_resp.data[0].get("location"):
                 location = profile_resp.data[0]["location"]
         except Exception:
-            logger.warning("profile location lookup failed for user %s", user_id, exc_info=True)
+            logger.warning(
+                "profile location lookup failed for user %s", user_id, exc_info=True
+            )
 
         if location == "Remote":
             try:
@@ -250,7 +272,11 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
                         or "Remote"
                     )
             except Exception:
-                logger.warning("contact location lookup failed for resume %s", resume_id, exc_info=True)
+                logger.warning(
+                    "contact location lookup failed for resume %s",
+                    resume_id,
+                    exc_info=True,
+                )
 
         skills_resp = (
             db_client.table("skills")
@@ -265,8 +291,12 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
             .execute()
         )
 
-        user_skills = [row["skill"] for row in (skills_resp.data or []) if row.get("skill")]
-        user_skills.extend([row["language"] for row in (langs_resp.data or []) if row.get("language")])
+        user_skills = [
+            row["skill"] for row in (skills_resp.data or []) if row.get("skill")
+        ]
+        user_skills.extend(
+            [row["language"] for row in (langs_resp.data or []) if row.get("language")]
+        )
 
         # JOB-1: confirmed GitHub skills count toward job matching too (parity with
         # gap analysis). Only confirmed=true — quarantined guesses never inflate matches.
@@ -278,16 +308,22 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
                 .eq("confirmed", True)
                 .execute()
             )
-            user_skills.extend([r["skill"] for r in (gh_resp.data or []) if r.get("skill")])
+            user_skills.extend(
+                [r["skill"] for r in (gh_resp.data or []) if r.get("skill")]
+            )
         except Exception:
             # github optional — never block a job search on it, but log it.
-            logger.warning("github skill lookup failed for user %s", user_id, exc_info=True)
+            logger.warning(
+                "github skill lookup failed for user %s", user_id, exc_info=True
+            )
 
         # Dedupe (resume ∪ GitHub can overlap) while preserving order.
         user_skills = list(dict.fromkeys(user_skills))
 
         if not user_skills:
-            raise HTTPException(status_code=400, detail="No skills found. Re-run resume extraction.")
+            raise HTTPException(
+                status_code=400, detail="No skills found. Re-run resume extraction."
+            )
 
         exp_resp = (
             db_client.table("experiences")
@@ -310,7 +346,11 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
                     "company": e.get("company"),
                     "start_date": e.get("start_date"),
                     "end_date": e.get("end_date"),
-                    "description_bullets": [b.get("bullet") for b in (bullets_resp.data or []) if b.get("bullet")],
+                    "description_bullets": [
+                        b.get("bullet")
+                        for b in (bullets_resp.data or [])
+                        if b.get("bullet")
+                    ],
                 }
             )
 
@@ -333,7 +373,11 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
         # 4) Run Adzuna + Jina + Gemini pipeline.
         resume_payload = {
             "skills": [s for s in user_skills if s],
-            "programming_languages": [row["language"] for row in (langs_resp.data or []) if row.get("language")],
+            "programming_languages": [
+                row["language"]
+                for row in (langs_resp.data or [])
+                if row.get("language")
+            ],
             "headline": resume_row.get("headline") or "",
             "experience": exp_items,
             "education": education,
@@ -349,6 +393,7 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
 
         # 5) Persist jobs using the legacy flat columns plus the structured payload.
         db_client.table("job_matches").delete().eq("user_id", user_id).execute()
+        insert_rows = []
         for job in parsed.jobs:
             payload = job.model_dump()
             insert_row = {
@@ -371,7 +416,9 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
                 "score_json": payload.get("score"),
                 "explanation_json": payload.get("explanation"),
             }
-            _insert_job_match(insert_row)
+            insert_rows.append(insert_row)
+
+        _bulk_insert_job_matches(insert_rows)
 
         return parsed
 
