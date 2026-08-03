@@ -5,18 +5,24 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.dependencies.auth import require_user_id
 from app.dependencies.database import db_client
 from app.config import settings
-from app.github_analysis.schemas import GitHubOAuthCallback, RepoSelection, GitHubReposResponse, SkillAction
-from app.github_analysis.service import fetch_top_repositories, analyze_selected_repositories
+from app.github_analysis.schemas import (
+    GitHubOAuthCallback,
+    RepoSelection,
+    GitHubReposResponse,
+    SkillAction,
+)
+from app.github_analysis.service import (
+    fetch_top_repositories,
+    analyze_selected_repositories,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/github", tags=["GitHub Analysis"])
 
+
 @router.post("/oauth/callback")
-async def github_oauth_callback(
-    req: GitHubOAuthCallback,
-    user_id: str = Depends(require_user_id)
-):
+async def github_oauth_callback(req: GitHubOAuthCallback, user_id: str = Depends(require_user_id)):
     if not settings.github_client_id or not settings.github_client_secret:
         raise HTTPException(status_code=500, detail="GitHub OAuth is not configured on the server")
 
@@ -29,7 +35,7 @@ async def github_oauth_callback(
                 "client_secret": settings.github_client_secret,
                 "code": req.code,
             },
-            headers={"Accept": "application/json"}
+            headers={"Accept": "application/json"},
         )
 
         if token_resp.status_code != 200:
@@ -37,7 +43,10 @@ async def github_oauth_callback(
 
         token_data = token_resp.json()
         if "error" in token_data:
-            raise HTTPException(status_code=400, detail=token_data.get("error_description", "OAuth error"))
+            raise HTTPException(
+                status_code=400,
+                detail=token_data.get("error_description", "OAuth error"),
+            )
 
         access_token = token_data.get("access_token")
         if not access_token:
@@ -49,8 +58,8 @@ async def github_oauth_callback(
             headers={
                 "Authorization": f"Bearer {access_token}",
                 "Accept": "application/vnd.github.v3+json",
-                "X-GitHub-Api-Version": "2022-11-28"
-            }
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
         )
 
         if user_resp.status_code != 200:
@@ -67,19 +76,32 @@ async def github_oauth_callback(
         # + Supabase at-rest disk encryption is the baseline. App-layer column
         # encryption (pgcrypto/Vault) deferred — defense-in-depth, not a missing
         # control; add if tokens ever need to survive a DB-read compromise.
-        db_client.table("github_tokens").upsert({
-            "user_id": user_id,
-            "access_token": access_token,
-            "github_user_id": github_user_id,
-            "github_username": github_username
-        }, on_conflict="user_id").execute()
+        await asyncio.to_thread(
+            lambda: db_client.table("github_tokens")
+            .upsert(
+                {
+                    "user_id": user_id,
+                    "access_token": access_token,
+                    "github_user_id": github_user_id,
+                    "github_username": github_username,
+                },
+                on_conflict="user_id",
+            )
+            .execute()
+        )
 
         return {"success": True, "github_username": github_username}
+
 
 @router.get("/repos", response_model=GitHubReposResponse)
 async def get_github_repos(user_id: str = Depends(require_user_id)):
     try:
-        token_resp = db_client.table("github_tokens").select("access_token").eq("user_id", user_id).execute()
+        token_resp = await asyncio.to_thread(
+            lambda: db_client.table("github_tokens")
+            .select("access_token")
+            .eq("user_id", user_id)
+            .execute()
+        )
         if not token_resp.data:
             raise HTTPException(status_code=400, detail="GitHub not connected")
 
@@ -93,13 +115,16 @@ async def get_github_repos(user_id: str = Depends(require_user_id)):
         logger.exception("Failed to fetch github repos")
         raise HTTPException(status_code=500, detail="Failed to fetch repositories.")
 
+
 @router.post("/analyze", response_model=dict)
-async def analyze_github_repos(
-    req: RepoSelection,
-    user_id: str = Depends(require_user_id)
-):
+async def analyze_github_repos(req: RepoSelection, user_id: str = Depends(require_user_id)):
     try:
-        token_resp = db_client.table("github_tokens").select("access_token").eq("user_id", user_id).execute()
+        token_resp = await asyncio.to_thread(
+            lambda: db_client.table("github_tokens")
+            .select("access_token")
+            .eq("user_id", user_id)
+            .execute()
+        )
         if not token_resp.data:
             raise HTTPException(status_code=400, detail="GitHub not connected")
 
@@ -112,25 +137,41 @@ async def analyze_github_repos(
         repo_analyses = analysis_data["repo_analyses"]
 
         # Save profile (display summary + flat skill-name list for the headline).
-        db_client.table("github_profiles").upsert({
-            "user_id": user_id,
-            "analysis_summary": profile["summary"],
-            "coding_behavior": profile["coding_behavior"],
-            "inferred_skills": profile["skills"]
-        }, on_conflict="user_id").execute()
+        await asyncio.to_thread(
+            lambda: db_client.table("github_profiles")
+            .upsert(
+                {
+                    "user_id": user_id,
+                    "analysis_summary": profile["summary"],
+                    "coding_behavior": profile["coding_behavior"],
+                    "inferred_skills": profile["skills"],
+                },
+                on_conflict="user_id",
+            )
+            .execute()
+        )
 
         # Save per-repo structured facts (languages%, commit activity) for the panel.
         for repo_name, analysis in repo_analyses.items():
-            db_client.table("github_repositories").upsert({
-                "user_id": user_id,
-                "repo_name": repo_name,
-                "analysis_summary": analysis["summary"],
-                "coding_behavior": analysis["coding_behavior"],
-                "languages": analysis.get("languages"),
-                "commit_count": analysis.get("commit_count"),
-                "first_commit_at": analysis.get("first_commit_at"),
-                "last_commit_at": analysis.get("last_commit_at"),
-            }, on_conflict="user_id, repo_name").execute()
+            await asyncio.to_thread(
+                lambda repo_name=repo_name, analysis=analysis: db_client.table(
+                    "github_repositories"
+                )
+                .upsert(
+                    {
+                        "user_id": user_id,
+                        "repo_name": repo_name,
+                        "analysis_summary": analysis["summary"],
+                        "coding_behavior": analysis["coding_behavior"],
+                        "languages": analysis.get("languages"),
+                        "commit_count": analysis.get("commit_count"),
+                        "first_commit_at": analysis.get("first_commit_at"),
+                        "last_commit_at": analysis.get("last_commit_at"),
+                    },
+                    on_conflict="user_id, repo_name",
+                )
+                .execute()
+            )
 
         # CATRK-10 + UX-3: inferred skills land in github_skill_evidence.
         # HIGH-confidence (manifest/language-backed) auto-confirm so the user
@@ -142,14 +183,22 @@ async def analyze_github_repos(
         for repo_name, analysis in repo_analyses.items():
             for ev in analysis["inferred_skills"]:
                 try:
-                    db_client.table("github_skill_evidence").upsert({
-                        "user_id": user_id,
-                        "skill": ev.skill,
-                        "evidence": ev.evidence,
-                        "confidence": ev.confidence,
-                        "source_repo": repo_name,
-                        "confirmed": ev.confidence == "high",
-                    }, on_conflict="user_id, skill, source_repo", ignore_duplicates=True).execute()
+                    await asyncio.to_thread(
+                        lambda repo_name=repo_name, ev=ev: db_client.table("github_skill_evidence")
+                        .upsert(
+                            {
+                                "user_id": user_id,
+                                "skill": ev.skill,
+                                "evidence": ev.evidence,
+                                "confidence": ev.confidence,
+                                "source_repo": repo_name,
+                                "confirmed": ev.confidence == "high",
+                            },
+                            on_conflict="user_id, skill, source_repo",
+                            ignore_duplicates=True,
+                        )
+                        .execute()
+                    )
                 except Exception as e:
                     logger.warning(f"Failed to store evidence for {ev.skill}: {e}")
 
@@ -166,15 +215,29 @@ async def analyze_github_repos(
         logger.exception("Failed to analyze github repos")
         raise HTTPException(status_code=500, detail="Failed to analyze repositories.")
 
+
 @router.get("/profile")
 async def get_github_insights(user_id: str = Depends(require_user_id)):
     """Powers the insights panel: stored profile + per-repo facts + quarantined
     skill suggestions (with evidence/confidence/confirmed)."""
     # sync Supabase client blocks the event loop — run the 3 reads concurrently off-thread
     profile_resp, repos_resp, evidence_resp = await asyncio.gather(
-        asyncio.to_thread(lambda: db_client.table("github_profiles").select("*").eq("user_id", user_id).execute()),
-        asyncio.to_thread(lambda: db_client.table("github_repositories").select("*").eq("user_id", user_id).execute()),
-        asyncio.to_thread(lambda: db_client.table("github_skill_evidence").select("*").eq("user_id", user_id).order("confidence", desc=True).execute())
+        asyncio.to_thread(
+            lambda: db_client.table("github_profiles").select("*").eq("user_id", user_id).execute()
+        ),
+        asyncio.to_thread(
+            lambda: db_client.table("github_repositories")
+            .select("*")
+            .eq("user_id", user_id)
+            .execute()
+        ),
+        asyncio.to_thread(
+            lambda: db_client.table("github_skill_evidence")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("confidence", desc=True)
+            .execute()
+        ),
     )
 
     return {
@@ -192,8 +255,13 @@ async def confirm_github_skills(req: SkillAction, user_id: str = Depends(require
     if not req.evidence_ids:
         return {"success": True, "updated": 0}
 
-    resp = db_client.table("github_skill_evidence").update({"confirmed": True})\
-        .eq("user_id", user_id).in_("id", req.evidence_ids).execute()
+    resp = await asyncio.to_thread(
+        lambda: db_client.table("github_skill_evidence")
+        .update({"confirmed": True})
+        .eq("user_id", user_id)
+        .in_("id", req.evidence_ids)
+        .execute()
+    )
     return {"success": True, "updated": len(resp.data or [])}
 
 
@@ -204,17 +272,31 @@ async def reject_github_skills(req: SkillAction, user_id: str = Depends(require_
     if not req.evidence_ids:
         return {"success": True, "deleted": 0}
 
-    resp = db_client.table("github_skill_evidence").delete()\
-        .eq("user_id", user_id).in_("id", req.evidence_ids).execute()
+    resp = await asyncio.to_thread(
+        lambda: db_client.table("github_skill_evidence")
+        .delete()
+        .eq("user_id", user_id)
+        .in_("id", req.evidence_ids)
+        .execute()
+    )
     return {"success": True, "deleted": len(resp.data or [])}
 
 
 @router.get("/status")
 async def get_github_status(user_id: str = Depends(require_user_id)):
     try:
-        resp = db_client.table("github_tokens").select("github_username").eq("user_id", user_id).execute()
+        resp = await asyncio.to_thread(
+            lambda: db_client.table("github_tokens")
+            .select("github_username")
+            .eq("user_id", user_id)
+            .execute()
+        )
         if resp.data:
-            return {"success": True, "connected": True, "github_username": resp.data[0]["github_username"]}
+            return {
+                "success": True,
+                "connected": True,
+                "github_username": resp.data[0]["github_username"],
+            }
         return {"success": True, "connected": False}
     except Exception as e:
         logger.error(f"Failed to get github status: {e}")
