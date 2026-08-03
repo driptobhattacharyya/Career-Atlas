@@ -7,6 +7,7 @@ from collections import defaultdict
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
+from postgrest.exceptions import APIError
 
 from app.dependencies.auth import require_user_id
 from app.dependencies.database import db_client
@@ -64,7 +65,7 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
     skill_values = list(dict.fromkeys(skill_values))
     try:
         db_client.table("contacts").insert({"resume_id": resume_id, **contact}).execute()
-    except Exception:
+    except APIError:
         logger.warning("contacts insert failed for resume %s", resume_id, exc_info=True)
 
     if skill_values:
@@ -76,7 +77,7 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         prog_lang_records = [{"resume_id": resume_id, "language": s} for s in prog_langs]
         try:
             db_client.table("programming_languages").insert(prog_lang_records).execute()
-        except Exception:
+        except APIError:
             logger.warning("programming_languages bulk insert failed for resume %s", resume_id, exc_info=True)
 
     spoken_langs = data.get("spoken_languages", []) or []
@@ -84,7 +85,7 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         spoken_lang_records = [{"resume_id": resume_id, "language": s} for s in spoken_langs]
         try:
             db_client.table("spoken_languages").insert(spoken_lang_records).execute()
-        except Exception:
+        except APIError:
             logger.warning("spoken_languages bulk insert failed for resume %s", resume_id, exc_info=True)
 
     keywords = data.get("keywords", []) or []
@@ -92,7 +93,7 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         keyword_records = [{"resume_id": resume_id, "keyword": k} for k in keywords]
         try:
             db_client.table("keywords").insert(keyword_records).execute()
-        except Exception:
+        except APIError:
             logger.warning("keywords bulk insert failed for resume %s", resume_id, exc_info=True)
 
     experiences = data.get("experience", []) or []
@@ -189,7 +190,7 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         ]
         try:
             db_client.table("certifications").insert(cert_records).execute()
-        except Exception:
+        except APIError:
             logger.warning("certifications bulk insert failed for resume %s", resume_id, exc_info=True)
 
     # Optional sync for older UI paths that read profiles.
@@ -208,7 +209,7 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
             },
             on_conflict="user_id",
         ).execute()
-    except Exception:
+    except APIError:
         logger.warning("profiles sync upsert failed for resume %s", resume_id, exc_info=True)
 
     return resume_id
@@ -226,7 +227,7 @@ def _delete_other_resumes(user_id: str, keep_resume_id: str) -> None:
             .eq("user_id", user_id)\
             .neq("id", keep_resume_id)\
             .execute()
-    except Exception:
+    except APIError:
         logger.warning("failed to prune old resumes for user %s", user_id, exc_info=True)
 
 
@@ -242,7 +243,7 @@ async def fetch_full_resume(resume_id: str) -> dict[str, Any]:
     async def _fetch_certifications():
         try:
             return await asyncio.to_thread(lambda: db_client.table("certifications").select("*").eq("resume_id", resume_id).execute().data)
-        except Exception:
+        except APIError:
             logger.warning("certifications fetch failed for resume %s", resume_id, exc_info=True)
             return []
 
@@ -480,7 +481,7 @@ async def update_profile(body: ProfileUpdate, user_id: str = Depends(require_use
             {"user_id": user_id, "target_role_id": body.target_role_id},
             on_conflict="user_id",
         ).execute()
-    except Exception as e:
+    except APIError as e:
         logger.exception("profile update failed for user %s", user_id)
         raise HTTPException(status_code=500, detail=f"Profile update failed: {e}") from e
     return {"success": True, "target_role_id": body.target_role_id}
