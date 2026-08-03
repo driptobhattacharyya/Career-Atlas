@@ -120,8 +120,9 @@ async def analyze_github_repos(
         }, on_conflict="user_id").execute()
 
         # Save per-repo structured facts (languages%, commit activity) for the panel.
+        repos_to_upsert = []
         for repo_name, analysis in repo_analyses.items():
-            db_client.table("github_repositories").upsert({
+            repos_to_upsert.append({
                 "user_id": user_id,
                 "repo_name": repo_name,
                 "analysis_summary": analysis["summary"],
@@ -130,7 +131,13 @@ async def analyze_github_repos(
                 "commit_count": analysis.get("commit_count"),
                 "first_commit_at": analysis.get("first_commit_at"),
                 "last_commit_at": analysis.get("last_commit_at"),
-            }, on_conflict="user_id, repo_name").execute()
+            })
+
+        if repos_to_upsert:
+            db_client.table("github_repositories").upsert(
+                repos_to_upsert,
+                on_conflict="user_id, repo_name"
+            ).execute()
 
         # CATRK-10 + UX-3: inferred skills land in github_skill_evidence.
         # HIGH-confidence (manifest/language-backed) auto-confirm so the user
@@ -139,19 +146,31 @@ async def analyze_github_repos(
         # touches the resume `skills` table.
         # ignore_duplicates: never clobber a prior user confirm/reject decision on
         # re-analyze. ponytail: full re-sync (re-score changed repos) is a later task.
+        evidence_to_upsert = []
         for repo_name, analysis in repo_analyses.items():
             for ev in analysis["inferred_skills"]:
+                evidence_to_upsert.append({
+                    "user_id": user_id,
+                    "skill": ev.skill,
+                    "evidence": ev.evidence,
+                    "confidence": ev.confidence,
+                    "source_repo": repo_name,
+                    "confirmed": ev.confidence == "high",
+                })
+
+        if evidence_to_upsert:
+            # Batch upsert in chunks of 100 to avoid hitting limits
+            batch_size = 100
+            for i in range(0, len(evidence_to_upsert), batch_size):
+                batch = evidence_to_upsert[i:i + batch_size]
                 try:
-                    db_client.table("github_skill_evidence").upsert({
-                        "user_id": user_id,
-                        "skill": ev.skill,
-                        "evidence": ev.evidence,
-                        "confidence": ev.confidence,
-                        "source_repo": repo_name,
-                        "confirmed": ev.confidence == "high",
-                    }, on_conflict="user_id, skill, source_repo", ignore_duplicates=True).execute()
+                    db_client.table("github_skill_evidence").upsert(
+                        batch,
+                        on_conflict="user_id, skill, source_repo",
+                        ignore_duplicates=True
+                    ).execute()
                 except Exception as e:
-                    logger.warning(f"Failed to store evidence for {ev.skill}: {e}")
+                    logger.warning(f"Failed to store batch evidence: {e}")
 
         return {
             "success": True,
