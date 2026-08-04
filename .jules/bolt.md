@@ -1,0 +1,3 @@
+## 2024-05-19 - [Supabase Bulk Inserts N+1 Latency]
+**Learning:** Sequential `.insert().execute()` loops block the event loop in FastAPI and create massive N+1 query latency for parent-child resume records. Native Supabase bulk `.insert(list_of_dicts)` is much faster but fails the entire batch if one row errors (e.g. unique constraint).
+**Action:** When converting iterative Supabase inserts to bulk inserts, use a hybrid approach: attempt `.insert([...]).execute()` first, and wrap it in a `try...except` that falls back to the original sequential `try...insert...except` loop to preserve error tolerance while gaining speed for the happy path.

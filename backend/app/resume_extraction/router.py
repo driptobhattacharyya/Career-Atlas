@@ -28,6 +28,20 @@ def _safe_filename(name: str) -> str:
     return sanitized or "resume.pdf"
 
 
+def _bulk_insert_with_fallback(table_name: str, records: list[dict[str, Any]]) -> None:
+    if not records:
+        return
+    try:
+        db_client.table(table_name).insert(records).execute()
+    except Exception:
+        logger.warning("Bulk insert to %s failed, falling back to sequential inserts", table_name, exc_info=True)
+        for record in records:
+            try:
+                db_client.table(table_name).insert(record).execute()
+            except Exception:
+                logger.warning("Sequential insert to %s failed", table_name, exc_info=True)
+
+
 def _insert_resume_row(data: dict[str, Any], user_id: str, resume_key: str) -> str:
     # Always write user_id. A resume row without an owner is unusable and
     # would leak into other users' "latest resume" lookups — so never insert
@@ -67,28 +81,14 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
     except Exception:
         logger.warning("contacts insert failed for resume %s", resume_id, exc_info=True)
 
-    for s in skill_values:
-        db_client.table("skills").insert({"resume_id": resume_id, "skill": s}).execute()
-
-    for s in data.get("programming_languages", []) or []:
-        try:
-            db_client.table("programming_languages").insert({"resume_id": resume_id, "language": s}).execute()
-        except Exception:
-            logger.warning("programming_languages insert failed for resume %s", resume_id, exc_info=True)
-
-    for s in data.get("spoken_languages", []) or []:
-        try:
-            db_client.table("spoken_languages").insert({"resume_id": resume_id, "language": s}).execute()
-        except Exception:
-            logger.warning("spoken_languages insert failed for resume %s", resume_id, exc_info=True)
-
-    for k in data.get("keywords", []) or []:
-        try:
-            db_client.table("keywords").insert({"resume_id": resume_id, "keyword": k}).execute()
-        except Exception:
-            logger.warning("keywords insert failed for resume %s", resume_id, exc_info=True)
+    _bulk_insert_with_fallback("skills", [{"resume_id": resume_id, "skill": s} for s in skill_values])
+    _bulk_insert_with_fallback("programming_languages", [{"resume_id": resume_id, "language": s} for s in data.get("programming_languages", []) or []])
+    _bulk_insert_with_fallback("spoken_languages", [{"resume_id": resume_id, "language": s} for s in data.get("spoken_languages", []) or []])
+    _bulk_insert_with_fallback("keywords", [{"resume_id": resume_id, "keyword": k} for k in data.get("keywords", []) or []])
 
     for exp in data.get("experience", []) or []:
+        if not isinstance(exp, dict):
+            continue
         exp_res = db_client.table("experiences").insert(
             {
                 "resume_id": resume_id,
@@ -102,12 +102,12 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         ).execute()
 
         exp_id = exp_res.data[0]["id"]
-        for b in exp.get("description_bullets", []) or []:
-            db_client.table("experience_bullets").insert({"experience_id": exp_id, "bullet": b}).execute()
-        for t in exp.get("technologies", []) or []:
-            db_client.table("experience_technologies").insert({"experience_id": exp_id, "tech": t}).execute()
+        _bulk_insert_with_fallback("experience_bullets", [{"experience_id": exp_id, "bullet": b} for b in exp.get("description_bullets", []) or []])
+        _bulk_insert_with_fallback("experience_technologies", [{"experience_id": exp_id, "tech": t} for t in exp.get("technologies", []) or []])
 
     for edu in data.get("education", []) or []:
+        if not isinstance(edu, dict):
+            continue
         edu_res = db_client.table("education").insert(
             {
                 "resume_id": resume_id,
@@ -121,10 +121,11 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         ).execute()
 
         edu_id = edu_res.data[0]["id"]
-        for n in edu.get("notes", []) or []:
-            db_client.table("education_notes").insert({"education_id": edu_id, "note": n}).execute()
+        _bulk_insert_with_fallback("education_notes", [{"education_id": edu_id, "note": n} for n in edu.get("notes", []) or []])
 
     for proj in data.get("projects", []) or []:
+        if not isinstance(proj, dict):
+            continue
         proj_res = db_client.table("projects").insert(
             {
                 "resume_id": resume_id,
@@ -135,24 +136,22 @@ def insert_full_resume(data: dict[str, Any], user_id: str, resume_key: str) -> s
         ).execute()
 
         proj_id = proj_res.data[0]["id"]
-        for t in proj.get("technologies", []) or []:
-            db_client.table("project_technologies").insert({"project_id": proj_id, "tech": t}).execute()
+        _bulk_insert_with_fallback("project_technologies", [{"project_id": proj_id, "tech": t} for t in proj.get("technologies", []) or []])
 
+    certs_to_insert = []
     for cert in data.get("certifications", []) or []:
-        try:
-            db_client.table("certifications").insert(
-                {
-                    "resume_id": resume_id,
-                    "name": cert.get("name"),
-                    "issuer": cert.get("issuer"),
-                    "issue_date": cert.get("date"),
-                    "expiry_date": None,
-                    "credential_id": cert.get("credential_id"),
-                    "credential_url": cert.get("link"),
-                }
-            ).execute()
-        except Exception:
-            logger.warning("certifications insert failed for resume %s", resume_id, exc_info=True)
+        if not isinstance(cert, dict):
+            continue
+        certs_to_insert.append({
+            "resume_id": resume_id,
+            "name": cert.get("name"),
+            "issuer": cert.get("issuer"),
+            "issue_date": cert.get("date"),
+            "expiry_date": None,
+            "credential_id": cert.get("credential_id"),
+            "credential_url": cert.get("link"),
+        })
+    _bulk_insert_with_fallback("certifications", certs_to_insert)
 
     # Optional sync for older UI paths that read profiles.
     try:
