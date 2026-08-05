@@ -1,0 +1,4 @@
+
+## 2024-05-18 - [Supabase N+1 Insertions Bottleneck]
+**Learning:** [The Supabase Python client executes inserts sequentially, resulting in an O(N) query bottleneck for nested arrays (e.g., resume skills, technologies, bullets). A single complex resume upload can generate 50+ synchronous database insertions, blocking the FastAPI event loop and drastically increasing request latency.]
+**Action:** [Use a hybrid batch insert pattern when processing array structures: attempt a single bulk `.insert([list of dicts]).execute()` first. If partial errors need to be ignored (as in the original sequential try-catch implementation), catch the exception and fall back to the sequential insert pattern. For complex parent-child relations, accumulate child objects into lists and execute a single bulk insert after the parent loop concludes.]
