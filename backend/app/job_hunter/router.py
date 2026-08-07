@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import re
+from collections import defaultdict
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -164,28 +166,35 @@ def _row_to_job_result(row: dict[str, Any]) -> JobResult:
     )
 
 
-def _insert_job_match(row: dict[str, Any]) -> None:
+_STRUCTURED_ONLY_COLUMNS = {
+    "job_id",
+    "query_role",
+    "user_location_preference",
+    "score_json",
+    "explanation_json",
+}
+
+
+def _legacy_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in row.items() if key not in _STRUCTURED_ONLY_COLUMNS}
+
+
+def _insert_job_matches(rows: list[dict[str, Any]]) -> None:
+    """Insert every match in one round trip, falling back to the legacy shape.
+
+    A single insert call is atomic, so the fallback cannot double-insert.
+    """
+    if not rows:
+        return
     try:
-        db_client.table("job_matches").insert(row).execute()
+        db_client.table("job_matches").insert(rows).execute()
         return
     except Exception:
         logger.warning(
-            "job_matches insert failed with structured columns; retrying legacy shape",
+            "job_matches bulk insert failed with structured columns; retrying legacy shape",
             exc_info=True,
         )
-        legacy_row = {
-            key: value
-            for key, value in row.items()
-            if key
-            not in {
-                "job_id",
-                "query_role",
-                "user_location_preference",
-                "score_json",
-                "explanation_json",
-            }
-        }
-        db_client.table("job_matches").insert(legacy_row).execute()
+        db_client.table("job_matches").insert([_legacy_row(row) for row in rows]).execute()
 
 
 @router.post("/", response_model=JobSearchResponse)
@@ -296,23 +305,31 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
             .execute()
         )
         exp_rows = exp_resp.data or []
-        exp_items = []
-        for e in exp_rows:
+
+        # One query for every experience's bullets rather than one per experience.
+        exp_ids = [e["id"] for e in exp_rows if e.get("id")]
+        bullets_by_exp: dict[Any, list[str]] = defaultdict(list)
+        if exp_ids:
             bullets_resp = (
                 db_client.table("experience_bullets")
-                .select("bullet")
-                .eq("experience_id", e["id"])
+                .select("experience_id,bullet")
+                .in_("experience_id", exp_ids)
                 .execute()
             )
-            exp_items.append(
-                {
-                    "title": e.get("title"),
-                    "company": e.get("company"),
-                    "start_date": e.get("start_date"),
-                    "end_date": e.get("end_date"),
-                    "description_bullets": [b.get("bullet") for b in (bullets_resp.data or []) if b.get("bullet")],
-                }
-            )
+            for b in bullets_resp.data or []:
+                if b.get("bullet") and b.get("experience_id"):
+                    bullets_by_exp[b["experience_id"]].append(b["bullet"])
+
+        exp_items = [
+            {
+                "title": e.get("title"),
+                "company": e.get("company"),
+                "start_date": e.get("start_date"),
+                "end_date": e.get("end_date"),
+                "description_bullets": bullets_by_exp.get(e.get("id"), []),
+            }
+            for e in exp_rows
+        ]
 
         proj_resp = (
             db_client.table("projects")
@@ -340,7 +357,10 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
             "projects": projects,
             "summary": resume_row.get("summary") or "",
         }
-        parsed = job_finder_agent(
+        # The Adzuna + Jina + Gemini pipeline is synchronous and network-bound;
+        # running it inline would block the event loop for its whole duration.
+        parsed = await asyncio.to_thread(
+            job_finder_agent,
             resume=resume_payload,
             target_role=role_info["title"],
             user_location_pref=location or "Remote",
@@ -349,9 +369,10 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
 
         # 5) Persist jobs using the legacy flat columns plus the structured payload.
         db_client.table("job_matches").delete().eq("user_id", user_id).execute()
+        insert_rows = []
         for job in parsed.jobs:
             payload = job.model_dump()
-            insert_row = {
+            insert_rows.append({
                 "user_id": user_id,
                 "job_id": payload.get("job_id"),
                 "query_role": parsed.query_role,
@@ -370,8 +391,8 @@ async def research_jobs(req: ResearchJobsRequest, user_id: str = Depends(require
                 "external_url": payload.get("external_url"),
                 "score_json": payload.get("score"),
                 "explanation_json": payload.get("explanation"),
-            }
-            _insert_job_match(insert_row)
+            })
+        _insert_job_matches(insert_rows)
 
         return parsed
 
