@@ -124,18 +124,26 @@ async def analyze_github_repos(
         )
 
         # Save per-repo structured facts (languages%, commit activity) for the panel.
-        for repo_name, analysis in repo_analyses.items():
+        # One upsert for every repo rather than one per repo: the round trips
+        # dominated the endpoint on users with many selected repos.
+        repo_rows = [
+            {
+                "user_id": user_id,
+                "repo_name": repo_name,
+                "analysis_summary": analysis["summary"],
+                "coding_behavior": analysis["coding_behavior"],
+                "languages": analysis.get("languages"),
+                "commit_count": analysis.get("commit_count"),
+                "first_commit_at": analysis.get("first_commit_at"),
+                "last_commit_at": analysis.get("last_commit_at"),
+            }
+            for repo_name, analysis in repo_analyses.items()
+        ]
+        if repo_rows:
             await asyncio.to_thread(
-                lambda repo_name=repo_name, analysis=analysis: db_client.table("github_repositories").upsert({
-                    "user_id": user_id,
-                    "repo_name": repo_name,
-                    "analysis_summary": analysis["summary"],
-                    "coding_behavior": analysis["coding_behavior"],
-                    "languages": analysis.get("languages"),
-                    "commit_count": analysis.get("commit_count"),
-                    "first_commit_at": analysis.get("first_commit_at"),
-                    "last_commit_at": analysis.get("last_commit_at"),
-                }, on_conflict="user_id, repo_name").execute()
+                lambda: db_client.table("github_repositories").upsert(
+                    repo_rows, on_conflict="user_id, repo_name"
+                ).execute()
             )
 
         # CATRK-10 + UX-3: inferred skills land in github_skill_evidence.
@@ -145,21 +153,33 @@ async def analyze_github_repos(
         # touches the resume `skills` table.
         # ignore_duplicates: never clobber a prior user confirm/reject decision on
         # re-analyze. ponytail: full re-sync (re-score changed repos) is a later task.
-        for repo_name, analysis in repo_analyses.items():
-            for ev in analysis["inferred_skills"]:
-                try:
-                    await asyncio.to_thread(
-                        lambda repo_name=repo_name, ev=ev: db_client.table("github_skill_evidence").upsert({
-                            "user_id": user_id,
-                            "skill": ev.skill,
-                            "evidence": ev.evidence,
-                            "confidence": ev.confidence,
-                            "source_repo": repo_name,
-                            "confirmed": ev.confidence == "high",
-                        }, on_conflict="user_id, skill, source_repo", ignore_duplicates=True).execute()
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to store evidence for {ev.skill}: {e}")
+        evidence_rows = [
+            {
+                "user_id": user_id,
+                "skill": ev.skill,
+                "evidence": ev.evidence,
+                "confidence": ev.confidence,
+                "source_repo": repo_name,
+                "confirmed": ev.confidence == "high",
+            }
+            for repo_name, analysis in repo_analyses.items()
+            for ev in analysis["inferred_skills"]
+        ]
+        # Chunked so one oversized request can't fail the whole write. A failed
+        # chunk logs the skills it carried, so the old per-skill diagnostics
+        # survive the move to batching.
+        EVIDENCE_BATCH_SIZE = 100
+        for i in range(0, len(evidence_rows), EVIDENCE_BATCH_SIZE):
+            batch = evidence_rows[i:i + EVIDENCE_BATCH_SIZE]
+            try:
+                await asyncio.to_thread(
+                    lambda batch=batch: db_client.table("github_skill_evidence").upsert(
+                        batch, on_conflict="user_id, skill, source_repo", ignore_duplicates=True
+                    ).execute()
+                )
+            except Exception as e:
+                skills = ", ".join(row["skill"] for row in batch)
+                logger.warning(f"Failed to store evidence batch [{skills}]: {e}")
 
         return {
             "success": True,
