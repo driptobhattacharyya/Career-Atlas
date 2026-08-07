@@ -1,4 +1,6 @@
 """Unit tests for app.deep_researcher.validation (link grounding + liveness)."""
+import socket
+
 import httpx
 import pytest
 from unittest.mock import AsyncMock, patch
@@ -159,3 +161,118 @@ def test_validate_pathway_empty_urls():
     assert result.checked == 0
     assert result.kept == 0
     assert len(result.dropped) == 0
+
+
+# ── SSRF hook: direct tests ─────────────────────────────────────────────────
+#
+# test_probe_scenarios above patches httpx.AsyncClient.head/.get directly,
+# which bypasses the "request" event_hook entirely (event_hooks only fire on
+# the real transport path) -- so a regression in _verify_ip / _ssrf_hook would
+# pass the suite silently. These tests call the IP-validation logic directly
+# instead.
+#
+# Known, accepted limitation (do not try to fix here): _ssrf_hook resolves the
+# hostname itself, but httpx's transport resolves again at connect time, so
+# DNS rebinding between the two lookups is still possible. Closing that gap
+# needs a custom transport pinned to the validated IP -- out of scope for this
+# branch.
+
+
+class _FakeLoop:
+    """Stand-in for asyncio's event loop, stubbing only getaddrinfo."""
+
+    def __init__(self, infos=None, raise_gaierror=False):
+        self._infos = infos or []
+        self._raise_gaierror = raise_gaierror
+
+    async def getaddrinfo(self, host, port, family=socket.AF_UNSPEC):
+        if self._raise_gaierror:
+            raise socket.gaierror("mock DNS resolution failure")
+        return self._infos
+
+
+def _sockaddr_info(ip: str):
+    return (socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 0))
+
+
+@pytest.mark.parametrize("ip", ["8.8.8.8", "1.1.1.1", "93.184.216.34"])
+def test_verify_ip_allows_public_address(ip):
+    validation._verify_ip(ip)  # must not raise
+
+
+@pytest.mark.parametrize(
+    "ip",
+    [
+        "127.0.0.1",  # loopback
+        "10.0.0.1",  # private (RFC1918)
+        "192.168.1.1",  # private (RFC1918)
+        "169.254.169.254",  # link-local / cloud metadata address
+        "::ffff:169.254.169.254",  # IPv4-mapped IPv6 form of the metadata address
+    ],
+)
+def test_verify_ip_blocks_disallowed_address(ip):
+    with pytest.raises(validation.SSRFError):
+        validation._verify_ip(ip)
+
+
+async def test_ssrf_hook_allows_public_literal_ip(monkeypatch):
+    monkeypatch.setattr(
+        validation.asyncio,
+        "get_running_loop",
+        lambda: _FakeLoop(infos=[_sockaddr_info("8.8.8.8")]),
+    )
+    request = httpx.Request("GET", "http://8.8.8.8/")
+    await validation._ssrf_hook(request)  # must not raise
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1/",
+        "http://10.0.0.1/",
+        "http://192.168.1.1/",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://[::ffff:169.254.169.254]/",
+    ],
+)
+async def test_ssrf_hook_blocks_disallowed_literal_ip(monkeypatch, url):
+    # These are blocked by _verify_ip before the hook ever reaches
+    # getaddrinfo, but stub it anyway so a real DNS call is never made.
+    monkeypatch.setattr(validation.asyncio, "get_running_loop", lambda: _FakeLoop())
+    request = httpx.Request("GET", url)
+    with pytest.raises(validation.SSRFError):
+        await validation._ssrf_hook(request)
+
+
+async def test_ssrf_hook_allows_hostname_resolving_to_public_ip(monkeypatch):
+    monkeypatch.setattr(
+        validation.asyncio,
+        "get_running_loop",
+        lambda: _FakeLoop(infos=[_sockaddr_info("93.184.216.34")]),
+    )
+    request = httpx.Request("GET", "http://example.com/")
+    await validation._ssrf_hook(request)  # must not raise
+
+
+async def test_ssrf_hook_blocks_hostname_resolving_to_metadata_ip(monkeypatch):
+    monkeypatch.setattr(
+        validation.asyncio,
+        "get_running_loop",
+        lambda: _FakeLoop(infos=[_sockaddr_info("169.254.169.254")]),
+    )
+    request = httpx.Request("GET", "http://attacker-controlled.example/")
+    with pytest.raises(validation.SSRFError):
+        await validation._ssrf_hook(request)
+
+
+async def test_ssrf_hook_allows_when_dns_resolution_fails(monkeypatch):
+    """A hostname that fails to resolve is treated as unknown, not blocked --
+    consistent with _probe's own "network errors are UNKNOWN, don't drop"
+    policy."""
+    monkeypatch.setattr(
+        validation.asyncio,
+        "get_running_loop",
+        lambda: _FakeLoop(raise_gaierror=True),
+    )
+    request = httpx.Request("GET", "http://this-host-does-not-resolve.invalid/")
+    await validation._ssrf_hook(request)  # must not raise
