@@ -183,6 +183,14 @@ def _insert_job_matches(rows: list[dict[str, Any]]) -> None:
     """Insert every match in one round trip, falling back to the legacy shape.
 
     A single insert call is atomic, so the fallback cannot double-insert.
+
+    If the bulk legacy retry also fails, one bad row (e.g. a constraint
+    violation) must not cost the user every other match: `research_jobs`
+    already ran an unconditional delete before calling this, so an
+    all-or-nothing failure here would leave the user with zero matches
+    instead of the N-1 the old per-row loop would have kept. Fall back to
+    inserting row by row, logging (and skipping) whichever rows fail
+    individually, instead of aborting the whole batch.
     """
     if not rows:
         return
@@ -194,7 +202,25 @@ def _insert_job_matches(rows: list[dict[str, Any]]) -> None:
             "job_matches bulk insert failed with structured columns; retrying legacy shape",
             exc_info=True,
         )
-        db_client.table("job_matches").insert([_legacy_row(row) for row in rows]).execute()
+    legacy_rows = [_legacy_row(row) for row in rows]
+    try:
+        db_client.table("job_matches").insert(legacy_rows).execute()
+        return
+    except Exception:
+        logger.warning(
+            "job_matches bulk legacy insert failed; falling back to row-by-row insert",
+            exc_info=True,
+        )
+    for row, legacy_row in zip(rows, legacy_rows):
+        try:
+            db_client.table("job_matches").insert(legacy_row).execute()
+        except Exception:
+            logger.warning(
+                "job_matches insert failed for job_id=%r title=%r; skipping row",
+                row.get("job_id"),
+                row.get("title"),
+                exc_info=True,
+            )
 
 
 @router.post("/", response_model=JobSearchResponse)
