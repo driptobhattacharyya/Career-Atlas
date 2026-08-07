@@ -24,3 +24,15 @@ def test_get_google_api_keys_empty_when_unset(monkeypatch):
     for name in ["GOOGLE_API_KEY", "GOOGLE_API_KEY_1", "GOOGLE_API_KEY_2", "GOOGLE_API_KEY_3", "GOOGLE_API_KEY_4"]:
         monkeypatch.delenv(name, raising=False)
     assert config._get_google_api_keys() == []
+
+
+def test_environment_defaults_to_production_when_unset():
+    """Fail-closed guard: a deployment that forgets to set ENVIRONMENT must not
+    land in "development", which is what the dev auth bypass checks for in
+    app.dependencies.auth.get_current_user_id.
+
+    The test process itself runs with no ENVIRONMENT variable set (confirmed
+    by the worktree having no backend/.env), so the field default that was
+    baked in at import time reflects the unset case directly.
+    """
+    assert config.Settings.model_fields["environment"].default == "production"

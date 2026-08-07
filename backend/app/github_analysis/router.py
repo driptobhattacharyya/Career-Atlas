@@ -67,19 +67,21 @@ async def github_oauth_callback(
         # + Supabase at-rest disk encryption is the baseline. App-layer column
         # encryption (pgcrypto/Vault) deferred — defense-in-depth, not a missing
         # control; add if tokens ever need to survive a DB-read compromise.
-        db_client.table("github_tokens").upsert({
-            "user_id": user_id,
-            "access_token": access_token,
-            "github_user_id": github_user_id,
-            "github_username": github_username
-        }, on_conflict="user_id").execute()
+        await asyncio.to_thread(
+            lambda: db_client.table("github_tokens").upsert({
+                "user_id": user_id,
+                "access_token": access_token,
+                "github_user_id": github_user_id,
+                "github_username": github_username
+            }, on_conflict="user_id").execute()
+        )
 
         return {"success": True, "github_username": github_username}
 
 @router.get("/repos", response_model=GitHubReposResponse)
 async def get_github_repos(user_id: str = Depends(require_user_id)):
     try:
-        token_resp = db_client.table("github_tokens").select("access_token").eq("user_id", user_id).execute()
+        token_resp = await asyncio.to_thread(lambda: db_client.table("github_tokens").select("access_token").eq("user_id", user_id).execute())
         if not token_resp.data:
             raise HTTPException(status_code=400, detail="GitHub not connected")
 
@@ -99,7 +101,7 @@ async def analyze_github_repos(
     user_id: str = Depends(require_user_id)
 ):
     try:
-        token_resp = db_client.table("github_tokens").select("access_token").eq("user_id", user_id).execute()
+        token_resp = await asyncio.to_thread(lambda: db_client.table("github_tokens").select("access_token").eq("user_id", user_id).execute())
         if not token_resp.data:
             raise HTTPException(status_code=400, detail="GitHub not connected")
 
@@ -112,16 +114,20 @@ async def analyze_github_repos(
         repo_analyses = analysis_data["repo_analyses"]
 
         # Save profile (display summary + flat skill-name list for the headline).
-        db_client.table("github_profiles").upsert({
-            "user_id": user_id,
-            "analysis_summary": profile["summary"],
-            "coding_behavior": profile["coding_behavior"],
-            "inferred_skills": profile["skills"]
-        }, on_conflict="user_id").execute()
+        await asyncio.to_thread(
+            lambda: db_client.table("github_profiles").upsert({
+                "user_id": user_id,
+                "analysis_summary": profile["summary"],
+                "coding_behavior": profile["coding_behavior"],
+                "inferred_skills": profile["skills"]
+            }, on_conflict="user_id").execute()
+        )
 
         # Save per-repo structured facts (languages%, commit activity) for the panel.
-        for repo_name, analysis in repo_analyses.items():
-            db_client.table("github_repositories").upsert({
+        # One upsert for every repo rather than one per repo: the round trips
+        # dominated the endpoint on users with many selected repos.
+        repo_rows = [
+            {
                 "user_id": user_id,
                 "repo_name": repo_name,
                 "analysis_summary": analysis["summary"],
@@ -130,7 +136,15 @@ async def analyze_github_repos(
                 "commit_count": analysis.get("commit_count"),
                 "first_commit_at": analysis.get("first_commit_at"),
                 "last_commit_at": analysis.get("last_commit_at"),
-            }, on_conflict="user_id, repo_name").execute()
+            }
+            for repo_name, analysis in repo_analyses.items()
+        ]
+        if repo_rows:
+            await asyncio.to_thread(
+                lambda: db_client.table("github_repositories").upsert(
+                    repo_rows, on_conflict="user_id, repo_name"
+                ).execute()
+            )
 
         # CATRK-10 + UX-3: inferred skills land in github_skill_evidence.
         # HIGH-confidence (manifest/language-backed) auto-confirm so the user
@@ -139,19 +153,33 @@ async def analyze_github_repos(
         # touches the resume `skills` table.
         # ignore_duplicates: never clobber a prior user confirm/reject decision on
         # re-analyze. ponytail: full re-sync (re-score changed repos) is a later task.
-        for repo_name, analysis in repo_analyses.items():
-            for ev in analysis["inferred_skills"]:
-                try:
-                    db_client.table("github_skill_evidence").upsert({
-                        "user_id": user_id,
-                        "skill": ev.skill,
-                        "evidence": ev.evidence,
-                        "confidence": ev.confidence,
-                        "source_repo": repo_name,
-                        "confirmed": ev.confidence == "high",
-                    }, on_conflict="user_id, skill, source_repo", ignore_duplicates=True).execute()
-                except Exception as e:
-                    logger.warning(f"Failed to store evidence for {ev.skill}: {e}")
+        evidence_rows = [
+            {
+                "user_id": user_id,
+                "skill": ev.skill,
+                "evidence": ev.evidence,
+                "confidence": ev.confidence,
+                "source_repo": repo_name,
+                "confirmed": ev.confidence == "high",
+            }
+            for repo_name, analysis in repo_analyses.items()
+            for ev in analysis["inferred_skills"]
+        ]
+        # Chunked so one oversized request can't fail the whole write. A failed
+        # chunk logs the skills it carried, so the old per-skill diagnostics
+        # survive the move to batching.
+        EVIDENCE_BATCH_SIZE = 100
+        for i in range(0, len(evidence_rows), EVIDENCE_BATCH_SIZE):
+            batch = evidence_rows[i:i + EVIDENCE_BATCH_SIZE]
+            try:
+                await asyncio.to_thread(
+                    lambda batch=batch: db_client.table("github_skill_evidence").upsert(
+                        batch, on_conflict="user_id, skill, source_repo", ignore_duplicates=True
+                    ).execute()
+                )
+            except Exception as e:
+                skills = ", ".join(row["skill"] for row in batch)
+                logger.warning(f"Failed to store evidence batch [{skills}]: {e}")
 
         return {
             "success": True,
@@ -192,8 +220,10 @@ async def confirm_github_skills(req: SkillAction, user_id: str = Depends(require
     if not req.evidence_ids:
         return {"success": True, "updated": 0}
 
-    resp = db_client.table("github_skill_evidence").update({"confirmed": True})\
+    resp = await asyncio.to_thread(
+        lambda: db_client.table("github_skill_evidence").update({"confirmed": True})
         .eq("user_id", user_id).in_("id", req.evidence_ids).execute()
+    )
     return {"success": True, "updated": len(resp.data or [])}
 
 
@@ -204,15 +234,17 @@ async def reject_github_skills(req: SkillAction, user_id: str = Depends(require_
     if not req.evidence_ids:
         return {"success": True, "deleted": 0}
 
-    resp = db_client.table("github_skill_evidence").delete()\
+    resp = await asyncio.to_thread(
+        lambda: db_client.table("github_skill_evidence").delete()
         .eq("user_id", user_id).in_("id", req.evidence_ids).execute()
+    )
     return {"success": True, "deleted": len(resp.data or [])}
 
 
 @router.get("/status")
 async def get_github_status(user_id: str = Depends(require_user_id)):
     try:
-        resp = db_client.table("github_tokens").select("github_username").eq("user_id", user_id).execute()
+        resp = await asyncio.to_thread(lambda: db_client.table("github_tokens").select("github_username").eq("user_id", user_id).execute())
         if resp.data:
             return {"success": True, "connected": True, "github_username": resp.data[0]["github_username"]}
         return {"success": True, "connected": False}

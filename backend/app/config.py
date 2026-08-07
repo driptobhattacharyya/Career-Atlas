@@ -19,7 +19,11 @@ def _get_google_api_keys() -> list[str]:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    environment: str = os.getenv("ENVIRONMENT", "development")
+    # Deliberately fail closed: if ENVIRONMENT is unset (e.g. a deployment that
+    # forgot to set it), default to "production" so the dev auth bypass in
+    # app.dependencies.auth stays disabled. Local dev gets ENVIRONMENT=development
+    # from backend/.env.example.
+    environment: str = os.getenv("ENVIRONMENT", "production")
     cors_origins: str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:8080")
     
     # Supabase

@@ -11,7 +11,9 @@ Two checks on every Resource URL after the structurer emits a Pathway:
 Returns a cleaned Pathway plus a ValidationResult describing what was dropped.
 """
 import asyncio
+import ipaddress
 import logging
+import socket
 from typing import List, Tuple
 
 import httpx
@@ -29,6 +31,43 @@ _UA = "Mozilla/5.0 (compatible; CareerAtlas/1.0; +https://careeratlas.app)"
 _RETRY_GET_STATUSES = {401, 403, 405, 429}
 
 
+class SSRFError(Exception):
+    pass
+
+
+def _verify_ip(ip_str: str) -> None:
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+            or ip.is_multicast or ip.is_reserved):
+            raise SSRFError(f"SSRF detected: {ip} is not permitted")
+        if str(ip) in ('0.0.0.0', '::'):
+            raise SSRFError(f"SSRF detected: {ip} is not permitted")
+    except ValueError:
+        pass
+
+
+async def _ssrf_hook(request: httpx.Request) -> None:
+    host = request.url.host
+
+    try:
+        ipaddress.ip_address(host)
+        _verify_ip(host)
+    except ValueError:
+        pass
+
+    loop = asyncio.get_running_loop()
+    try:
+        infos = await loop.getaddrinfo(host, None, family=socket.AF_UNSPEC)
+        for info in infos:
+            ip_str = info[4][0]
+            if '%' in ip_str:
+                ip_str = ip_str.split('%')[0]
+            _verify_ip(ip_str)
+    except socket.gaierror:
+        pass
+
+
 def _norm(url: str) -> str:
     return (url or "").strip().rstrip("/").lower()
 
@@ -40,6 +79,9 @@ async def _probe(client: httpx.AsyncClient, url: str) -> Tuple[str, bool]:
         if r.status_code in _RETRY_GET_STATUSES:
             r = await client.get(url, follow_redirects=True, timeout=8.0)
         return url, r.status_code >= 400
+    except SSRFError as e:
+        logger.warning(f"SSRF attempt blocked: {e}")
+        return url, True
     except Exception:
         # DNS failure, timeout, TLS error, bot block — unknown, don't drop.
         return url, False
@@ -48,7 +90,7 @@ async def _probe(client: httpx.AsyncClient, url: str) -> Tuple[str, bool]:
 async def _probe_all(urls: List[str]) -> dict:
     if not urls:
         return {}
-    async with httpx.AsyncClient(headers={"User-Agent": _UA}) as client:
+    async with httpx.AsyncClient(headers={"User-Agent": _UA}, event_hooks={"request": [_ssrf_hook]}) as client:
         results = await asyncio.gather(*[_probe(client, u) for u in urls])
     return {u: dead for u, dead in results}
 
