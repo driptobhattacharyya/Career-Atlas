@@ -18,7 +18,7 @@ classifiers = [
 ]
 dependencies = [
     "fastapi>=0.140.0",
-    "uvicorn[standard]>=0.51.0",
+    "uvicorn[standard]>=0.52.1",
     "pydantic-settings>=2.14.2",
     "httpx>=0.26.0",
     "python-jose[cryptography]>=3.5.0",
