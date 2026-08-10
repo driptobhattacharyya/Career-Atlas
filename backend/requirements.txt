@@ -24,7 +24,7 @@ langchain-openai>=1.4.0
 langgraph>=1.2.9
 
 # Search & Retrieval
-tavily-python>=0.3.0
+tavily-python>=0.7.27
 langchain-tavily>=0.2.0
 pinecone>=9.1.0
 rank-bm25>=0.2.2
