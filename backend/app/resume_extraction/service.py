@@ -205,17 +205,12 @@ def extract_pdf_text(pdf_path: str) -> str:
 
 def pdf_bytes_to_markdown(pdf_bytes: bytes) -> str:
     # Windows-safe tempfile handling: close file before PyMuPDF opens it.
-    temp_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    temp_path = temp_file.name
-    try:
+    # Python 3.12+ supports delete_on_close=False, allowing context managers while closed.
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=True, delete_on_close=False) as temp_file:
+        temp_path = temp_file.name
         temp_file.write(pdf_bytes)
         temp_file.close()
         return extract_pdf_text(temp_path)
-    finally:
-        try:
-            os.remove(temp_path)
-        except OSError:
-            pass
 
 
 def _strip_code_fences(text: str) -> str:

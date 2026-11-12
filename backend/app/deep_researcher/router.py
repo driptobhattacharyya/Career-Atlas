@@ -11,6 +11,7 @@ into learning_pathways (one row per user+role).
 """
 import logging
 import re
+from dataclasses import dataclass
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -174,15 +175,21 @@ def _load_gaps(user_id: str, role_title: str) -> List[GapIn]:
     return gaps
 
 
-@router.post("/", response_model=DeepResearchResponse)
-def deep_research(
-    req: DeepResearchRequest,
-    user_id: str = Depends(require_user_id),
-):
+
+@dataclass
+class ResearchContext:
+    role_id: str
+    role_title: str
+    role_slug: str
+    resume_id: str
+    gaps: List[GapIn]
+    github_notes: List[str]
+
+def _prepare_research_context(user_id: str, target_role_id: str) -> ResearchContext:
     role_resp = (
         db_client.table("target_roles")
         .select("id,title")
-        .eq("id", req.target_role_id)
+        .eq("id", target_role_id)
         .limit(1)
         .execute()
     )
@@ -215,10 +222,27 @@ def deep_research(
     except Exception as e:
         logger.warning(f"Failed to fetch GitHub profile for deep research context: {e}")
 
+    return ResearchContext(
+        role_id=role_id,
+        role_title=role_title,
+        role_slug=role_slug,
+        resume_id=resume_id,
+        gaps=gaps,
+        github_notes=github_notes
+    )
+
+
+@router.post("/", response_model=DeepResearchResponse)
+def deep_research(
+    req: DeepResearchRequest,
+    user_id: str = Depends(require_user_id),
+):
+    ctx = _prepare_research_context(user_id, req.target_role_id)
+
     state_input = {
-        "gaps": gaps,
-        "target_role": role_title,
-        "notes": github_notes,
+        "gaps": ctx.gaps,
+        "target_role": ctx.role_title,
+        "notes": ctx.github_notes,
         "iteration": 0,
         "max_iter": max(1, min(req.max_iter, 6)),
         "retry_count": 0,
@@ -250,9 +274,9 @@ def deep_research(
     pathway_json = pathway.model_dump(mode="json")
     _persist_learning_pathway(
         user_id=user_id,
-        role_id=role_id,
-        role_slug=role_slug,
-        role_title=role_title,
+        role_id=ctx.role_id,
+        role_slug=ctx.role_slug,
+        role_title=ctx.role_title,
         pathway_json=pathway_json,
         sources=sources,
         iterations_used=iterations_used,
@@ -277,14 +301,14 @@ def deep_research(
             }
             for m in pathway.milestones
         ]
-        upsert_role_milestones(user_id, role_id, role_title, resume_id, milestone_dicts)
+        upsert_role_milestones(user_id, ctx.role_id, ctx.role_title, ctx.resume_id, milestone_dicts)
     except Exception as e:
         logger.warning("milestone persistence failed: %s", e)
 
     return DeepResearchResponse(
         success=True,
-        target_role=role_title,
-        role_slug=role_slug,
+        target_role=ctx.role_title,
+        role_slug=ctx.role_slug,
         pathway=pathway,
         iterations_used=iterations_used,
         sources=sources,

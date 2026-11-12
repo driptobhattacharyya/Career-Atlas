@@ -1,0 +1,73 @@
+name: CI
+
+# Build + test gate for pull requests and pushes to the long-lived branches.
+# The deploy workflows only ever run on `prod`, so without this nothing
+# verified a change before it shipped.
+on:
+  pull_request:
+  push:
+    branches: [main, prod]
+  workflow_dispatch:
+
+# A new push to the same ref makes older in-flight runs pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      # --frozen: install exactly what uv.lock pins and fail if it has drifted
+      # from pyproject.toml, so a hand-edited dependency can't slip through.
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run tests
+        run: uv run python -m pytest tests/ -q
+
+  frontend:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      # Plain `bun install` to match deploy-frontend.yml: bun.lock is gitignored,
+      # so --frozen-lockfile has nothing to read.
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build
+        run: bun run build
+
+      # Informational only. `vite build` does not typecheck, and the tree
+      # currently carries pre-existing errors in manual-resume-form.tsx plus
+      # two unused shadcn files (ui/chart.tsx, ui/calendar.tsx) that trail
+      # recharts 3 and react-day-picker 10. Flip this to a gate once those
+      # are cleared; until then a red X here would be permanent and ignored.
+      - name: Typecheck (non-blocking)
+        run: bunx tsc --noEmit
+        continue-on-error: true

@@ -77,7 +77,8 @@ def get_current_user_id(user_id: str = Depends(verify_token)) -> str:
     if user_id:
         return user_id
     # Dev convenience: run routes without a token when explicitly enabled.
-    if settings.dev_bypass_auth and settings.dev_user_id:
+    is_dev = settings.environment.lower() in ("development", "dev", "local")
+    if is_dev and settings.dev_bypass_auth and settings.dev_user_id:
         return settings.dev_user_id
     # Reject unauthenticated requests here so a route that forgets its own
     # `if not user_id` guard can never run with an anonymous identity.

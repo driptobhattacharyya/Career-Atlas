@@ -17,12 +17,12 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "fastapi>=0.139.2",
+    "fastapi>=0.140.0",
     "uvicorn[standard]>=0.51.0",
-    "pydantic-settings>=2.1.0",
+    "pydantic-settings>=2.14.2",
     "httpx>=0.26.0",
-    "python-jose[cryptography]>=3.3.0",
-    "python-multipart>=0.0.9",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.32",
     "pymupdf>=1.23.0",
     "pymupdf4llm>=1.28.0",
     "phonenumbers>=9.0.34",
@@ -37,13 +37,13 @@ dependencies = [
     "rank-bm25>=0.2.2",
     "python-dotenv>=1.0.0",
     "websockets>=11,<16",
-    "supabase>=2.24.0",
+    "supabase>=2.31.0",
     "langchain-tavily>=0.2.0",
     "langchain-openai>=1.4.0",
     "pydantic>=2.13.4",
-    "requests>=2.31.0",
+    "requests>=2.34.2",
     "numpy>=2.5.1",
-    "sentry-sdk>=2.60.0",
+    "sentry-sdk>=2.66.1",
     "nest-asyncio>=1.6.0",
 ]
 

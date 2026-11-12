@@ -373,12 +373,12 @@ async def parse_resume(
                 raise HTTPException(status_code=400, detail="Uploaded file is empty.")
             timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
             object_path = f"{user_id}/{timestamp}_{_safe_filename(file.filename or 'resume.pdf')}"
-            upload_resume_file(object_path, upload_bytes)
+            await asyncio.to_thread(upload_resume_file, object_path, upload_bytes)
             resolved_resume_key = object_path
             pdf_bytes = upload_bytes
         elif resume_key:
             try:
-                pdf_bytes = download_resume_file(resume_key)
+                pdf_bytes = await asyncio.to_thread(download_resume_file, resume_key)
             except Exception as exc:
                 logger.warning("stored resume download failed for key %s", resume_key, exc_info=True)
                 raise HTTPException(status_code=404, detail="Stored resume not found.") from exc
@@ -386,10 +386,10 @@ async def parse_resume(
         else:
             raise HTTPException(status_code=400, detail="Provide either file upload or resume_key.")
 
-        md_text = pdf_bytes_to_markdown(pdf_bytes)
-        extracted = extract_structured_resume_data(md_text)
+        md_text = await asyncio.to_thread(pdf_bytes_to_markdown, pdf_bytes)
+        extracted = await asyncio.to_thread(extract_structured_resume_data, md_text)
         extracted_dict = extracted.model_dump(mode="json")
-        resume_id = insert_full_resume(extracted_dict, user_id, resolved_resume_key or "")
+        resume_id = await asyncio.to_thread(insert_full_resume, extracted_dict, user_id, resolved_resume_key or "")
 
         return {"success": True, "message": "Resume parsed and stored successfully.", "resume_id": resume_id}
     except HTTPException:
@@ -409,7 +409,7 @@ async def submit_manual_resume(
         resume_key = f"manual_{user_id}_{timestamp}"
         
         extracted_dict = payload.model_dump(mode="json")
-        resume_id = insert_full_resume(extracted_dict, user_id, resume_key)
+        resume_id = await asyncio.to_thread(insert_full_resume, extracted_dict, user_id, resume_key)
 
         return {"success": True, "message": "Manual profile saved successfully.", "resume_id": resume_id}
     except HTTPException:
