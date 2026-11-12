@@ -4,4 +4,10 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  // Custom domain. The zone driptobhattacharyya.com must be in the same
+  // Cloudflare account as this Worker.
+  "routes": [{ "pattern": "career-atlas.driptobhattacharyya.com", "custom_domain": true }],
+  // Explicit because adding `routes` flips wrangler's default for workers_dev
+  // to false, which would turn off the existing careeratlas.*.workers.dev URL.
+  "workers_dev": true,
 }

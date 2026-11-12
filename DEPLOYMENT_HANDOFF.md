@@ -133,6 +133,21 @@ uv run python scripts/ingest_taxonomy.py --wipe
 
 ---
 
+## Custom Domain
+
+The frontend is served at `https://career-atlas.driptobhattacharyya.com`. The domain is attached to the `careeratlas` Worker as a Cloudflare custom domain via the `routes` entry in `frontend/wrangler.jsonc`. The zone `driptobhattacharyya.com` must be in the same Cloudflare account as the Worker. Cloudflare creates the DNS record and certificate automatically.
+
+The original `https://careeratlas.driptoagain2.workers.dev` URL stays enabled (`workers_dev: true`) until it is deliberately retired.
+
+The app builds its auth return URLs from `window.location.origin`, so the following settings outside the repo must list the new origin:
+
+- [ ] **Backend `CORS_ORIGINS`** (AWS Lambda environment / Secrets Manager): must include `https://career-atlas.driptobhattacharyya.com`. Otherwise API calls from the new domain fail.
+- [ ] **Supabase Auth, URL Configuration**: add `https://career-atlas.driptobhattacharyya.com/**` to Redirect URLs and set it as the Site URL. Otherwise Google sign-in returns users to the old URL.
+- [ ] **GitHub OAuth App**: the Authorization callback URL must be `https://career-atlas.driptobhattacharyya.com/github/callback`. An OAuth App has a single callback URL, so GitHub repo linking only works on one of the two domains at a time.
+- [ ] **Cloudflare API token** used by the deploy workflow: needs permission to manage Workers routes and custom domains on the zone.
+
+---
+
 ## Verification
 
 After any deployment, verify the services are running:
@@ -142,7 +157,7 @@ After any deployment, verify the services are running:
 curl -s https://<BACKEND_URL>/health
 
 # Frontend status
-curl -s -o /dev/null -w "%{http_code}" https://careeratlas.driptoagain2.workers.dev/
+curl -s -o /dev/null -w "%{http_code}" https://career-atlas.driptobhattacharyya.com/
 ```
 
 Both should return successful responses (200 OK for frontend, JSON with `"status":"ok"` for backend).
