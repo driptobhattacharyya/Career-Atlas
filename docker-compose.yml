@@ -1,0 +1,78 @@
+# Career-Atlas — one-command local app + infra.
+#
+#   supabase start        # DB stack (separate, CLI-managed → group 'supabase-career-atlas')
+#   docker compose up      # this file → group 'career-atlas'
+#
+# Brings up: frontend (Vite dev :5173), backend (FastAPI :8000), qdrant (:6333),
+# embed-rerank sidecar (:7997). Backend reaches host-run services (Supabase,
+# llama-swap) via host.docker.internal.
+name: career-atlas
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_SUPABASE_URL: http://localhost:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
+      VITE_DISABLE_AUTH: "true"
+      VITE_DEV_USER_ID: "00000000-0000-0000-0000-000000000001"
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8080"   # host :8000 → container :8080 (VITE_API_BASE_URL matches)
+    env_file:
+      - ./backend/.env   # secrets (Groq/Google/Tavily/Adzuna/Supabase keys)
+    environment:
+      # Override the localhost URLs from .env for the container network.
+      QDRANT_URL: http://qdrant:6333
+      EMBEDDINGS_BASE_URL: http://embed-rerank:7997
+      RERANKER_BASE_URL: http://embed-rerank:7997
+      SUPABASE_URL: http://host.docker.internal:54321
+      SELF_HOSTED_LLM_BASE_URL: http://host.docker.internal:9292/v1
+      CORS_ORIGINS: http://localhost:8080,http://localhost:5173
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - qdrant
+      - embed-rerank
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    restart: unless-stopped
+
+  embed-rerank:
+    build: ./backend/embed-rerank
+    ports:
+      - "7997:7997"
+    volumes:
+      # Reuse the models already on disk (HF hub layout under F:/models/hub).
+      # HF_HOME=/app/.cache (set in the Dockerfile) → /app/.cache/hub = F:/models/hub.
+      # Override HOST_MODELS_DIR for a different location; the hf_cache volume is
+      # the fallback for machines without pre-downloaded weights.
+      - "${HOST_MODELS_DIR:-F:/models}:/app/.cache"
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  qdrant_storage:
+  hf_cache:

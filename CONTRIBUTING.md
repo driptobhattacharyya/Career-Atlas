@@ -5,6 +5,7 @@ Thank you for your interest in contributing! CareerAtlas is an AI-powered career
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
+- [Contributor License Agreement (CLA)](#contributor-license-agreement-cla)
 - [Getting Started](#getting-started)
 - [Development Setup](#development-setup)
 - [How to Contribute](#how-to-contribute)
@@ -14,6 +15,8 @@ Thank you for your interest in contributing! CareerAtlas is an AI-powered career
 - [Commit Message Convention](#commit-message-convention)
 - [Issue Reporting](#issue-reporting)
 - [Community](#community)
+- [Recognition](#recognition)
+- [Questions?](#questions)
 
 ---
 
@@ -43,9 +46,11 @@ All contributors must sign the [Contributor License Agreement](CLA.md) before th
 
 - **Backend**: Python 3.12+, `uv` (recommended) or pip
 - **Frontend**: Node.js 18+, Bun (recommended) or npm
-- **Services**: Supabase account, Pinecone account, API keys for LLM providers
+- **Services** (choose one):
+  - **Cloud-managed**: Supabase account, API keys for LLM providers (Groq, Google, Tavily, Adzuna, etc.)
+  - **Self-hosted (local)**: Docker + Docker Compose, NVIDIA GPU (for embed-rerank sidecar), llama.cpp/Ollama/vLLM on host for self-hosted LLM (optional)
 
-### Quick Start
+### Quick Start (Cloud-Managed Services)
 
 ```bash
 # Clone and enter repo
@@ -66,29 +71,76 @@ bun install
 bun dev
 ```
 
+### Quick Start (Fully Self-Hosted via Docker Compose)
+
+> **Best for**: Contributors without cloud API keys, offline development, or testing the full stack locally.
+
+```bash
+# 1. Start Supabase locally (separate terminal, one-time setup)
+supabase start   # Runs on http://localhost:54321, Studio at http://localhost:54323
+
+# 2. (Optional) Start a local LLM on the host for self-hosted generation
+# Example with llama.cpp (requires NVIDIA GPU + CUDA):
+# llama-server -m /path/to/model.gguf --host 0.0.0.0 --port 9292 --ctx-size 8192 --n-gpu-layers 99
+# Or with Ollama: ollama serve (then pull a model: ollama pull llama3.3:70b)
+
+# 3. Launch the full CareerAtlas stack
+docker compose up --build
+
+# Frontend: http://localhost:5173
+# Backend API: http://localhost:8000
+# Qdrant UI: http://localhost:6333/dashboard
+# Embed/Rerank health: http://localhost:7997/health
+```
+
+**What `docker compose up` brings up:**
+- `frontend` — Vite dev server (SSR + HMR) on :5173
+- `backend` — FastAPI on :8000 (proxies to host Supabase at `host.docker.internal:54321`, host LLM at `host.docker.internal:9292`)
+- `qdrant` — Vector DB on :6333 (persisted in `qdrant_storage` volume)
+- `embed-rerank` — Nemotron-3-Embed (GPU) + Jina-reranker-v3 (CPU) on :7997
+
+**Host model cache:** The compose file mounts `${HOST_MODELS_DIR:-F:/models}` → `/app/.cache` in embed-rerank so model weights persist across restarts. Override with `HOST_MODELS_DIR=/your/path docker compose up`.
+
 ---
 
 ## Development Setup
 
-### Backend (FastAPI)
+### Option A: Cloud-Managed Backend (Recommended for Most Contributors)
+
+Use cloud APIs (Groq, Gemini, Pinecone→now Qdrant Cloud, Tavily, Adzuna) and run only the app locally.
 
 ```bash
+# Backend (FastAPI)
 cd backend
 uv sync --group dev           # Install dev dependencies
 uv run pytest                 # Run tests
 uv run pytest --cov=app       # With coverage
 uv run ruff check .           # Lint
 uv run ruff format .          # Format
-```
 
-### Frontend (React + Vite + TanStack)
-
-```bash
+# Frontend (React + Vite + TanStack)
 cd frontend
 bun install
 bun run lint                  # ESLint
 bun run format                # Prettier
 bun run build                 # Production build
+```
+
+### Option B: Fully Local Stack (Docker Compose)
+
+```bash
+# Terminal 1: Supabase (run once, persists data)
+supabase start
+
+# Terminal 2: (Optional) Local LLM on host
+# llama-server -m model.gguf --host 0.0.0.0 --port 9292 --ctx-size 8192 --n-gpu-layers 99
+
+# Terminal 3: CareerAtlas stack
+docker compose up --build
+
+# Run backend tests against local stack
+cd backend
+uv run pytest -v --tb=short
 ```
 
 ### Environment Variables
@@ -97,6 +149,27 @@ Never commit real API keys. Use `.env.example` as template:
 
 - Backend: `backend/.env.example`
 - Frontend: `frontend/.env.example`
+
+**Key self-hosted vars (backend/.env):**
+```bash
+# Self-hosted LLM (optional — enables when true)
+USE_SELF_HOSTED_LLM=true
+SELF_HOSTED_LLM_BASE_URL=http://host.docker.internal:9292/v1
+SELF_HOSTED_LLM_MODEL=local-model
+SELF_HOSTED_LLM_API_KEY=sk-no-key-required
+
+# Vector DB (Qdrant)
+QDRANT_URL=http://qdrant:6333
+QDRANT_API_KEY=
+QDRANT_COLLECTION=careeratlas_taxonomy
+
+# Embed/Rerank sidecar
+EMBEDDINGS_BASE_URL=http://embed-rerank:7997
+EMBEDDINGS_MODEL=nemotron-embed
+EMBEDDINGS_DIM=2048
+RERANKER_BASE_URL=http://embed-rerank:7997
+RERANKER_MODEL=jina-reranker-v3
+```
 
 ---
 
@@ -135,6 +208,9 @@ cd backend && uv run pytest -v
 
 # Frontend
 cd frontend && bun run lint && bun run build
+
+# Full stack (if using docker-compose)
+docker compose up --build -d && cd backend && uv run pytest -v
 ```
 
 ### 5. Submit PR
@@ -201,7 +277,7 @@ async def analyze_gaps(
         GapAnalysisResult with gaps, evidence, and confidence scores.
 
     Raises:
-        PineconeQueryError: If vector search fails.
+        QdrantQueryError: If vector search fails.
     """
 ```
 
@@ -266,7 +342,7 @@ uv run pytest tests/integration/ # Integration (requires services)
 uv run pytest --cov=app --cov-report=term-missing
 ```
 
-- **Unit tests**: Mock external services (Pinecone, Supabase, LLMs)
+- **Unit tests**: Mock external services (Qdrant, Supabase, LLMs)
 - **Integration tests**: Use testcontainers or real dev services
 - **Target**: >80% coverage for new code
 
