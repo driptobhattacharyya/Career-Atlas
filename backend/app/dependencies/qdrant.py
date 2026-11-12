@@ -41,6 +41,12 @@ def _vectors_config() -> qm.VectorParams:
     return qm.VectorParams(size=settings.embeddings_dim, distance=qm.Distance.COSINE)
 
 
+def _create_collection(client: QdrantClient, name: str) -> None:
+    client.create_collection(name, vectors_config=_vectors_config())
+    # Qdrant Cloud rejects filtered queries on unindexed fields (local does not).
+    client.create_payload_index(name, field_name="role", field_schema=qm.PayloadSchemaType.KEYWORD)
+
+
 def ensure_collection() -> None:
     """Create the collection if missing; fail fast if an existing one has the
     wrong dimension (i.e. it was built by a different embedder)."""
@@ -56,14 +62,14 @@ def ensure_collection() -> None:
                 f"`uv run python scripts/ingest_taxonomy.py --wipe`."
             )
         return
-    client.create_collection(name, vectors_config=_vectors_config())
+    _create_collection(client, name)
 
 
 def recreate_collection() -> None:
     """Drop and recreate the collection at the configured dim/metric (--wipe)."""
     client = get_qdrant_client()
     client.delete_collection(settings.qdrant_collection)
-    client.create_collection(settings.qdrant_collection, vectors_config=_vectors_config())
+    _create_collection(client, settings.qdrant_collection)
 
 
 def query(vector: List[float], role_slug: str, top_k: int) -> List[Dict[str, Any]]:
