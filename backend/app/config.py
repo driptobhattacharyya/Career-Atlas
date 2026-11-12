@@ -77,6 +77,8 @@ class Settings(BaseSettings):
     embeddings_dim: int = int(os.getenv("EMBEDDINGS_DIM", "2048"))
     reranker_base_url: str = os.getenv("RERANKER_BASE_URL", "http://localhost:7997")
     reranker_model: str = os.getenv("RERANKER_MODEL", "jina-reranker-v3")
+    embeddings_api_key: str = os.getenv("EMBEDDINGS_API_KEY", "")
+    reranker_api_key: str = os.getenv("RERANKER_API_KEY") or os.getenv("EMBEDDINGS_API_KEY", "")
 
     # Dev convenience: allows backend routes to run without bearer token.
     dev_bypass_auth: bool = os.getenv("DEV_BYPASS_AUTH", "false").lower() == "true"

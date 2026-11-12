@@ -7,6 +7,7 @@ import numpy as np
 import requests
 
 from app.config import settings
+from app.gap_analysis.ai_services import build_embeddings_request
 from app.job_hunter.schemas import (
     JobExplanation,
     JobResult,
@@ -176,15 +177,15 @@ def embed_batch(texts: list[str]) -> np.ndarray:
     # resume/job vectors from one consistent model for cosine similarity, so the
     # embedding dimension is irrelevant here.
     url = f"{settings.embeddings_base_url.rstrip('/')}/v1/embeddings"
-    payload = {
-        "model": settings.embeddings_model,
-        "input": texts,
-        "input_type": "document",
-    }
-    r = requests.post(url, json=payload, timeout=120)
-    r.raise_for_status()
-    data = sorted(r.json()["data"], key=lambda d: d["index"])
-    return np.array([d["embedding"] for d in data], dtype=np.float32)
+    # 16 texts per request keeps a 50-job batch under hosted tokens-per-minute limits.
+    rows: list = []
+    for i in range(0, len(texts), 16):
+        headers, payload = build_embeddings_request(texts[i:i + 16], "document")
+        r = requests.post(url, json=payload, headers=headers, timeout=120)
+        r.raise_for_status()
+        data = sorted(r.json()["data"], key=lambda d: d["index"])
+        rows.extend(d["embedding"] for d in data)
+    return np.array(rows, dtype=np.float32)
 
 
 def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:

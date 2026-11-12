@@ -12,6 +12,23 @@ _TASK_TO_INPUT_TYPE = {
 }
 
 
+_INPUT_TYPE_TO_JINA_TASK = {"query": "retrieval.query", "document": "retrieval.passage"}
+
+
+def build_embeddings_request(texts: List[str], input_type: str) -> tuple[Dict, Dict]:
+    """Return (headers, json body) for an embeddings call."""
+    key = settings.embeddings_api_key
+    payload = {"input": texts, "model": settings.embeddings_model}
+    # ponytail: the API key doubles as the hosted-mode switch (Jina `task` vs
+    # sidecar `input_type`); a separate setting is the upgrade path if a keyed
+    # non-Jina endpoint ever appears.
+    if key:
+        payload["task"] = _INPUT_TYPE_TO_JINA_TASK.get(input_type, "retrieval.passage")
+    else:
+        payload["input_type"] = input_type
+    return ({"Authorization": f"Bearer {key}"} if key else {}), payload
+
+
 class AIService:
     """Embeddings + reranking via a local OpenAI-compatible sidecar (BYO).
 
@@ -29,10 +46,10 @@ class AIService:
     async def get_embeddings(self, texts: List[str], task_type: str = "retrieval_query") -> List[List[float]]:
         """Embed texts via {EMBEDDINGS_BASE_URL}/v1/embeddings."""
         input_type = _TASK_TO_INPUT_TYPE.get(task_type, "document")
-        payload = {"input": texts, "model": self.embeddings_model, "input_type": input_type}
+        headers, payload = build_embeddings_request(texts, input_type)
 
         async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(f"{self.embeddings_url}/v1/embeddings", json=payload)
+            response = await client.post(f"{self.embeddings_url}/v1/embeddings", json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()["data"]
 
@@ -51,8 +68,10 @@ class AIService:
             "top_n": top_n,
         }
 
+        key = settings.reranker_api_key
+        headers = {"Authorization": f"Bearer {key}"} if key else {}
         async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(f"{self.reranker_url}/rerank", json=payload)
+            response = await client.post(f"{self.reranker_url}/rerank", json=payload, headers=headers)
             response.raise_for_status()
             return response.json()["results"]
 
