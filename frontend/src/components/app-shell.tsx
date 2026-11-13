@@ -15,10 +15,10 @@ import { ThemeSelector } from "@/components/theme-selector";
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/profile", label: "Profile", icon: User },
-  { to: "/roadmap", label: "Roadmap", icon: Map },
-  { to: "/gaps", label: "Gaps", icon: Target },
-  { to: "/jobs", label: "Jobs", icon: Briefcase },
   { to: "/github-insights", label: "GitHub", icon: Github },
+  { to: "/gaps", label: "Gaps", icon: Target },
+  { to: "/roadmap", label: "Roadmap", icon: Map },
+  { to: "/jobs", label: "Jobs", icon: Briefcase },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {

@@ -175,22 +175,6 @@ function Landing() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <div className="grid gap-6 md:grid-cols-3">
-          {[
-            { quote: "Finally a plan that didn't feel like a 200-tab roadmap.", who: "Aarav, CS '25" },
-            { quote: "The gap analysis showed me exactly what to learn next. Landed an internship in 6 weeks.", who: "Riya, Data Science new grad" },
-            { quote: "Felt like having a senior friend who actually checks in.", who: "Sam, Bootcamp grad" },
-          ].map((t) => (
-            <figure key={t.who} className="rounded-3xl border border-border bg-card p-7 shadow-soft">
-              <blockquote className="font-display text-lg leading-snug">"{t.quote}"</blockquote>
-              <figcaption className="mt-4 text-sm text-muted-foreground">— {t.who}</figcaption>
-            </figure>
-          ))}
-        </div>
-      </section>
-
       {/* CTA */}
       <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
         <div className="overflow-hidden rounded-3xl bg-primary p-10 text-primary-foreground shadow-warm sm:p-14">
