@@ -151,7 +151,8 @@ def get_structured_model(schema: Any, temperature: float = 0.2, model_name: str 
     """
     structured = get_groq_model(model_name, temperature).with_structured_output(schema)
     if settings.use_self_hosted_llm and settings.groq_api_key:
-        groq = _get_groq_fallback_model(model_name, temperature).with_structured_output(schema)
+        # Groq's remaining tool-calling models intermittently return tool_use_failed; retry.
+        groq = _get_groq_fallback_model(model_name, temperature).with_structured_output(schema).with_retry(stop_after_attempt=3)
         return structured.with_fallbacks([groq])
     return structured
 
