@@ -1,16 +1,25 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Compass, FileText, Sparkles, Upload, Github } from "lucide-react";
+import { createFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, Check, Compass, FileText, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
-import { useTargetRoles, useUploadResume, useSubmitManualResume, useRunGapAnalysis, useLatestResume, useAllResumes, useSelectResume } from "@/hooks/queries";
+import { useOnboardingPipeline, usePipelineActive } from "@/context/onboarding-pipeline-context";
+import {
+  useTargetRoles,
+  useUploadResume,
+  useSubmitManualResume,
+  useLatestResume,
+  useAllResumes,
+  useSelectResume,
+  useOnboardingStatus,
+} from "@/hooks/queries";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeSelector } from "@/components/theme-selector";
 import { ManualResumeForm } from "@/components/manual-resume-form";
+import { GITHUB_OFFER_KEY } from "@/components/onboarding-progress";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -19,28 +28,88 @@ export const Route = createFileRoute("/onboarding")({
       { name: "description", content: "Upload your resume and pick a target role to build your personal career roadmap." },
     ],
   }),
-  component: Onboarding,
+  component: OnboardingGate,
 });
 
 const disableAuth = (import.meta.env.VITE_DISABLE_AUTH as string | undefined) === "true";
 const STEPS = disableAuth
-  ? (["Resume", "Target role", "Analysis", "GitHub"] as const)
-  : (["Account", "Resume", "Target role", "Analysis", "GitHub"] as const);
+  ? (["Resume", "Target role"] as const)
+  : (["Account", "Resume", "Target role"] as const);
+const RESUME_STEP = disableAuth ? 0 : 1;
+const ROLE_STEP = disableAuth ? 1 : 2;
 
-function Onboarding() {
+/**
+ * Every Google sign-in lands here (auth-context redirectTo). Returning users —
+ * decided from server state — go straight to the dashboard; new users get the
+ * wizard. `?mode=update` deliberately re-opens the wizard for an onboarded
+ * user who wants to upload a new resume / pick a new role (linked from Profile).
+ */
+function OnboardingGate() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const updateMode = (location.search as { mode?: unknown }).mode === "update";
+  const pipelineActive = usePipelineActive();
+  const { status, serverTargetRole, refetch } = useOnboardingStatus({ pipelineActive });
+  const { data: roles = [] } = useTargetRoles();
+
+  const redirect = status === "onboarded" && !updateMode;
+  useEffect(() => {
+    if (!redirect) return;
+    // New device: restore the locally-selected role the pages read from.
+    if (serverTargetRole && !window.localStorage.getItem("careeratlas:selected_role_title")) {
+      window.localStorage.setItem("careeratlas:selected_role_title", serverTargetRole);
+      const match = roles.find((r) => r.title === serverTargetRole);
+      if (match) window.localStorage.setItem("careeratlas:selected_role_id", match.id);
+    }
+    navigate({ to: "/dashboard", replace: true });
+  }, [redirect, serverTargetRole, roles, navigate]);
+
+  if (status === "loading" || redirect) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-hero">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (status === "error" && !updateMode) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-hero px-4">
+        <div className="max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-soft">
+          <h2 className="font-display text-2xl font-bold">We couldn't load your account</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Check your connection and try again.
+          </p>
+          <div className="mt-6 flex flex-col items-center gap-2">
+            <Button onClick={refetch} className="rounded-full">
+              Try again
+            </Button>
+            <Button variant="ghost" onClick={() => navigate({ to: "/dashboard" })} className="rounded-full">
+              Go to dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <Onboarding updateMode={updateMode} />;
+}
+
+function Onboarding({ updateMode }: { updateMode: boolean }) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  
-  // Start at step 1 if already authenticated, else step 0
-  const [step, setStep] = useState(disableAuth ? 0 : 0);
+  const pipeline = useOnboardingPipeline();
+
+  // Start at the resume step if already authenticated, else the account step
+  const [step, setStep] = useState(0);
   useEffect(() => {
     if (!disableAuth && user && step === 0) setStep(1);
   }, [user, step]);
 
   const latestResume = useLatestResume();
   const uploadMutation = useUploadResume();
-  const onboardCheckDone = useRef(false);
-  
+
   const { data: allResumes = [] } = useAllResumes();
   const selectMutation = useSelectResume();
   const selecting = selectMutation.isPending;
@@ -48,16 +117,20 @@ function Onboarding() {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [hasResume, setHasResume] = useState(false);
   const [userWantsNew, setUserWantsNew] = useState(false);
-  const [roleId, setRoleId] = useState<string>("ml-engineer");
-  const [roleTitle, setRoleTitle] = useState<string>("ML Engineer");
+  const [roleId, setRoleId] = useState<string>(
+    () => window.localStorage.getItem("careeratlas:selected_role_id") || "ml-engineer",
+  );
+  const [roleTitle, setRoleTitle] = useState<string>(
+    () => window.localStorage.getItem("careeratlas:selected_role_title") || "ML Engineer",
+  );
   const [roleQuery, setRoleQuery] = useState("");
-  
+
   useEffect(() => {
     if (latestResume.data) {
       setHasResume(true);
     }
   }, [latestResume.data]);
-  
+
   const parsing = uploadMutation.isPending;
   const manualMutation = useSubmitManualResume();
   const manualSubmitting = manualMutation.isPending;
@@ -117,6 +190,17 @@ function Onboarding() {
     }
   };
 
+  // Last step: hand the slow work (gap analysis → roadmap, job matching) to
+  // the background pipeline and go straight to the dashboard, which shows
+  // its progress. Nothing here waits on the analysis.
+  const finish = () => {
+    window.localStorage.setItem("careeratlas:selected_role_id", roleId);
+    window.localStorage.setItem("careeratlas:selected_role_title", roleTitle);
+    if (!updateMode) window.localStorage.setItem(GITHUB_OFFER_KEY, "1");
+    pipeline.start({ id: roleId, title: roleTitle });
+    navigate({ to: "/dashboard" });
+  };
+
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () =>
     setStep((s) => {
@@ -138,7 +222,12 @@ function Onboarding() {
           <span className="text-xs text-muted-foreground">
             Step {step + 1} of {STEPS.length}
           </span>
-          {user && step > 0 && (
+          {updateMode && user && (
+            <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/dashboard" })} className="h-8 text-xs text-muted-foreground hover:text-foreground">
+              Cancel
+            </Button>
+          )}
+          {!updateMode && user && step > 0 && (
             <Button variant="ghost" size="sm" onClick={() => signOut()} className="h-8 text-xs text-muted-foreground hover:text-foreground">
               Sign out
             </Button>
@@ -178,11 +267,11 @@ function Onboarding() {
 
         <div className="rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-10">
           {!disableAuth && step === 0 && <StepAccount />}
-          {step === (disableAuth ? 0 : 1) && (
-            <StepResume 
-              file={resumeFile} 
-              parsing={parsing} 
-              onFile={handleFileUpload} 
+          {step === RESUME_STEP && (
+            <StepResume
+              file={resumeFile}
+              parsing={parsing}
+              onFile={handleFileUpload}
               onManualSubmit={handleManualSubmit}
               manualSubmitting={manualSubmitting}
               allResumes={allResumes}
@@ -193,7 +282,7 @@ function Onboarding() {
               setUserWantsNew={setUserWantsNew}
             />
           )}
-      {step === (disableAuth ? 1 : 2) && (
+          {step === ROLE_STEP && (
             <StepRole
               query={roleQuery}
               onQuery={setRoleQuery}
@@ -205,32 +294,19 @@ function Onboarding() {
               roles={filteredRoles}
             />
           )}
-          {step === (disableAuth ? 2 : 3) && (
-            <StepAnalysis
-              roleId={roleId}
-              roleTitle={roleTitle}
-              onDone={next}
-            />
-          )}
-          {step === (disableAuth ? 3 : 4) && (
-            <StepGithub onSkip={() => navigate({ to: "/roadmap" })} />
-          )}
         </div>
 
-        {step > (disableAuth ? -1 : 0) && step < (disableAuth ? 2 : 3) && (
+        {step >= RESUME_STEP && (
           <div className="mt-6 flex items-center justify-between">
-            <Button variant="ghost" onClick={back} disabled={step === (disableAuth ? 0 : 1)} className="rounded-full">
+            <Button variant="ghost" onClick={back} disabled={step === RESUME_STEP} className="rounded-full">
               <ArrowLeft className="mr-1 h-4 w-4" /> Back
             </Button>
             <Button
-              onClick={next}
-              disabled={
-                (step === (disableAuth ? 0 : 1) && (!hasResume)) ||
-                (step === (disableAuth ? 1 : 2) && !roleId)
-              }
+              onClick={step === ROLE_STEP ? finish : next}
+              disabled={(step === RESUME_STEP && !hasResume) || (step === ROLE_STEP && !roleId)}
               className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm"
             >
-              {step === (disableAuth ? 1 : 2) ? "Analyze my profile" : "Continue"} <ArrowRight className="ml-1 h-4 w-4" />
+              {step === ROLE_STEP ? "Build my atlas" : "Continue"} <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         )}
@@ -387,7 +463,7 @@ function StepResume({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{file.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {(file.size / 1024).toFixed(0)} KB • {parsing ? "Parsing via Gemini…" : "Ready"}
+                  {(file.size / 1024).toFixed(0)} KB • {parsing ? "Parsing…" : "Ready"}
                 </p>
               </div>
               {parsing ? (
@@ -489,95 +565,6 @@ function StepRole({
         {roles.length === 0 && !query.trim() && (
           <p className="col-span-full py-6 text-center text-sm text-muted-foreground">Loading specific target roles...</p>
         )}
-      </div>
-    </div>
-  );
-}
-
-function StepAnalysis({ roleId, roleTitle, onDone }: { roleId: string; roleTitle: string; onDone: () => void }) {
-  const [progress, setProgress] = useState(0);
-  const [stageStr, setStageStr] = useState("Preparing engines...");
-  const [error, setError] = useState<string | null>(null);
-
-  const gapMutation = useRunGapAnalysis();
-
-  useEffect(() => {
-    let unmounted = false;
-
-    const runAnalysis = async () => {
-      try {
-        window.localStorage.setItem("careeratlas:selected_role_id", roleId);
-        window.localStorage.setItem("careeratlas:selected_role_title", roleTitle);
-        if (unmounted) return;
-        setStageStr("Analyzing skill gaps vs target role...");
-        setProgress(35);
-        await gapMutation.mutateAsync(roleTitle);
-
-        if (unmounted) return;
-        setProgress(100);
-        setStageStr("All done!");
-        setTimeout(() => { if (!unmounted) onDone(); }, 1000);
-      } catch (err: any) {
-        if (!unmounted) setError(err.message || "Failed to complete AI processing.");
-      }
-    };
-
-    runAnalysis();
-
-    return () => { unmounted = true; };
-  }, [roleId, roleTitle]);
-
-  return (
-    <div className="py-6 text-center">
-      <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-coral/15 text-coral">
-        <Sparkles className="h-7 w-7 animate-pulse" />
-      </span>
-      <h2 className="mt-5 font-display text-2xl font-bold sm:text-3xl">Building your atlas</h2>
-      <p className="mt-2 text-sm text-muted-foreground">{error || stageStr}</p>
-      
-      {!error && (
-        <>
-          <Progress value={progress} className="mx-auto mt-6 max-w-md" />
-          <p className="mt-3 text-xs text-muted-foreground">{progress}%</p>
-        </>
-      )}
-
-      {error && (
-        <Button onClick={() => window.location.reload()} className="mt-6" variant="destructive">
-          Retry
-        </Button>
-      )}
-    </div>
-  );
-}
-
-// UX-6: offered AFTER the gap analysis (first value), fully skippable. We send
-// "Connect" into the existing /github flow rather than embedding the OAuth
-// redirect round-trip in the stepper — simpler and the user lands on their
-// GitHub insights. "Skip" continues to the roadmap; the navbar + Profile keep
-// GitHub reachable later either way.
-function StepGithub({ onSkip }: { onSkip: () => void }) {
-  return (
-    <div className="py-6 text-center">
-      <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-primary-soft text-primary">
-        <Github className="h-7 w-7" />
-      </span>
-      <h2 className="mt-5 font-display text-2xl font-bold sm:text-3xl">Add skills proven by your code</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-        Connect GitHub and we'll read your repositories to find skills, projects, and how you build.
-        Strong matches are added to your profile — you review the rest. Optional, and you can do this
-        anytime from the GitHub tab.
-      </p>
-      <div className="mt-8 flex flex-col items-center gap-3">
-        <Button
-          onClick={() => (window.location.href = "/github")}
-          className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm px-8"
-        >
-          <Github className="mr-2 h-4 w-4" /> Connect GitHub
-        </Button>
-        <Button variant="ghost" onClick={onSkip} className="rounded-full">
-          Skip for now
-        </Button>
       </div>
     </div>
   );

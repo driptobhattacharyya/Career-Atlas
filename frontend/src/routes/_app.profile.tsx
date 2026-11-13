@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
@@ -13,6 +13,7 @@ import {
   Pencil,
   Target,
   Check,
+  Upload,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -223,14 +224,24 @@ function Profile() {
           <span className="rounded-full bg-primary-soft px-3 py-1 text-sm font-medium text-primary">
             {roleTitle}
           </span>
-          <Button
-            size="sm"
-            variant="outline"
-            className="ml-auto rounded-full"
-            onClick={() => setRoleModalOpen(true)}
-          >
-            <Pencil className="mr-1.5 h-3.5 w-3.5" /> Change
-          </Button>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => setRoleModalOpen(true)}
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" /> Change
+            </Button>
+            {/* Deliberate re-entry into the wizard (new resume and/or role, then
+                re-runs the analysis in the background). /onboarding otherwise
+                redirects onboarded users to the dashboard. */}
+            <Button asChild size="sm" variant="ghost" className="rounded-full">
+              <Link to="/onboarding" search={{ mode: "update" }}>
+                <Upload className="mr-1.5 h-3.5 w-3.5" /> New resume or role
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 

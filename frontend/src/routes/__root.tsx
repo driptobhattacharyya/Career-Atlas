@@ -98,6 +98,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/context/auth-context";
 import { ThemeProvider } from "@/context/theme-context";
+import { OnboardingPipelineProvider } from "@/context/onboarding-pipeline-context";
 
 const queryClient = new QueryClient();
 
@@ -106,7 +107,11 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <Outlet />
+          {/* Above the router outlet so the post-onboarding background work
+              survives navigation between pages (and is reachable from /onboarding). */}
+          <OnboardingPipelineProvider>
+            <Outlet />
+          </OnboardingPipelineProvider>
           <Toaster position="top-right" richColors />
         </AuthProvider>
       </ThemeProvider>

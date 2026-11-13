@@ -29,6 +29,7 @@ import {
   getAllResumes,
   selectResume,
 } from "@/lib/api";
+import { resolveOnboardingStatus } from "@/lib/onboarding-pipeline";
 
 const disableAuth = (import.meta.env.VITE_DISABLE_AUTH as string | undefined) === "true";
 
@@ -406,6 +407,60 @@ export function useStartDeepResearch() {
       qc.invalidateQueries({ queryKey: ["milestones"] });
     },
   });
+}
+
+// ── Onboarding status (returning vs new user) ──────────────────────────────
+
+/**
+ * Whether the signed-in user has already been onboarded, decided from server
+ * state (latest resume + saved gap analysis / roadmap) so it holds across
+ * devices. See resolveOnboardingStatus for the exact rule.
+ */
+export function useOnboardingStatus({ pipelineActive }: { pipelineActive: boolean }) {
+  const { user, loading: authLoading } = useAuth();
+  const enabled = useEnabled();
+  const resume = useLatestResume();
+  const saved = useQuery({
+    // Lives under the "gap-analysis" prefix so gap-analysis invalidations refresh it.
+    queryKey: ["gap-analysis", user?.id, disableAuth, "onboarding-check"],
+    enabled,
+    queryFn: async () => {
+      const [gaps, milestones] = await Promise.all([
+        getGapAnalysis(),
+        listMilestones().catch(() => ({ milestones: [] as MilestoneRow[] })),
+      ]);
+      return {
+        targetRole: (gaps?.target_role as string | null | undefined) ?? null,
+        hasMilestones: (milestones?.milestones?.length ?? 0) > 0,
+      };
+    },
+  });
+
+  const localTargetRole =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("careeratlas:selected_role_title")
+      : null;
+
+  const status = resolveOnboardingStatus({
+    authLoading,
+    signedIn: enabled,
+    pipelineActive,
+    serverLoading: enabled && (resume.isPending || saved.isPending),
+    serverError: resume.isError || saved.isError,
+    hasResume: !!resume.data,
+    serverTargetRole: saved.data?.targetRole ?? null,
+    hasMilestones: !!saved.data?.hasMilestones,
+    localTargetRole,
+  });
+
+  return {
+    status,
+    serverTargetRole: saved.data?.targetRole ?? null,
+    refetch: () => {
+      void resume.refetch();
+      void saved.refetch();
+    },
+  };
 }
 
 // ── Tiny session cache (module-scoped) ─────────────────────────────────────

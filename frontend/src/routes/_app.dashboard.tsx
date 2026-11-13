@@ -3,6 +3,8 @@ import { ArrowRight, Sparkles, Target, Map, Briefcase, Loader2 } from "lucide-re
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { NoProfileView } from "@/components/no-profile-view";
+import { GithubOfferCard, PipelineProgressPanel } from "@/components/onboarding-progress";
+import { useOnboardingPipeline, useStepPhase } from "@/context/onboarding-pipeline-context";
 import { useProfile, useRoadmap, useGapAnalysis, useJobMatches, useTargetRoles } from "@/hooks/queries";
 import { pageStagger, fadeUp, listStagger, fadeUpSm, entrance } from "@/lib/motion";
 
@@ -23,6 +25,10 @@ function Dashboard() {
   const { data: gaps = [], isLoading: loadingGaps } = useGapAnalysis();
   const { data: jobs = [], isLoading: loadingJobs } = useJobMatches();
   const { data: roles = [], isLoading: loadingRoles } = useTargetRoles();
+  const { snapshot } = useOnboardingPipeline();
+  const gapsPhase = useStepPhase("gaps");
+  const roadmapPhase = useStepPhase("roadmap");
+  const jobsPhase = useStepPhase("jobs");
 
   if (loadingProfile || loadingRoadmap || loadingGaps || loadingJobs || loadingRoles) {
     return (
@@ -62,7 +68,7 @@ function Dashboard() {
         className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
       >
         <div>
-          <p className="text-sm text-muted-foreground">Welcome back,</p>
+          <p className="text-sm text-muted-foreground">{snapshot.runId ? "Welcome," : "Welcome back,"}</p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
             {firstName} 👋
           </h1>
@@ -77,6 +83,9 @@ function Dashboard() {
         </Button>
       </motion.div>
 
+      <PipelineProgressPanel />
+      <GithubOfferCard />
+
       {/* Top stats */}
       <motion.div variants={listStagger} className="grid gap-4 sm:grid-cols-3">
         <motion.div variants={fadeUpSm}>
@@ -87,7 +96,7 @@ function Dashboard() {
             icon={Map}
             label="Roadmap progress"
             value={`${roadmapPct}%`}
-            sub={`${completed}/${total} milestones done`}
+            sub={total === 0 && roadmapPhase === "preparing" ? "Building your roadmap…" : `${completed}/${total} milestones done`}
             accent="text-primary"
           />
         </motion.div>
@@ -96,7 +105,7 @@ function Dashboard() {
             icon={Briefcase}
             label="Top job match"
             value={topJob ? `${Math.round(topJob.score?.final ?? 0)}%` : "N/A"}
-            sub={topJob ? topJob.title : "No jobs found"}
+            sub={topJob ? topJob.title : jobsPhase === "preparing" ? "Matching jobs…" : "No jobs found"}
             accent="text-coral"
           />
         </motion.div>
@@ -130,7 +139,11 @@ function Dashboard() {
                 </div>
               </li>
             ))}
-            {topGaps.length === 0 && <p className="text-sm text-muted-foreground">No critical skill gaps found!</p>}
+            {topGaps.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                {gapsPhase === "preparing" ? "Finding your skill gaps…" : "No critical skill gaps found!"}
+              </p>
+            )}
           </ul>
         </section>
 
@@ -151,8 +164,15 @@ function Dashboard() {
                 <Link to="/roadmap">Open milestone</Link>
               </Button>
             </div>
+          ) : roadmapPhase === "preparing" ? (
+            <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Your roadmap is being built…
+            </p>
           ) : (
-            <p className="mt-4 text-sm text-muted-foreground">You have completed your entire roadmap! Awesome job.</p>
+            // activeMilestone falls back to roadmap[0], so we only get here when it's empty.
+            <p className="mt-4 text-sm text-muted-foreground">
+              No roadmap yet. <Link to="/roadmap" className="font-medium text-primary hover:underline">Generate one →</Link>
+            </p>
           )}
 
           <h3 className="mt-6 text-xs uppercase tracking-wider text-muted-foreground">Recent activity</h3>

@@ -5,6 +5,8 @@ import { Search, MapPin, X, Check, Loader2, BarChart3, ArrowUpRight } from "luci
 import { motion } from "motion/react";
 
 import { NoProfileView } from "@/components/no-profile-view";
+import { PreparingState } from "@/components/onboarding-progress";
+import { useStepPhase } from "@/context/onboarding-pipeline-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useJobMatches, useProfile, useTargetRoles } from "@/hooks/queries";
@@ -37,6 +39,8 @@ function Jobs() {
   const { data: profile } = useProfile();
   const { data: roles = [] } = useTargetRoles();
   const { data: jobs = [], isLoading } = useJobMatches();
+  // The background onboarding pipeline may be matching jobs right now.
+  const preparing = useStepPhase("jobs") === "preparing";
   const runJobResearch = useMutation({
     mutationFn: async () => {
       const selectedRoleId =
@@ -106,10 +110,10 @@ function Jobs() {
         <div className="mb-3 flex justify-end">
           <Button
             onClick={() => runJobResearch.mutate()}
-            disabled={runJobResearch.isPending}
+            disabled={runJobResearch.isPending || preparing}
             className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90"
           >
-            {runJobResearch.isPending ? (
+            {runJobResearch.isPending || preparing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Finding jobs...
@@ -173,7 +177,13 @@ function Jobs() {
         {filtered.map((job) => (
           <JobCard key={job.job_id} job={job} onOpen={() => setOpenJob(job)} />
         ))}
-        {filtered.length === 0 && (
+        {jobs.length === 0 && preparing && (
+          <PreparingState
+            title="Matching jobs"
+            description={`We're searching live openings for ${targetRole} and ranking them by fit. Matches will appear here automatically.`}
+          />
+        )}
+        {filtered.length === 0 && !(jobs.length === 0 && preparing) && (
           <div className="rounded-3xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
             No jobs match your filters.
           </div>
