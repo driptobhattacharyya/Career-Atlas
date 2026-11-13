@@ -28,7 +28,7 @@ class _Model:
     async def ainvoke(self, prompt):
         return self._run()
 
-    def with_structured_output(self, schema):
+    def with_structured_output(self, schema, **_):
         return RunnableLambda(self._run)
 
 
@@ -122,3 +122,99 @@ def test_omit_temperature_setting(monkeypatch, omit, expected):
     monkeypatch.setattr(llm_factory, "ChatOpenAI", lambda **k: seen.update(k) or object())
     llm_factory.get_groq_model(None, 0.2)
     assert ("temperature" in seen) is expected
+
+
+# ── Real ChatOpenAI over a mocked transport: what the OpenAI API actually receives ──
+
+import json  # noqa: E402
+
+import httpx  # noqa: E402
+
+from app.deep_researcher.schemas import JudgeVerdict  # noqa: E402
+from app.gap_analysis.schemas import GapAnalysisResponse  # noqa: E402
+
+_GAPS_JSON = {
+    "gaps": [{"skill": "Docker", "category": "tool", "relevance": "80", "difficulty": "Medium",
+              "prerequisites": [], "why": "Ships services."}],
+    "justifications": {"Docker": "Needed to deploy."},
+}
+_VERDICT_JSON = {"overall_score": 4, "pass_fail": "pass"}
+
+
+def _openai_transport(monkeypatch, content: dict):
+    """Point ChatOpenAI at a fake OpenAI server; returns the list of request bodies."""
+    bodies = []
+
+    def handler(request):
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, json={
+            "id": "c", "object": "chat.completion", "created": 0, "model": "gpt-test",
+            "choices": [{"index": 0, "finish_reason": "stop",
+                         "message": {"role": "assistant", "content": json.dumps(content)}}],
+        })
+
+    transport = httpx.MockTransport(handler)
+    real = llm_factory.ChatOpenAI
+    monkeypatch.setattr(llm_factory, "ChatOpenAI", lambda **k: real(
+        **k, http_client=httpx.Client(transport=transport),
+        http_async_client=httpx.AsyncClient(transport=transport)))
+    monkeypatch.setattr(llm_factory.settings, "self_hosted_llm_model", "gpt-test")
+    monkeypatch.setattr(llm_factory.settings, "self_hosted_llm_base_url", "https://api.openai.com/v1")
+    monkeypatch.setattr(llm_factory.settings, "self_hosted_llm_api_key", "sk-test")
+    monkeypatch.setattr(llm_factory, "_get_rotating_gemini_model",
+                        lambda *a, **k: pytest.fail("fell back to Gemini"))
+    return bodies
+
+
+def _assert_non_strict(body, name):
+    rf = body["response_format"]
+    assert rf["type"] == "json_schema" and rf["json_schema"]["name"] == name
+    # Strict mode 400s on dict fields / defaults, which silently routed to the fallback.
+    assert rf["json_schema"]["strict"] is False
+    assert body["model"] == "gpt-test"
+
+
+async def test_gap_analysis_schema_served_by_openai_non_strict(monkeypatch):
+    bodies = _openai_transport(monkeypatch, _GAPS_JSON)
+    result = await llm_factory.ainvoke_gemini("p", temperature=0.0, schema=GapAnalysisResponse)
+    assert isinstance(result, GapAnalysisResponse)
+    assert result.gaps[0].relevance == 80 and result.justifications == {"Docker": "Needed to deploy."}
+    _assert_non_strict(bodies[0], "GapAnalysisResponse")
+    assert "justifications" in bodies[0]["response_format"]["json_schema"]["schema"]["properties"]
+
+
+def test_structured_chain_schema_served_by_openai_non_strict(monkeypatch):
+    monkeypatch.setattr(llm_factory.settings, "groq_api_key", "gq")
+    monkeypatch.setattr(llm_factory, "_get_groq_fallback_model",
+                        lambda *a, **k: _Model(AssertionError("fell back to Groq")))
+    bodies = _openai_transport(monkeypatch, _VERDICT_JSON)
+    verdict = llm_factory.get_structured_model(JudgeVerdict, temperature=0.0).invoke("p")
+    assert isinstance(verdict, JudgeVerdict) and verdict.confidence == "medium"
+    _assert_non_strict(bodies[0], "JudgeVerdict")
+
+
+def test_groq_fallback_is_logged(monkeypatch, caplog):
+    monkeypatch.setattr(llm_factory.settings, "groq_api_key", "gq")
+    monkeypatch.setattr(llm_factory, "get_groq_model", lambda *a, **k: _Model(RuntimeError("bad model")))
+    monkeypatch.setattr(llm_factory, "_get_groq_fallback_model", lambda *a, **k: _Model("groq-result"))
+    assert llm_factory.get_structured_model(dict).invoke("p") == "groq-result"
+    assert "Groq fallback" in caplog.text
+
+
+def test_describe_llm_routing_flag_on_hides_secrets(monkeypatch):
+    monkeypatch.setattr(llm_factory.settings, "self_hosted_llm_model", "gpt-test")
+    monkeypatch.setattr(llm_factory.settings, "self_hosted_llm_base_url", "https://user:pw@api.openai.com/v1")
+    monkeypatch.setattr(llm_factory.settings, "self_hosted_llm_api_key", "sk-secret")
+    monkeypatch.setattr(llm_factory.settings, "groq_api_key", "gq")
+    info = llm_factory.describe_llm_routing()
+    assert info["primary"] == "openai-compatible" and info["model"] == "gpt-test"
+    assert info["host"] == "api.openai.com" and info["api_key_set"] is True
+    assert info["fallbacks"]["gaps_resume_jobs"] == llm_factory.GEMINI_DEFAULT_MODEL
+    assert "sk-secret" not in json.dumps(info) and "pw" not in json.dumps(info)
+
+
+def test_describe_llm_routing_placeholder_key_and_flag_off(monkeypatch):
+    monkeypatch.setattr(llm_factory.settings, "self_hosted_llm_api_key", "sk-no-key-required")
+    assert llm_factory.describe_llm_routing()["api_key_set"] is False
+    monkeypatch.setattr(llm_factory.settings, "use_self_hosted_llm", False)
+    assert llm_factory.describe_llm_routing()["primary"] == "groq+gemini"

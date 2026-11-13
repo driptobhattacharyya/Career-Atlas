@@ -73,6 +73,9 @@ When `USE_SELF_HOSTED_LLM=true`, **all generation** routes through this endpoint
 | `SELF_HOSTED_LLM_BASE_URL` | OpenAI-compatible chat completions endpoint | `http://localhost:8080/v1` |
 | `SELF_HOSTED_LLM_MODEL` | Model name to request | `local-model` |
 | `SELF_HOSTED_LLM_API_KEY` | API key (llama.cpp/Ollama ignore this; vLLM may need it) | `sk-no-key-required` |
+| `SELF_HOSTED_LLM_OMIT_TEMPERATURE` | Don't send `temperature` (for models that only accept the default) | `false` |
+
+**Hosted OpenAI as primary:** `USE_SELF_HOSTED_LLM=true`, `SELF_HOSTED_LLM_BASE_URL=https://api.openai.com/v1`, `SELF_HOSTED_LLM_MODEL=<openai model id>`, `SELF_HOSTED_LLM_API_KEY=<openai key>` (`OPENAI_API_KEY` is not read), plus `SELF_HOSTED_LLM_OMIT_TEMPERATURE=true` if the model rejects `temperature`. Groq (structured chains) and Gemini (gap analysis, resume parsing, job explanations) then act only as fallbacks; every fallback logs a `WARNING` (`OpenAI-compatible primary LLM failed ...`). `GET /health` reports the effective routing under `"llm"` (provider, model, host, whether a key is set, fallbacks; never the key).
 
 **Contract**: Any OpenAI-compatible `/v1/chat/completions` endpoint works (llama.cpp `llama-server`, Ollama, vLLM, TGI, OpenRouter, Together, etc.).
 
