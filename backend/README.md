@@ -59,7 +59,7 @@ See **`backend/.env.example`** for the authoritative, copy-pasteable list. Key v
 - `CORS_ORIGINS=http://localhost:8080,http://localhost:5173,http://localhost:3000`
 
 ### LLMs (Managed)
-- `GROQ_API_KEY`, `GROQ_MODEL` (default: `llama-3.3-70b-versatile`) — primary generation (resume parsing, gap analysis, roadmap, deep research, judge)
+- `GROQ_API_KEY`, `GROQ_MODEL` (default: `qwen/qwen3.8-27b`) — primary generation (resume parsing, gap analysis, roadmap, deep research, judge)
 - `GOOGLE_API_KEY` — primary Gemini key (embeddings for RAG; also fallback generation if self-hosted off)
 - `GOOGLE_API_KEY_1` – `GOOGLE_API_KEY_4` — optional extra keys for rotation (1–4; falls back to single key)
 - `TAVILY_API_KEY` — web search for agents

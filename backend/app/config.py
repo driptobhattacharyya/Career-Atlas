@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
     google_api_keys: list[str] = _get_google_api_keys()
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
-    groq_model: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    groq_model: str = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
     gap_analysis_model: str = os.getenv("GAP_ANALYSIS_MODEL", "gemini-1.5-flash")
     huggingface_api_key: str = os.getenv("HUGGINGFACE_API_KEY", "")
     
