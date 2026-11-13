@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 from app.dependencies import qdrant
 from app.gap_analysis.ai_services import ai_service
 from app.gap_analysis.hybrid_retrieval import resolve_role_slug, ROLE_SLUG_MAP
-from app.utils.llm_factory import get_groq_model
+from app.utils.llm_factory import get_structured_model
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +66,7 @@ _PROMPT = (
 
 
 async def _generate_rows(role_title: str) -> List[_GenSkill]:
-    model = get_groq_model(temperature=0.2)
-    chain = model.with_structured_output(_GenTaxonomy)
+    chain = get_structured_model(_GenTaxonomy, temperature=0.2)
     result: _GenTaxonomy = await chain.ainvoke(_PROMPT.format(role=role_title))
     # Drop blanks / dedupe by name (LLM occasionally repeats).
     seen, rows = set(), []

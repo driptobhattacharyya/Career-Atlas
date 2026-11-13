@@ -27,6 +27,11 @@ def _get_rotating_gemini_model(model_name: str, temperature: float, attempt: int
     )
 
 
+def _warn_primary_failed(e: Exception):
+    # Type name only: exception text from provider SDKs can echo the API key.
+    logger.warning("OpenAI-compatible primary LLM failed (%s); trying fallback if configured", type(e).__name__)
+
+
 def _invoke_local(prompt: Any, temperature: float, schema: Any):
     """Run a prompt on the self-hosted LLM (llama-swap) instead of Gemini.
     Same structured-output contract, so callers are unchanged."""
@@ -46,9 +51,16 @@ async def _ainvoke_local(prompt: Any, temperature: float, schema: Any):
 
 
 def invoke_gemini(prompt: Any, model_name: str = "gemini-3.5-flash", temperature: float = 0.2, schema: Any = None, max_retries: int = 5):
-    # When self-hosting is on, all generation goes to the local LLM — no Gemini.
+    # ponytail: the "self-hosted" settings double as the hosted OpenAI primary
+    # (base_url=https://api.openai.com/v1); renaming them is the upgrade path if this stays.
+    # Flag on: OpenAI-compatible model first; Gemini rotation is the fallback if a key exists.
     if settings.use_self_hosted_llm:
-        return _invoke_local(prompt, temperature, schema)
+        try:
+            return _invoke_local(prompt, temperature, schema)
+        except Exception as e:
+            _warn_primary_failed(e)
+            if not settings.google_api_keys:
+                raise
     last_exception = None
     for attempt in range(max_retries):
         try:
@@ -71,7 +83,12 @@ def invoke_gemini(prompt: Any, model_name: str = "gemini-3.5-flash", temperature
 
 async def ainvoke_gemini(prompt: Any, model_name: str = "gemini-3.5-flash", temperature: float = 0.2, schema: Any = None, max_retries: int = 5):
     if settings.use_self_hosted_llm:
-        return await _ainvoke_local(prompt, temperature, schema)
+        try:
+            return await _ainvoke_local(prompt, temperature, schema)
+        except Exception as e:
+            _warn_primary_failed(e)
+            if not settings.google_api_keys:
+                raise
     last_exception = None
     for attempt in range(max_retries):
         try:
@@ -115,13 +132,36 @@ def get_groq_model(model_name: str | None = None, temperature: float = 0.2):
     )
 
 
+@lru_cache()
+def _get_groq_fallback_model(model_name: str | None = None, temperature: float = 0.2):
+    return ChatGroq(
+        model=model_name or settings.groq_model,
+        groq_api_key=settings.groq_api_key,
+        temperature=temperature
+    )
+
+
+def get_structured_model(schema: Any, temperature: float = 0.2, model_name: str | None = None):
+    """`get_groq_model(...).with_structured_output(schema)`, plus a Groq fallback
+    when the OpenAI-compatible primary is on and a Groq key is configured.
+
+    The fallback is attached after structuring because a runnable with
+    fallbacks has no `.with_structured_output`.
+    """
+    structured = get_groq_model(model_name, temperature).with_structured_output(schema)
+    if settings.use_self_hosted_llm and settings.groq_api_key:
+        groq = _get_groq_fallback_model(model_name, temperature).with_structured_output(schema)
+        return structured.with_fallbacks([groq])
+    return structured
+
+
 def build_groq_structured_chain(prompt: Any, schema: Any, temperature: float = 0.2, model_name: str | None = None):
     """Compose a `prompt | groq.with_structured_output(schema)` chain.
 
     Wraps the recurring pattern of grabbing a Groq model, binding a structured
     output schema, and piping a prompt template into it.
     """
-    return prompt | get_groq_model(model_name, temperature).with_structured_output(schema)
+    return prompt | get_structured_model(schema, temperature, model_name)
 
 
 @lru_cache()
