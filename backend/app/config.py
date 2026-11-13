@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     self_hosted_llm_base_url: str = os.getenv("SELF_HOSTED_LLM_BASE_URL", "http://localhost:8080/v1")
     self_hosted_llm_model: str = os.getenv("SELF_HOSTED_LLM_MODEL", "local-model")
     self_hosted_llm_api_key: str = os.getenv("SELF_HOSTED_LLM_API_KEY", "sk-no-key-required")
+    self_hosted_llm_omit_temperature: bool = os.getenv("SELF_HOSTED_LLM_OMIT_TEMPERATURE", "false").lower() == "true"
 
     # Tools
     tavily_api_key: str = os.getenv("TAVILY_API_KEY", "")

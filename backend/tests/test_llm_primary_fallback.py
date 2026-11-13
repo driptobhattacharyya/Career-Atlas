@@ -113,3 +113,12 @@ def test_flag_off_never_builds_primary(monkeypatch):
     assert llm_factory.invoke_gemini("p") == "gem"
     chain = llm_factory.get_structured_model(dict)
     assert not hasattr(chain, "fallbacks") and chain.invoke({}) == "groq"
+
+
+@pytest.mark.parametrize("omit,expected", [(True, False), (False, True)])
+def test_omit_temperature_setting(monkeypatch, omit, expected):
+    monkeypatch.setattr(llm_factory.settings, "self_hosted_llm_omit_temperature", omit)
+    seen = {}
+    monkeypatch.setattr(llm_factory, "ChatOpenAI", lambda **k: seen.update(k) or object())
+    llm_factory.get_groq_model(None, 0.2)
+    assert ("temperature" in seen) is expected

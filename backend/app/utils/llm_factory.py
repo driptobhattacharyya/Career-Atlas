@@ -119,11 +119,12 @@ def get_groq_model(model_name: str | None = None, temperature: float = 0.2):
     if settings.use_self_hosted_llm:
         # llama.cpp & friends serve the OpenAI chat API; ChatOpenAI just needs
         # to be pointed at the local base_url.
+        kwargs = {} if settings.self_hosted_llm_omit_temperature else {"temperature": temperature}
         return ChatOpenAI(
             model=model_name or settings.self_hosted_llm_model,
             base_url=settings.self_hosted_llm_base_url,
             api_key=settings.self_hosted_llm_api_key,
-            temperature=temperature,
+            **kwargs,
         )
     return ChatGroq(
         model=model_name or settings.groq_model,
