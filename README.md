@@ -1,5 +1,7 @@
 # CareerAtlas
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/driptobhattacharyya/Career-Atlas)
+
 CareerAtlas is an AI-powered personal career planner that parses your resume, identifies skill gaps, constructs a week-by-week learning roadmap, and matches you with tailored jobs in real time.
 
 Pipeline: **profile extraction & switching → gap analysis → learning roadmap → job matches**.
