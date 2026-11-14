@@ -13,11 +13,8 @@ import { useAuth } from "@/context/auth-context";
 import {
   ApiError,
   analyzeGaps,
-  cacheJobSearchResponse,
-  getJobMatches,
   getLatestResume,
   listMilestones,
-  researchJobs,
   startDeepResearch,
   updateTargetRole,
 } from "@/lib/api";
@@ -39,8 +36,10 @@ export const STEP_LABELS: Record<StepId, string> = {
   profile: "Evaluating your profile",
   gaps: "Finding your skill gaps",
   roadmap: "Building your roadmap",
-  jobs: "Matching jobs",
 };
+
+/** Query key of GET /api/parse-resume/profile (useOnboardingProfile). */
+export const ONBOARDING_PROFILE_KEY = ["onboarding-profile"] as const;
 
 /** Real API calls behind each pipeline step, plus the cache invalidation that
  * lets open pages pick up the result without a reload. */
@@ -56,11 +55,15 @@ export function createPipelineDeps(qc: QueryClient): PipelineDeps {
     },
     saveTargetRole: async (roleId) => {
       await updateTargetRole(roleId);
+      // The server now recognises the user as onboarded; keep the gate and
+      // app guard in sync once this run finishes.
+      await qc.invalidateQueries({ queryKey: ONBOARDING_PROFILE_KEY });
     },
     runGaps: async (roleTitle) => {
       const data = await analyzeGaps(roleTitle, false);
       storage?.setItem("careeratlas:last_gap_response", JSON.stringify(data));
       await qc.invalidateQueries({ queryKey: ["gap-analysis"] });
+      await qc.invalidateQueries({ queryKey: ONBOARDING_PROFILE_KEY });
     },
     hasRoadmap: async (roleId) => {
       try {
@@ -77,20 +80,7 @@ export function createPipelineDeps(qc: QueryClient): PipelineDeps {
       await startDeepResearch(roleId, 3);
       await qc.invalidateQueries({ queryKey: ["pathway-latest"] });
       await qc.invalidateQueries({ queryKey: ["milestones"] });
-    },
-    hasJobs: async (roleTitle) => {
-      const data = await getJobMatches();
-      const found = data.jobs.length > 0 && data.query_role === roleTitle;
-      if (found) {
-        cacheJobSearchResponse(data);
-        await qc.invalidateQueries({ queryKey: ["job-matches"] });
-      }
-      return found;
-    },
-    runJobs: async (roleId) => {
-      const data = await researchJobs(roleId);
-      cacheJobSearchResponse(data);
-      await qc.invalidateQueries({ queryKey: ["job-matches"] });
+      await qc.invalidateQueries({ queryKey: ONBOARDING_PROFILE_KEY });
     },
   };
 }
@@ -139,7 +129,7 @@ export function OnboardingPipelineProvider({ children }: { children: React.React
     }
     if (!isPipelineComplete(before) && isPipelineComplete(snapshot)) {
       toast.success("Your atlas is ready", {
-        description: "Skill gaps, roadmap and job matches are up to date.",
+        description: "Your skill gaps and roadmap are up to date.",
       });
     }
   }, [snapshot]);

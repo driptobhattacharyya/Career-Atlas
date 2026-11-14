@@ -28,7 +28,6 @@ function Dashboard() {
   const { snapshot } = useOnboardingPipeline();
   const gapsPhase = useStepPhase("gaps");
   const roadmapPhase = useStepPhase("roadmap");
-  const jobsPhase = useStepPhase("jobs");
 
   if (loadingProfile || loadingRoadmap || loadingGaps || loadingJobs || loadingRoles) {
     return (
@@ -105,7 +104,7 @@ function Dashboard() {
             icon={Briefcase}
             label="Top job match"
             value={topJob ? `${Math.round(topJob.score?.final ?? 0)}%` : "N/A"}
-            sub={topJob ? topJob.title : jobsPhase === "preparing" ? "Matching jobs…" : "No jobs found"}
+            sub={topJob ? topJob.title : "No jobs found"}
             accent="text-coral"
           />
         </motion.div>

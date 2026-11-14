@@ -11,9 +11,9 @@
  *   profile  []          confirm the resume is stored + persist the target role
  *   gaps     [profile]   POST /api/analyze-gaps/  (server-cached per resume+role)
  *   roadmap  [gaps]      POST /api/deep-research/ (reads the stored gaps)
- *   jobs     [profile]   POST /api/research-jobs/ (runs alongside gaps/roadmap)
  *
- * roadmap and jobs need a catalog target_role_id, so they are "skipped" for a
+ * Job matching is not part of the pipeline: it runs on demand from the Jobs
+ * page. roadmap needs a catalog target_role_id, so it is "skipped" for a
  * free-text custom role. A failed step leaves its dependents pending until it
  * is retried. Progress (which steps are done) is persisted so a reload resumes
  * the remaining steps instead of starting over.
@@ -21,7 +21,7 @@
  * This module is framework-free so it can be unit-tested without React.
  */
 
-export const STEP_IDS = ["profile", "gaps", "roadmap", "jobs"] as const;
+export const STEP_IDS = ["profile", "gaps", "roadmap"] as const;
 export type StepId = (typeof STEP_IDS)[number];
 export type StepStatus = "pending" | "running" | "done" | "failed" | "skipped";
 
@@ -45,15 +45,17 @@ export interface PipelineSnapshot {
 export interface PipelineDeps {
   /** Throws if the user has no stored resume. */
   ensureProfile: () => Promise<void>;
-  /** Persist the target role server-side. Failures are non-fatal. */
+  /**
+   * Persist the target role server-side. Returning-user recognition depends
+   * on it, so it is retried and, if it still fails, fails the profile step.
+   */
   saveTargetRole: (roleId: string, roleTitle: string) => Promise<void>;
   runGaps: (roleTitle: string) => Promise<void>;
   /** True when a roadmap for this role already exists (used when resuming). */
   hasRoadmap: (roleId: string) => Promise<boolean>;
   runRoadmap: (roleId: string) => Promise<void>;
-  /** True when job matches for this role already exist (used when resuming). */
-  hasJobs: (roleTitle: string) => Promise<boolean>;
-  runJobs: (roleId: string) => Promise<void>;
+  /** Delay between saveTargetRole attempts (tests pass 0). */
+  retryDelayMs?: number;
   storage?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
 }
 
@@ -63,8 +65,10 @@ export const STEP_DEPENDENCIES: Record<StepId, StepId[]> = {
   profile: [],
   gaps: ["profile"],
   roadmap: ["gaps"],
-  jobs: ["profile"],
 };
+
+/** saveTargetRole attempts before the profile step fails. */
+export const SAVE_ROLE_ATTEMPTS = 3;
 
 export const isCatalogRole = (role: PipelineRole | null) =>
   !!role && !!role.id && role.id !== "custom";
@@ -73,7 +77,6 @@ const freshSteps = (): Record<StepId, StepState> => ({
   profile: { status: "pending" },
   gaps: { status: "pending" },
   roadmap: { status: "pending" },
-  jobs: { status: "pending" },
 });
 
 export const EMPTY_SNAPSHOT: PipelineSnapshot = {
@@ -168,8 +171,14 @@ export class OnboardingPipeline {
     const saved = this.readPersisted();
     if (!saved) return false;
     const steps = freshSteps();
+    // Unknown ids (e.g. the retired "jobs" step from an older build) are ignored.
     for (const id of saved.finished) {
-      if (STEP_IDS.includes(id)) steps[id] = { status: "done" };
+      if ((STEP_IDS as readonly string[]).includes(id)) steps[id] = { status: "done" };
+    }
+    if (STEP_IDS.every((id) => steps[id].status === "done")) {
+      // Only steps that no longer exist were left: nothing to resume.
+      this.deps.storage?.removeItem(PIPELINE_STORAGE_KEY);
+      return false;
     }
     this.fresh = false;
     this.setSnapshot({ runId: saved.runId, role: saved.role, steps });
@@ -222,14 +231,7 @@ export class OnboardingPipeline {
     switch (id) {
       case "profile":
         await d.ensureProfile();
-        if (isCatalogRole(role)) {
-          try {
-            await d.saveTargetRole(role.id, role.title);
-          } catch (err) {
-            // Ancillary: pages fall back to the locally selected role.
-            console.warn("Could not persist target role", err);
-          }
-        }
+        if (isCatalogRole(role)) await this.saveRoleWithRetry(role);
         return "done";
       case "gaps":
         await d.runGaps(role.title);
@@ -239,11 +241,22 @@ export class OnboardingPipeline {
         if (!this.fresh && (await d.hasRoadmap(role.id))) return "done";
         await d.runRoadmap(role.id);
         return "done";
-      case "jobs":
-        if (!isCatalogRole(role)) return "skipped";
-        if (!this.fresh && (await d.hasJobs(role.title))) return "done";
-        await d.runJobs(role.id);
-        return "done";
+    }
+  }
+
+  private async saveRoleWithRetry(role: PipelineRole): Promise<void> {
+    const delay = this.deps.retryDelayMs ?? 1000;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await this.deps.saveTargetRole(role.id, role.title);
+        return;
+      } catch (err) {
+        if (attempt >= SAVE_ROLE_ATTEMPTS) {
+          console.warn("Could not save target role", err);
+          throw new Error("We couldn't save your target role. Please retry.");
+        }
+        await new Promise((r) => setTimeout(r, delay * attempt));
+      }
     }
   }
 
@@ -299,25 +312,20 @@ export type OnboardingStatus = "loading" | "error" | "onboarded" | "needs-onboar
 export interface OnboardingSignals {
   authLoading: boolean;
   signedIn: boolean;
-  /** Server checks still loading (latest resume, saved analysis). */
+  /** GET /api/parse-resume/profile still loading. */
   serverLoading: boolean;
   serverError: boolean;
-  hasResume: boolean;
-  /** Target role recorded with the user's saved gap analysis, if any. */
-  serverTargetRole: string | null;
-  /** The user already has roadmap milestones on the server. */
-  hasMilestones: boolean;
-  /** Same-device fallback: role picked here earlier. */
-  localTargetRole: string | null;
-  /** A background pipeline run exists for this user. */
+  /** The server's verdict (resume + saved role / gap analysis / roadmap). */
+  serverOnboarded: boolean;
+  /** A background pipeline run exists for this user (just finished the wizard). */
   pipelineActive: boolean;
 }
 
 /**
- * Decide whether a signed-in visitor is a returning user (skip the wizard)
- * from SERVER state, so it holds across devices. localStorage is only a
- * same-device fallback for the "analysis found zero gaps" case, where the
- * server stores no gap rows.
+ * Decide whether a signed-in visitor is a returning user (skip the wizard).
+ * The backend is the authority, so the answer is the same on every device;
+ * an in-flight pipeline counts as onboarded because its first step is what
+ * makes the server say so.
  */
 export function resolveOnboardingStatus(s: OnboardingSignals): OnboardingStatus {
   if (s.authLoading) return "loading";
@@ -325,7 +333,24 @@ export function resolveOnboardingStatus(s: OnboardingSignals): OnboardingStatus 
   if (s.pipelineActive) return "onboarded";
   if (s.serverLoading) return "loading";
   if (s.serverError) return "error";
-  if (!s.hasResume) return "needs-onboarding";
-  if (s.serverTargetRole || s.hasMilestones || s.localTargetRole) return "onboarded";
-  return "needs-onboarding";
+  return s.serverOnboarded ? "onboarded" : "needs-onboarding";
+}
+
+export type AppGuardDecision = "wait" | "render" | "to-onboarding";
+
+/**
+ * What the signed-in app layout (/dashboard, /gaps, …) does with the status.
+ * Only a definite "needs-onboarding" redirects to the wizard — the gate only
+ * redirects back on "onboarded", so the two can never bounce. Errors fail
+ * open: pages have their own empty states.
+ */
+export function resolveAppGuard(status: OnboardingStatus): AppGuardDecision {
+  switch (status) {
+    case "loading":
+      return "wait";
+    case "needs-onboarding":
+      return "to-onboarding";
+    default:
+      return "render";
+  }
 }

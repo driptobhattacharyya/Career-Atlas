@@ -40,33 +40,44 @@ const ROLE_STEP = disableAuth ? 1 : 2;
 
 /**
  * Every Google sign-in lands here (auth-context redirectTo). Returning users —
- * decided from server state — go straight to the dashboard; new users get the
- * wizard. `?mode=update` deliberately re-opens the wizard for an onboarded
- * user who wants to upload a new resume / pick a new role (linked from Profile).
+ * decided by the backend (GET /api/parse-resume/profile) — are replaced by
+ * /dashboard before any wizard UI renders; new users get the wizard.
+ * `?mode=update` deliberately re-opens the wizard for an onboarded user who
+ * wants to upload a new resume / pick a new role (linked from Profile).
  */
 function OnboardingGate() {
   const navigate = useNavigate();
   const location = useLocation();
   const updateMode = (location.search as { mode?: unknown }).mode === "update";
   const pipelineActive = usePipelineActive();
-  const { status, serverTargetRole, refetch } = useOnboardingStatus({ pipelineActive });
+  const { status, targetRole, refetch } = useOnboardingStatus({ pipelineActive });
   const { data: roles = [] } = useTargetRoles();
 
   const redirect = status === "onboarded" && !updateMode;
   useEffect(() => {
     if (!redirect) return;
-    // New device: restore the locally-selected role the pages read from.
-    if (serverTargetRole && !window.localStorage.getItem("careeratlas:selected_role_title")) {
-      window.localStorage.setItem("careeratlas:selected_role_title", serverTargetRole);
-      const match = roles.find((r) => r.title === serverTargetRole);
-      if (match) window.localStorage.setItem("careeratlas:selected_role_id", match.id);
+    // New device: seed the locally-selected role the pages read, from the
+    // server's saved role. Optimisation only — it never decides the redirect.
+    if (targetRole && !window.localStorage.getItem("careeratlas:selected_role_title")) {
+      const match = roles.find(
+        (r) => (targetRole.id && r.id === targetRole.id) || r.title === targetRole.title,
+      );
+      const title = targetRole.title ?? match?.title;
+      const id = targetRole.id ?? match?.id;
+      if (title) window.localStorage.setItem("careeratlas:selected_role_title", title);
+      if (id) window.localStorage.setItem("careeratlas:selected_role_id", id);
     }
     navigate({ to: "/dashboard", replace: true });
-  }, [redirect, serverTargetRole, roles, navigate]);
+  }, [redirect, targetRole, roles, navigate]);
 
+  // Neutral loader (no wizard chrome) until we know where this user belongs.
   if (status === "loading" || redirect) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-hero">
+      <div
+        role="status"
+        aria-label="Loading"
+        className="flex min-h-screen items-center justify-center bg-gradient-hero"
+      >
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );

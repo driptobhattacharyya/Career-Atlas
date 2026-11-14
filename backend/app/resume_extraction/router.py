@@ -472,18 +472,106 @@ class ExperienceUpdate(BaseModel):
     end_date: str | None = None
 
 
+def _save_target_role(user_id: str, target_role_id: str) -> None:
+    # Update first: an upsert carrying only user_id + target_role_id is an
+    # INSERT … ON CONFLICT, and Postgres checks profiles.name NOT NULL on the
+    # proposed row before resolving the conflict — so it fails even when the
+    # row exists. Only insert (with a placeholder name) when there is no row.
+    resp = (
+        db_client.table("profiles")
+        .update({"target_role_id": target_role_id})
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not resp.data:
+        db_client.table("profiles").insert(
+            {"user_id": user_id, "name": "Candidate", "target_role_id": target_role_id}
+        ).execute()
+
+
 @router.patch("/profile")
 async def update_profile(body: ProfileUpdate, user_id: str = Depends(require_user_id)):
     """Change the user's target role (persisted in the `profiles` table)."""
     try:
-        db_client.table("profiles").upsert(
-            {"user_id": user_id, "target_role_id": body.target_role_id},
-            on_conflict="user_id",
-        ).execute()
+        await asyncio.to_thread(_save_target_role, user_id, body.target_role_id)
     except Exception as e:
         logger.exception("profile update failed for user %s", user_id)
         raise HTTPException(status_code=500, detail=f"Profile update failed: {e}") from e
     return {"success": True, "target_role_id": body.target_role_id}
+
+
+def _rows(query) -> list[dict[str, Any]]:
+    return query.execute().data or []
+
+
+async def _onboarding_profile(user_id: str) -> dict[str, Any]:
+    resumes, profile, milestone = await asyncio.gather(
+        asyncio.to_thread(lambda: _rows(
+            db_client.table("resumes").select("id").eq("user_id", user_id)
+        )),
+        asyncio.to_thread(lambda: _rows(
+            db_client.table("profiles").select("target_role_id").eq("user_id", user_id).limit(1)
+        )),
+        asyncio.to_thread(lambda: _rows(
+            db_client.table("milestones").select("target_role_id,target_role")
+            .eq("user_id", user_id).limit(1)
+        )),
+    )
+    resume_ids = [r["id"] for r in resumes if r.get("id")]
+    profile_role_id = (profile[0].get("target_role_id") if profile else None) or None
+
+    # Gap rows are pinned to a resume (no user_id since the resume pipeline
+    # migration). Only needed when the profile does not already name a role.
+    gap = []
+    if resume_ids and not profile_role_id:
+        gap = await asyncio.to_thread(lambda: _rows(
+            db_client.table("skill_gaps").select("target_role")
+            .in_("resume_id", resume_ids).limit(1)
+        ))
+
+    # Saved role first; otherwise infer it for accounts onboarded before the
+    # wizard saved it (gap rows carry the title, possibly a custom role;
+    # milestones carry the catalog id).
+    role_id: str | None = None
+    role_title: str | None = None
+    if profile_role_id:
+        role_id = profile_role_id
+    elif gap and gap[0].get("target_role"):
+        role_title = gap[0]["target_role"]
+    elif milestone:
+        role_id = milestone[0].get("target_role_id") or None
+        role_title = milestone[0].get("target_role") or None
+    if role_id and not role_title:
+        catalog = await asyncio.to_thread(lambda: _rows(
+            db_client.table("target_roles").select("title").eq("id", role_id).limit(1)
+        ))
+        role_title = catalog[0].get("title") if catalog else None
+    target_role = {"id": role_id, "title": role_title} if (role_id or role_title) else None
+
+    has_resume = bool(resume_ids)
+    onboarded = has_resume and bool(profile_role_id or gap or milestone)
+    return {
+        "success": True,
+        "has_resume": has_resume,
+        "target_role": target_role,
+        "onboarded": onboarded,
+    }
+
+
+@router.get("/profile")
+async def get_onboarding_profile(user_id: str = Depends(require_user_id)):
+    """Whether the user is onboarded (returning) — the single source of truth
+    for the sign-in gate. Onboarded = has a resume AND (a saved target role on
+    the profile OR any stored gap analysis OR any roadmap milestones); the
+    last two keep accounts from before the wizard saved the role recognised.
+    """
+    try:
+        return await _onboarding_profile(user_id)
+    except Exception as e:
+        # Fail loudly: an empty answer here would send a returning user into
+        # the wizard. The client shows a retry instead.
+        logger.exception("onboarding profile lookup failed for user %s", user_id)
+        raise HTTPException(status_code=500, detail="Could not load your profile.") from e
 
 
 @router.post("/skills")

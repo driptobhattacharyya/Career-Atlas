@@ -27,6 +27,7 @@ import {
   uploadResume,
   submitManualResume,
   getAllResumes,
+  getOnboardingProfile,
   selectResume,
 } from "@/lib/api";
 import { resolveOnboardingStatus } from "@/lib/onboarding-pipeline";
@@ -229,6 +230,7 @@ export function useUpdateTargetRole() {
         window.localStorage.setItem("careeratlas:selected_role_title", roleTitle);
       }
       qc.invalidateQueries({ queryKey: ["profile-from-resume"] });
+      qc.invalidateQueries({ queryKey: ["onboarding-profile"] });
     },
   });
 }
@@ -411,55 +413,41 @@ export function useStartDeepResearch() {
 
 // ── Onboarding status (returning vs new user) ──────────────────────────────
 
+/** GET /api/parse-resume/profile: has_resume, saved target role, onboarded. */
+export function useOnboardingProfile() {
+  const { user } = useAuth();
+  const enabled = useEnabled();
+  return useQuery({
+    // Prefix shared with ONBOARDING_PROFILE_KEY (pipeline invalidates it).
+    queryKey: ["onboarding-profile", user?.id, disableAuth],
+    enabled,
+    queryFn: getOnboardingProfile,
+  });
+}
+
 /**
- * Whether the signed-in user has already been onboarded, decided from server
- * state (latest resume + saved gap analysis / roadmap) so it holds across
- * devices. See resolveOnboardingStatus for the exact rule.
+ * Whether the signed-in user has already been onboarded. The backend decides
+ * (see resolveOnboardingStatus), so the answer is the same on every device;
+ * localStorage plays no part in it.
  */
 export function useOnboardingStatus({ pipelineActive }: { pipelineActive: boolean }) {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const enabled = useEnabled();
-  const resume = useLatestResume();
-  const saved = useQuery({
-    // Lives under the "gap-analysis" prefix so gap-analysis invalidations refresh it.
-    queryKey: ["gap-analysis", user?.id, disableAuth, "onboarding-check"],
-    enabled,
-    queryFn: async () => {
-      const [gaps, milestones] = await Promise.all([
-        getGapAnalysis(),
-        listMilestones().catch(() => ({ milestones: [] as MilestoneRow[] })),
-      ]);
-      return {
-        targetRole: (gaps?.target_role as string | null | undefined) ?? null,
-        hasMilestones: (milestones?.milestones?.length ?? 0) > 0,
-      };
-    },
-  });
-
-  const localTargetRole =
-    typeof window !== "undefined"
-      ? window.localStorage.getItem("careeratlas:selected_role_title")
-      : null;
+  const profile = useOnboardingProfile();
 
   const status = resolveOnboardingStatus({
     authLoading,
     signedIn: enabled,
     pipelineActive,
-    serverLoading: enabled && (resume.isPending || saved.isPending),
-    serverError: resume.isError || saved.isError,
-    hasResume: !!resume.data,
-    serverTargetRole: saved.data?.targetRole ?? null,
-    hasMilestones: !!saved.data?.hasMilestones,
-    localTargetRole,
+    serverLoading: enabled && profile.isPending,
+    serverError: profile.isError,
+    serverOnboarded: !!profile.data?.onboarded,
   });
 
   return {
     status,
-    serverTargetRole: saved.data?.targetRole ?? null,
-    refetch: () => {
-      void resume.refetch();
-      void saved.refetch();
-    },
+    targetRole: profile.data?.target_role ?? null,
+    refetch: () => void profile.refetch(),
   };
 }
 

@@ -32,7 +32,6 @@ const RUNNING_HINT: Record<StepId, string> = {
   profile: "Checking your resume and saving your target role.",
   gaps: "Comparing your skills with what the role needs.",
   roadmap: "Researching courses and projects — this can take a couple of minutes.",
-  jobs: "Searching live openings and ranking them by fit.",
 };
 
 function stepHint(id: StepId, st: StepState, steps: Record<StepId, StepState>): string {
@@ -97,7 +96,7 @@ export function PipelineProgressPanel() {
         <p className="flex-1 text-sm">
           <span className="font-medium">Your atlas is ready.</span>{" "}
           <span className="text-muted-foreground">
-            Skill gaps, roadmap and job matches are up to date.
+            Your skill gaps and roadmap are up to date.
           </span>
         </p>
         <Button size="sm" variant="ghost" className="rounded-full" onClick={dismiss}>
@@ -170,7 +169,7 @@ export function PipelineProgressPanel() {
   );
 }
 
-/** Shown on Gaps / Roadmap / Jobs while the pipeline is generating their data. */
+/** Shown on Gaps / Roadmap while the pipeline is generating their data. */
 export function PreparingState({ title, description }: { title: string; description: string }) {
   return (
     <div
