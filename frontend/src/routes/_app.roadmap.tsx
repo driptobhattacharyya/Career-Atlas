@@ -27,6 +27,8 @@ import {
   useProfile,
 } from "@/hooks/queries";
 import { NoProfileView } from "@/components/no-profile-view";
+import { PreparingState } from "@/components/onboarding-progress";
+import { useStepPhase } from "@/context/onboarding-pipeline-context";
 import { ApiError } from "@/lib/api";
 import type { JudgeVerdict, ValidationResult, MilestoneRow, MilestoneStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -70,6 +72,8 @@ function Roadmap() {
   const startMutation = useStartDeepResearch();
   const [busy, setBusy] = useState(false);
   const [gapHint, setGapHint] = useState(false);
+  // The background onboarding pipeline may be generating this roadmap now.
+  const preparing = useStepPhase("roadmap") === "preparing";
 
   const runResearch = async () => {
     if (!roleId) {
@@ -110,7 +114,7 @@ function Roadmap() {
 
   const completed = roadmap.filter((m) => m.status === "completed").length;
   const totalWeeks = roadmap.reduce((sum, m) => sum + (m.estimated_weeks ?? 0), 0);
-  const researching = busy || startMutation.isPending;
+  const researching = busy || startMutation.isPending || preparing;
 
   return (
     <motion.div
@@ -163,7 +167,7 @@ function Roadmap() {
             Run gap analysis for this target role first, then come back here.
           </p>
           <a
-            href="/onboarding"
+            href="/gaps"
             className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-coral px-4 py-2 text-sm font-medium text-coral-foreground hover:bg-coral/90"
           >
             <Wand2 className="h-4 w-4" /> Run gap analysis
@@ -171,7 +175,14 @@ function Roadmap() {
         </div>
       )}
 
-      {roadmap.length === 0 && !gapHint && (
+      {roadmap.length === 0 && preparing && (
+        <PreparingState
+          title="Building your roadmap"
+          description="Deep research is finding courses and projects for your skill gaps. This usually takes a couple of minutes — the plan appears here when it's ready."
+        />
+      )}
+
+      {roadmap.length === 0 && !gapHint && !preparing && (
         <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center">
           <Sparkles className="mx-auto h-8 w-8 text-coral" />
           <p className="mt-3 text-sm text-muted-foreground">

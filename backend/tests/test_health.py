@@ -18,7 +18,8 @@ def test_health_check_status_ok():
 def test_health_check_response_shape():
     response = client.get("/health")
     data = response.json()
-    assert set(data.keys()) == {"status", "environment"}
+    assert set(data.keys()) == {"status", "environment", "llm"}
+    assert "primary" in data["llm"]
     assert data.get("checkpoint_backend") is None
 
 

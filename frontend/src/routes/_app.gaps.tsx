@@ -6,6 +6,8 @@ import { useGapAnalysis, useProfile, useTargetRoles, useRunGapAnalysis } from "@
 import { cn } from "@/lib/utils";
 import { pageStagger, fadeUp, listStagger, fadeUpSm, entrance } from "@/lib/motion";
 import { toast } from "sonner";
+import { PreparingState } from "@/components/onboarding-progress";
+import { useStepPhase } from "@/context/onboarding-pipeline-context";
 
 export const Route = createFileRoute("/_app/gaps")({
   head: () => ({
@@ -29,6 +31,9 @@ function Gaps() {
   const { data: roles = [] } = useTargetRoles();
   const { data: gaps = [], isLoading } = useGapAnalysis();
   const runGap = useRunGapAnalysis();
+  // The background onboarding pipeline may be producing these gaps right now.
+  const preparing = useStepPhase("gaps") === "preparing";
+  const analyzing = runGap.isPending || preparing;
 
   const explainability = (() => {
     if (!isBrowser) return null;
@@ -85,10 +90,10 @@ function Gaps() {
         </div>
         <Button
           onClick={runAnalysis}
-          disabled={runGap.isPending}
+          disabled={analyzing}
           className="rounded-full bg-coral text-coral-foreground hover:bg-coral/90 shadow-warm"
         >
-          {runGap.isPending ? (
+          {analyzing ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing…
             </>
@@ -149,7 +154,13 @@ function Gaps() {
             </div>
           </motion.li>
         ))}
-        {sorted.length === 0 && (
+        {sorted.length === 0 && preparing && (
+          <PreparingState
+            title="Finding your skill gaps"
+            description={`We're comparing your profile with what a ${targetRole} needs. Your ranked gaps will appear here automatically.`}
+          />
+        )}
+        {sorted.length === 0 && !preparing && (
           <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center">
             <Sparkles className="mx-auto h-8 w-8 text-coral" />
             <p className="mt-3 text-sm text-muted-foreground">

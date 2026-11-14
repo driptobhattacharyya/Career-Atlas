@@ -27,8 +27,10 @@ import {
   uploadResume,
   submitManualResume,
   getAllResumes,
+  getOnboardingProfile,
   selectResume,
 } from "@/lib/api";
+import { resolveOnboardingStatus } from "@/lib/onboarding-pipeline";
 
 const disableAuth = (import.meta.env.VITE_DISABLE_AUTH as string | undefined) === "true";
 
@@ -228,6 +230,7 @@ export function useUpdateTargetRole() {
         window.localStorage.setItem("careeratlas:selected_role_title", roleTitle);
       }
       qc.invalidateQueries({ queryKey: ["profile-from-resume"] });
+      qc.invalidateQueries({ queryKey: ["onboarding-profile"] });
     },
   });
 }
@@ -406,6 +409,46 @@ export function useStartDeepResearch() {
       qc.invalidateQueries({ queryKey: ["milestones"] });
     },
   });
+}
+
+// ── Onboarding status (returning vs new user) ──────────────────────────────
+
+/** GET /api/parse-resume/profile: has_resume, saved target role, onboarded. */
+export function useOnboardingProfile() {
+  const { user } = useAuth();
+  const enabled = useEnabled();
+  return useQuery({
+    // Prefix shared with ONBOARDING_PROFILE_KEY (pipeline invalidates it).
+    queryKey: ["onboarding-profile", user?.id, disableAuth],
+    enabled,
+    queryFn: getOnboardingProfile,
+  });
+}
+
+/**
+ * Whether the signed-in user has already been onboarded. The backend decides
+ * (see resolveOnboardingStatus), so the answer is the same on every device;
+ * localStorage plays no part in it.
+ */
+export function useOnboardingStatus({ pipelineActive }: { pipelineActive: boolean }) {
+  const { loading: authLoading } = useAuth();
+  const enabled = useEnabled();
+  const profile = useOnboardingProfile();
+
+  const status = resolveOnboardingStatus({
+    authLoading,
+    signedIn: enabled,
+    pipelineActive,
+    serverLoading: enabled && profile.isPending,
+    serverError: profile.isError,
+    serverOnboarded: !!profile.data?.onboarded,
+  });
+
+  return {
+    status,
+    targetRole: profile.data?.target_role ?? null,
+    refetch: () => void profile.refetch(),
+  };
 }
 
 // ── Tiny session cache (module-scoped) ─────────────────────────────────────

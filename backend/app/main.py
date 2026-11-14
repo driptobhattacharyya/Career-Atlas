@@ -14,6 +14,7 @@ from app.job_hunter.router import router as jobs_router
 from app.deep_researcher.router import router as deep_research_router
 from app.target_roles.router import router as target_roles_router
 from app.github_analysis.router import router as github_router
+from app.utils.llm_factory import describe_llm_routing
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,8 @@ app.include_router(github_router)
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "environment": settings.environment}
+    # "llm" says which provider/model generation uses (no keys, no full URLs).
+    return {"status": "ok", "environment": settings.environment, "llm": describe_llm_routing()}
 
 
 @app.get("/sentry-debug")

@@ -126,6 +126,20 @@ export async function updateTargetRole(targetRoleId: string) {
   );
 }
 
+export interface OnboardingProfile {
+  success: boolean;
+  has_resume: boolean;
+  /** Saved (or, for older accounts, inferred) target role; id is null for a custom role. */
+  target_role: { id: string | null; title: string | null } | null;
+  /** Server's verdict: resume AND (saved role OR stored gap analysis OR roadmap). */
+  onboarded: boolean;
+}
+
+/** Whether the user is a returning (onboarded) user — the sign-in gate's authority. */
+export async function getOnboardingProfile() {
+  return request<OnboardingProfile>("/api/parse-resume/profile", { method: "GET" });
+}
+
 export async function addSkill(skill: string) {
   return request<{ success: boolean; skill: string }>("/api/parse-resume/skills", {
     method: "POST",
